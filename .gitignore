@@ -1,6 +1,7 @@
 .venv-bg/
 .models/
 .runtime/
+.wrangler/
 artifacts/
 node_modules/
 __pycache__/
