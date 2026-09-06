@@ -1,0 +1,621 @@
+const http = require("http");
+const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
+const { spawn } = require("child_process");
+
+const root = __dirname;
+const port = Number(process.env.PORT || 4173);
+const runtimeDir = path.join(root, ".runtime", "background-removal");
+const pythonPath = path.join(root, ".venv-bg", "Scripts", "python.exe");
+const workerPath = path.join(root, "scripts", "background_worker.py");
+const maxUploadBytes = 16 * 1024 * 1024;
+const maxResultBytes = 32 * 1024 * 1024;
+const remoteCutoutTimeoutMs = 120 * 1000;
+const supportedBackgroundImageTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
+let worker = null;
+let workerReady = null;
+let workerBuffer = "";
+const pendingJobs = new Map();
+const contentTypes = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".md": "text/plain; charset=utf-8",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".json": "application/json; charset=utf-8",
+  ".ttf": "font/ttf",
+};
+
+const koreanItemCsvUrl = "https://raw.githubusercontent.com/Ra-Workspace/ffxiv-datamining-ko/master/csv/Item.csv";
+const koreanItemSnapshotPath = path.join(root, "assets", "data", "items-ko.json");
+const xivApiBaseUrl = "https://v2.xivapi.com/api";
+const itemSearchCache = new Map();
+const itemSearchInflight = new Map();
+let koreanItemIndexPromise = null;
+const itemSearchCacheTtlMs = 5 * 60 * 1000;
+const itemSearchStaleTtlMs = 24 * 60 * 60 * 1000;
+const itemSearchCacheHeaders = {
+  "Cache-Control": "public, max-age=0, s-maxage=300, stale-while-revalidate=86400",
+};
+const itemSlotByEquipSlotCategory = {
+  1: "weapon",
+  2: "weapon",
+  3: "head",
+  4: "body",
+  5: "hands",
+  7: "legs",
+  8: "feet",
+  13: "weapon",
+};
+const supportedItemSlots = new Set(["head", "body", "hands", "legs", "feet", "weapon"]);
+const itemSlotLabels = {
+  head: { ko: "머리", en: "Head", ja: "頭" },
+  body: { ko: "몸통", en: "Body", ja: "胴" },
+  hands: { ko: "손", en: "Hands", ja: "手" },
+  legs: { ko: "다리", en: "Legs", ja: "脚" },
+  feet: { ko: "발", en: "Feet", ja: "足" },
+  weapon: { ko: "무기", en: "Weapon", ja: "武器" },
+};
+
+function sendJson(response, statusCode, payload, headers = {}) {
+  const body = JSON.stringify(payload);
+  response.writeHead(statusCode, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store",
+    ...headers,
+  });
+  response.end(body);
+}
+
+function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timeout));
+}
+
+function normaliseItemSearchText(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .toLocaleLowerCase("ko-KR")
+    .replace(/[\s\p{P}\p{S}]+/gu, "");
+}
+
+function parseCsvLine(line) {
+  const fields = [];
+  let field = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    if (character === '"') {
+      if (quoted && line[index + 1] === '"') {
+        field += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (character === "," && !quoted) {
+      fields.push(field);
+      field = "";
+    } else {
+      field += character;
+    }
+  }
+  fields.push(field.replace(/\r$/, ""));
+  return fields;
+}
+
+function buildIconUrl(iconId) {
+  const numericIcon = Number(iconId);
+  if (!Number.isInteger(numericIcon) || numericIcon <= 0) return "";
+  const icon = String(numericIcon).padStart(6, "0");
+  const bucket = String(Math.floor(numericIcon / 1000) * 1000).padStart(6, "0");
+  return `https://xivapi.com/i/${bucket}/${icon}.png`;
+}
+
+function itemMeta(slot, levelItem, language = "ko") {
+  const label = itemSlotLabels[slot]?.[language] || itemSlotLabels[slot]?.ko || "장비";
+  const level = Number(levelItem);
+  return Number.isFinite(level) && level > 0 ? `${label} · i${level}` : label;
+}
+
+function parseKoreanItemIndex(csv) {
+  const rows = csv.split(/\r?\n/);
+  const index = [];
+  for (let rowIndex = 3; rowIndex < rows.length; rowIndex += 1) {
+    if (!rows[rowIndex]) continue;
+    const fields = parseCsvLine(rows[rowIndex]);
+    const id = Number(fields[0]);
+    const name = String(fields[10] || "").trim();
+    const slot = itemSlotByEquipSlotCategory[Number(fields[18])];
+    if (!Number.isInteger(id) || id <= 0 || !name || !slot) continue;
+    index.push({
+      id: String(id),
+      slot,
+      icon: "",
+      iconUrl: buildIconUrl(fields[11]),
+      names: { ko: name },
+      meta: { ko: itemMeta(slot, fields[12], "ko") },
+      source: "ffxiv-ko-datamining",
+      searchName: normaliseItemSearchText(name),
+    });
+  }
+  return index;
+}
+
+async function loadKoreanItemIndex() {
+  if (koreanItemIndexPromise) return koreanItemIndexPromise;
+  if (fs.existsSync(koreanItemSnapshotPath)) {
+    koreanItemIndexPromise = Promise.resolve().then(() => readKoreanItemSnapshot()).catch((error) => {
+      koreanItemIndexPromise = null;
+      throw error;
+    });
+    return koreanItemIndexPromise;
+  }
+  koreanItemIndexPromise = fetchWithTimeout(koreanItemCsvUrl, {
+    headers: { "User-Agent": "glamour-atelier-item-search" },
+  }, 15000).then(async (result) => {
+    if (!result.ok) throw new Error(`한국어 장비 데이터 응답 오류 (${result.status})`);
+    return parseKoreanItemIndex(await result.text());
+  }).catch((error) => {
+    koreanItemIndexPromise = null;
+    throw error;
+  });
+  return koreanItemIndexPromise;
+}
+
+function readKoreanItemSnapshot() {
+  const records = JSON.parse(fs.readFileSync(koreanItemSnapshotPath, "utf8"));
+  if (!Array.isArray(records) || !records.length) throw new Error("한국어 아이템 snapshot이 비어 있습니다.");
+  const index = records.map((record) => {
+    const name = String(record?.names?.ko || "").trim();
+    const itemLevel = Number(record?.itemLevel);
+    if (!record?.id || !name || !supportedItemSlots.has(record.slot)) return null;
+    return {
+      ...record,
+      id: String(record.id),
+      slot: record.slot,
+      icon: "",
+      meta: { ko: itemMeta(record.slot, itemLevel, "ko") },
+      source: "ffxiv-ko-snapshot",
+      searchName: normaliseItemSearchText(name),
+    };
+  }).filter(Boolean);
+  if (!index.length) throw new Error("유효한 한국어 아이템 snapshot 레코드가 없습니다.");
+  return index;
+}
+
+function publicItemRecord(item) {
+  const { searchName, ...record } = item;
+  return record;
+}
+
+function scoreKoreanItem(item, query, queryNormalized) {
+  if (/^\d+$/.test(query) && item.id === query) return 1000;
+  if (!queryNormalized) return 0;
+  if (item.searchName === queryNormalized) return 900;
+  if (item.searchName.startsWith(queryNormalized)) return 700;
+  if (item.searchName.includes(queryNormalized)) return 500;
+  return -1;
+}
+
+async function searchKoreanItems(query, slot) {
+  const index = await loadKoreanItemIndex();
+  const queryNormalized = normaliseItemSearchText(query);
+  return index
+    .filter((item) => (!slot || item.slot === slot) && scoreKoreanItem(item, query, queryNormalized) >= 0)
+    .sort((left, right) => scoreKoreanItem(right, query, queryNormalized) - scoreKoreanItem(left, query, queryNormalized))
+    .slice(0, 8)
+    .map(publicItemRecord);
+}
+
+function inferItemSlot(fields) {
+  const equipSlotFields = fields?.EquipSlotCategory?.fields || {};
+  if (Number(equipSlotFields.Head) > 0) return "head";
+  if (Number(equipSlotFields.Body) > 0) return "body";
+  if (Number(equipSlotFields.Gloves) > 0) return "hands";
+  if (Number(equipSlotFields.Legs) > 0) return "legs";
+  if (Number(equipSlotFields.Feet) > 0) return "feet";
+  if (Number(equipSlotFields.MainHand) > 0 || Number(equipSlotFields.OffHand) > 0) return "weapon";
+  return "";
+}
+
+function normaliseXivItem(result, language) {
+  const fields = result?.fields || {};
+  const name = String(fields.Name || "").trim();
+  const id = String(result?.row_id || "");
+  const slot = inferItemSlot(fields);
+  if (!id || !name || !slot) return null;
+  const levelItem = fields.LevelItem?.value ?? fields.LevelItem;
+  const names = { [language]: name };
+  const meta = { [language]: itemMeta(slot, levelItem, language) };
+  return {
+    id,
+    slot,
+    icon: "",
+    iconUrl: buildIconUrl(fields.Icon?.id),
+    names,
+    meta,
+    source: "xivapi",
+  };
+}
+
+async function fetchXivItem(id, language) {
+  const url = new URL(`${xivApiBaseUrl}/sheet/Item/${encodeURIComponent(id)}`);
+  url.searchParams.set("fields", "Name,Icon,LevelItem,EquipSlotCategory");
+  url.searchParams.set("language", language);
+  const result = await fetchWithTimeout(url, { headers: { "User-Agent": "glamour-atelier-item-search" } });
+  if (!result.ok) throw new Error(`XIVAPI 아이템 조회 오류 (${result.status})`);
+  return normaliseXivItem(await result.json(), language);
+}
+
+async function searchXivItems(query, language, slot) {
+  if (/^\d+$/.test(query)) {
+    const item = await fetchXivItem(query, language);
+    return item && (!slot || item.slot === slot) ? [item] : [];
+  }
+  const safeQuery = query.replace(/["\\]/g, "\\$&");
+  const url = new URL(`${xivApiBaseUrl}/search`);
+  url.searchParams.set("sheets", "Item");
+  url.searchParams.set("fields", "Name,Icon,LevelItem,EquipSlotCategory");
+  url.searchParams.set("query", `Name~"${safeQuery}"`);
+  url.searchParams.set("language", language);
+  url.searchParams.set("limit", "24");
+  const result = await fetchWithTimeout(url, { headers: { "User-Agent": "glamour-atelier-item-search" } });
+  if (!result.ok) throw new Error(`XIVAPI 검색 오류 (${result.status})`);
+  const payload = await result.json();
+  return (payload.results || [])
+    .map((entry) => normaliseXivItem(entry, language))
+    .filter((item) => item && (!slot || item.slot === slot))
+    .slice(0, 8);
+}
+
+function resolveItemSearchLanguage(query, requestedLanguage) {
+  if (/^\d+$/.test(query)) return requestedLanguage;
+  if (/[\uAC00-\uD7A3]/u.test(query)) return "ko";
+  if (/[\u3040-\u30FF]/u.test(query)) return "ja";
+  return requestedLanguage === "ja" ? "ja" : "en";
+}
+
+async function handleItemSearch(request, response) {
+  const requestUrl = new URL(request.url || "/", `http://${request.headers.host || "localhost"}`);
+  const query = (requestUrl.searchParams.get("q") || "").trim().slice(0, 80);
+  const slot = requestUrl.searchParams.get("slot") || "";
+  const requestedLanguage = ["ko", "en", "ja"].includes(requestUrl.searchParams.get("language"))
+    ? requestUrl.searchParams.get("language")
+    : "ko";
+  if (!query || (!/^\d+$/.test(query) && query.length < 2)) {
+    sendJson(response, 200, { results: [], language: requestedLanguage, source: "empty" });
+    return;
+  }
+  const language = resolveItemSearchLanguage(query, requestedLanguage);
+  const cacheKey = `${language}:${slot}:${normaliseItemSearchText(query)}`;
+  const cached = itemSearchCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    sendJson(response, 200, cached.payload, {
+      ...itemSearchCacheHeaders,
+      "X-Item-Search-Cache": "HIT",
+      "X-Item-Search-Source": cached.payload.source,
+    });
+    return;
+  }
+  let pending = itemSearchInflight.get(cacheKey);
+  if (!pending) {
+    pending = (async () => {
+      const results = language === "ko"
+        ? await searchKoreanItems(query, slot)
+        : await searchXivItems(query, language, slot);
+      const payload = {
+        results,
+        language,
+        source: language === "ko" ? "ffxiv-ko-datamining" : "xivapi",
+      };
+      const expiresAt = Date.now() + itemSearchCacheTtlMs;
+      itemSearchCache.set(cacheKey, {
+        expiresAt,
+        staleUntil: expiresAt + itemSearchStaleTtlMs,
+        payload,
+      });
+      if (itemSearchCache.size > 200) itemSearchCache.delete(itemSearchCache.keys().next().value);
+      return payload;
+    })();
+    itemSearchInflight.set(cacheKey, pending);
+  }
+  try {
+    const payload = await pending;
+    sendJson(response, 200, payload, {
+      ...itemSearchCacheHeaders,
+      "X-Item-Search-Cache": "MISS",
+      "X-Item-Search-Source": payload.source,
+    });
+  } catch (error) {
+    const stale = itemSearchCache.get(cacheKey);
+    if (stale && stale.staleUntil > Date.now()) {
+      sendJson(response, 200, { ...stale.payload, source: "stale-cache" }, {
+        ...itemSearchCacheHeaders,
+        "X-Item-Search-Cache": "STALE",
+        "X-Item-Search-Source": stale.payload.source,
+      });
+      return;
+    }
+    console.error(`[item-search] ${error.message}`);
+    sendJson(response, 502, {
+      results: [],
+      language,
+      source: "error",
+      error: "아이템 검색 연결에 실패했습니다.",
+    });
+  } finally {
+    if (itemSearchInflight.get(cacheKey) === pending) itemSearchInflight.delete(cacheKey);
+  }
+}
+
+function failPendingJobs(message) {
+  pendingJobs.forEach(({ reject }) => reject(new Error(message)));
+  pendingJobs.clear();
+}
+
+function ensureWorker() {
+  if (worker && workerReady) return workerReady;
+  if (!fs.existsSync(pythonPath)) {
+    return Promise.reject(new Error("배경 제거 환경이 없습니다. README의 설치 안내를 확인해주세요."));
+  }
+  fs.mkdirSync(runtimeDir, { recursive: true });
+  worker = spawn(pythonPath, [workerPath], {
+    cwd: root,
+    env: { ...process.env, U2NET_HOME: path.join(root, ".models", "rembg") },
+    stdio: ["pipe", "pipe", "pipe"],
+    windowsHide: true,
+  });
+  workerReady = new Promise((resolve, reject) => {
+    const readyTimeout = setTimeout(() => reject(new Error("배경 제거 모델 준비 시간이 초과되었습니다.")), 120000);
+    worker.stdout.on("data", (chunk) => {
+      workerBuffer += chunk.toString("utf8");
+      const lines = workerBuffer.split(/\r?\n/);
+      workerBuffer = lines.pop() || "";
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const message = JSON.parse(line);
+          if (message.type === "ready") {
+            clearTimeout(readyTimeout);
+            resolve();
+            continue;
+          }
+          if (message.type === "fatal") {
+            clearTimeout(readyTimeout);
+            reject(new Error(message.error));
+            continue;
+          }
+          const job = pendingJobs.get(message.id);
+          if (!job) continue;
+          pendingJobs.delete(message.id);
+          message.type === "result" ? job.resolve(message.output) : job.reject(new Error(message.error));
+        } catch {
+          // Ignore non-protocol output from native dependencies.
+        }
+      }
+    });
+  });
+  worker.stderr.on("data", (chunk) => process.stderr.write(`[background-worker] ${chunk}`));
+  worker.on("exit", (code) => {
+    failPendingJobs(`배경 제거 프로세스가 종료되었습니다 (${code ?? "unknown"}).`);
+    worker = null;
+    workerReady = null;
+    workerBuffer = "";
+  });
+  worker.on("error", (error) => {
+    failPendingJobs(error.message);
+    worker = null;
+    workerReady = null;
+  });
+  return workerReady;
+}
+
+async function removeBackground(inputPath, outputPath) {
+  await ensureWorker();
+  const id = crypto.randomUUID();
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      pendingJobs.delete(id);
+      reject(new Error("배경 제거 시간이 초과되었습니다."));
+    }, 180000);
+    pendingJobs.set(id, {
+      resolve: (value) => { clearTimeout(timeout); resolve(value); },
+      reject: (error) => { clearTimeout(timeout); reject(error); },
+    });
+    worker.stdin.write(`${JSON.stringify({ id, input: inputPath, output: outputPath })}\n`);
+  });
+}
+
+function readRequestBody(request) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    request.on("data", (chunk) => {
+      size += chunk.length;
+      if (size > maxUploadBytes) {
+        reject(new Error("16MB 이하 이미지를 사용해주세요."));
+        request.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    request.on("end", () => resolve(Buffer.concat(chunks)));
+    request.on("error", reject);
+  });
+}
+
+async function handleBackgroundRemoval(request, response) {
+  if (String(process.env.CUTOUT_SERVICE_URL || "").trim()) {
+    await handleRemoteBackgroundRemoval(request, response);
+    return;
+  }
+  const contentType = request.headers["content-type"] || "";
+  if (!contentType.startsWith("image/")) {
+    response.writeHead(415, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({ error: "이미지 파일만 처리할 수 있습니다." }));
+    return;
+  }
+  const contentLength = Number(request.headers["content-length"]);
+  if (Number.isFinite(contentLength) && contentLength > maxUploadBytes) {
+    sendJson(response, 413, { error: "16MB 이하 이미지를 사용해주세요." });
+    request.resume();
+    return;
+  }
+  const id = crypto.randomUUID();
+  const inputPath = path.join(runtimeDir, `${id}.input`);
+  const outputPath = path.join(runtimeDir, `${id}.png`);
+  try {
+    fs.mkdirSync(runtimeDir, { recursive: true });
+    fs.writeFileSync(inputPath, await readRequestBody(request));
+    await removeBackground(inputPath, outputPath);
+    const output = fs.readFileSync(outputPath);
+    response.writeHead(200, {
+      "Content-Type": "image/png",
+      "Content-Length": output.length,
+      "Cache-Control": "no-store",
+      "X-Background-Model": "birefnet-general",
+    });
+    response.end(output);
+  } catch (error) {
+    if (!response.headersSent) {
+      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ error: error.message || "배경 제거에 실패했습니다." }));
+    }
+  } finally {
+    fs.rmSync(inputPath, { force: true });
+    fs.rmSync(outputPath, { force: true });
+  }
+}
+
+async function handleRemoteBackgroundRemoval(request, response) {
+  const contentType = String(request.headers["content-type"] || "")
+    .split(";", 1)[0]
+    .trim()
+    .toLowerCase();
+  if (!supportedBackgroundImageTypes.has(contentType)) {
+    sendJson(response, 415, { error: "PNG, JPEG, WEBP 이미지만 처리할 수 있습니다." });
+    request.resume();
+    return;
+  }
+  const contentLength = Number(request.headers["content-length"]);
+  if (Number.isFinite(contentLength) && contentLength > maxUploadBytes) {
+    sendJson(response, 413, { error: "16MB 이하 이미지를 사용해주세요." });
+    request.resume();
+    return;
+  }
+  const serviceUrl = resolveRemoteCutoutUrl(process.env.CUTOUT_SERVICE_URL);
+  if (!serviceUrl) {
+    sendJson(response, 503, { error: "배경 제거 서버 설정을 확인해주세요." });
+    request.resume();
+    return;
+  }
+  let body;
+  try {
+    body = await readRequestBody(request);
+  } catch (error) {
+    sendJson(response, 400, { error: error.message || "이미지를 읽지 못했습니다." });
+    return;
+  }
+  const headers = {
+    "Content-Type": contentType,
+    Accept: "image/png",
+    "X-Client-Request-ID": crypto.randomUUID(),
+  };
+  const token = String(process.env.CUTOUT_SERVICE_TOKEN || "").trim();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  let upstream;
+  try {
+    upstream = await fetchWithTimeout(serviceUrl, {
+      method: "POST",
+      headers,
+      body,
+    }, remoteCutoutTimeoutMs);
+  } catch (error) {
+    const message = error?.name === "AbortError"
+      ? "배경 제거 시간이 초과되었습니다. 잠시 후 다시 시도해주세요."
+      : "배경 제거 서버에 연결할 수 없습니다.";
+    sendJson(response, 504, { error: message });
+    return;
+  }
+  if (!upstream.ok) {
+    sendJson(response, 502, {
+      error: upstream.status >= 500
+        ? "배경 제거 서버가 잠시 바쁩니다. 다시 시도해주세요."
+        : "이미지를 처리하지 못했습니다.",
+    });
+    return;
+  }
+  const resultType = String(upstream.headers.get("content-type") || "")
+    .split(";", 1)[0]
+    .trim()
+    .toLowerCase();
+  if (!resultType.startsWith("image/")) {
+    sendJson(response, 502, { error: "배경 제거 결과를 확인할 수 없습니다." });
+    return;
+  }
+  const output = Buffer.from(await upstream.arrayBuffer());
+  if (output.length > maxResultBytes) {
+    sendJson(response, 502, { error: "배경 제거 결과가 너무 큽니다." });
+    return;
+  }
+  response.writeHead(200, {
+    "Content-Type": resultType,
+    "Content-Length": output.length,
+    "Cache-Control": "no-store",
+    "X-Background-Mode": "gpu",
+  });
+  response.end(output);
+}
+
+function resolveRemoteCutoutUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    const localHost = ["localhost", "127.0.0.1", "::1"].includes(url.hostname);
+    if (url.protocol !== "https:" && !(url.protocol === "http:" && localHost)) return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+const server = http.createServer(async (request, response) => {
+  if (request.method === "GET" && (request.url || "").split("?")[0] === "/api/items/search") {
+    await handleItemSearch(request, response);
+    return;
+  }
+  if (request.method === "POST" && (request.url || "").split("?")[0] === "/api/background-removal") {
+    await handleBackgroundRemoval(request, response);
+    return;
+  }
+  let requestPath;
+  try { requestPath = decodeURIComponent((request.url || "/").split("?")[0]); }
+  catch { sendJson(response, 400, { error: "올바르지 않은 요청 주소입니다." }); return; }
+  const relativePath = requestPath === "/" ? "index.html" : requestPath.replace(/^\/+/, "");
+  const publicFile = ["index.html", "app.js", "styles.css", "models/look-editor.js", "models/look-book.js", "models/image-assets.js", "models/item-search.js", "models/card-png.js", "models/editor-navigation.js", "models/background-presets.js", "models/title-typography.js"].includes(relativePath)
+    || /^(styles\/[^/]+\.css|assets\/(data|fonts|icons)\/[^/]+\.(json|ttf|woff2?|svg))$/.test(relativePath);
+  const filePath = path.resolve(root, relativePath);
+  const isInsideRoot = filePath === root || filePath.startsWith(`${root}${path.sep}`);
+
+  if (!publicFile || !isInsideRoot || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+    response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+    response.end("Not found");
+    return;
+  }
+
+  const extension = path.extname(filePath).toLowerCase();
+  response.writeHead(200, {
+    "Content-Type": contentTypes[extension] || "application/octet-stream",
+    "Cache-Control": relativePath.startsWith("assets/") ? "public, max-age=3600" : "no-cache",
+  });
+  response.end(fs.readFileSync(filePath));
+});
+
+server.listen(port, process.env.HOST || "127.0.0.1", () => {
+  console.log(`Glamour Atelier running at http://localhost:${port}`);
+});

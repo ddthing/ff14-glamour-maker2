@@ -1,0 +1,110 @@
+const assert = require("node:assert/strict");
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
+
+const baseUrl = process.env.TEST_BASE_URL || "http://localhost:4173";
+
+async function mobileLayout(page) {
+  return page.evaluate(() => {
+    const search = document.querySelector("#lookSearchField");
+    const input = document.querySelector("#lookSearch");
+    const toggle = document.querySelector("#mobileLookSearchToggle");
+    const rail = document.querySelector(".rail");
+    const canvasHeading = document.querySelector(".canvas-heading");
+    const searchRect = search?.getBoundingClientRect();
+    const inputRect = input?.getBoundingClientRect();
+    const railRect = rail?.getBoundingClientRect();
+    const canvasHeadingRect = canvasHeading?.getBoundingClientRect();
+    return {
+      width: document.documentElement.scrollWidth,
+      viewportWidth: window.innerWidth,
+      searchVisible: Boolean(searchRect && searchRect.width > 0 && searchRect.height > 0),
+      searchRect: searchRect ? { left: searchRect.left, right: searchRect.right, top: searchRect.top, bottom: searchRect.bottom } : null,
+      inputRect: inputRect ? { left: inputRect.left, right: inputRect.right, top: inputRect.top, bottom: inputRect.bottom } : null,
+      canvasTop: canvasHeadingRect?.top ?? null,
+      toggleExpanded: toggle?.getAttribute("aria-expanded"),
+      activeId: document.activeElement?.id || "",
+      railTop: railRect?.top ?? null,
+    };
+  });
+}
+
+(async () => {
+  const browser = await chromium.launch({ headless: true, channel: "msedge" });
+  try {
+    const page = await browser.newPage({ viewport: { width: 320, height: 900 } });
+    page.setDefaultTimeout(10000);
+    page.setDefaultNavigationTimeout(30000);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => localStorage.clear());
+    await page.goto(baseUrl);
+    await page.waitForSelector("#canvasBoard");
+
+    // LOOK BOOK is intentionally collapsed on first visit. Open the rail
+    // surface before checking its touch search affordance.
+    await page.locator("#libraryToggleButton").click();
+    await page.waitForFunction(() => document.querySelector("#libraryToggleButton")?.getAttribute("aria-expanded") === "true");
+    const initial = await mobileLayout(page);
+    assert.equal(await page.locator("#mobileLookSearchToggle").isVisible(), true, "mobile search toggle is visible");
+    assert.equal(initial.searchVisible, false, "mobile look search starts collapsed");
+    assert.equal(initial.width, initial.viewportWidth, `mobile page has horizontal overflow: ${JSON.stringify(initial)}`);
+
+    await page.locator("#mobileLookSearchToggle").click();
+    await page.waitForFunction(() => document.activeElement?.id === "lookSearch");
+    await page.waitForFunction(() => {
+      const search = document.querySelector("#lookSearchField")?.getBoundingClientRect();
+      const canvas = document.querySelector(".canvas-heading")?.getBoundingClientRect();
+      return search && canvas && search.bottom <= canvas.top + 1;
+    });
+    const opened = await mobileLayout(page);
+    assert.equal(opened.toggleExpanded, "true", "mobile search toggle exposes its expanded state");
+    assert.equal(opened.searchVisible, true, "mobile look search opens as a visible field");
+    assert.equal(opened.activeId, "lookSearch", "opening mobile look search moves focus into the field");
+    assert.ok(opened.searchRect.left >= 0 && opened.searchRect.right <= opened.viewportWidth, "mobile look search stays within the viewport");
+    assert.ok(opened.canvasTop === null || opened.searchRect.bottom <= opened.canvasTop + 1, `mobile look search covers the canvas: ${JSON.stringify(opened)}`);
+
+    await page.locator("#lookSearch").fill("새로운");
+    assert.equal(await page.locator(".look-list-item:not([hidden])").count(), 1, "mobile look search filters the list");
+    await page.keyboard.press("Escape");
+    const escaped = await mobileLayout(page);
+    assert.equal(escaped.searchVisible, false, "Escape closes mobile look search");
+    assert.equal(escaped.activeId, "mobileLookSearchToggle", "Escape returns focus to the search trigger");
+
+    await page.keyboard.press("Control+K");
+    await page.waitForFunction(() => document.activeElement?.id === "lookSearch");
+    assert.equal((await mobileLayout(page)).searchVisible, true, "Ctrl+K opens the mobile look search");
+    await page.mouse.click(6, 360);
+    const outside = await mobileLayout(page);
+    assert.equal(outside.searchVisible, false, "outside click closes mobile look search");
+
+    await page.locator("#itemsTab").click();
+    await page.waitForTimeout(200);
+    const itemSearch = await page.locator("#itemSearch").evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      const railRect = document.querySelector(".rail").getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, railTop: railRect.top, visible: rect.width > 0 && rect.height > 0 };
+    });
+    assert.equal(itemSearch.visible, true, "equipment search is visible after panel switch");
+    assert.ok(itemSearch.bottom <= itemSearch.railTop - 12, `equipment search is covered by the mobile rail: ${JSON.stringify(itemSearch)}`);
+
+    await page.locator("#styleTab").click();
+    await page.locator('[data-cast-count="3"]').click();
+    await page.locator("#multiCardControls").scrollIntoViewIfNeeded();
+    assert.equal(await page.locator("#multiCardControls").isVisible(), true, "lineup controls are visible on mobile");
+    assert.equal(await page.locator('button[data-info-mode="fade"]').getAttribute("aria-pressed"), "true");
+    assert.equal(await page.locator('button[data-info-mode="silhouette"]').isDisabled(), true, "silhouette stays disabled before cutouts");
+    assert.match(await page.locator("#infoModeHint").textContent(), /모든 캐릭터의 배경 제거/);
+
+    await page.locator("#resetButton").click();
+    await page.waitForFunction(() => document.activeElement?.id === "resetStylesButton");
+    await page.keyboard.press("Escape");
+    assert.equal(await page.evaluate(() => document.activeElement?.id), "resetButton", "reset menu Escape restores trigger focus");
+
+    await page.screenshot({ path: "artifacts/ui-mobile-a11y-flow-after.png", fullPage: false });
+    console.log("PASS: mobile search, panel switching, lineup controls, rail clearance, and reset focus are keyboard and touch discoverable.");
+  } finally {
+    await browser.close();
+  }
+})().catch((error) => {
+  console.error(error.stack || error);
+  process.exitCode = 1;
+});

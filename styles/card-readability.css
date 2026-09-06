@@ -1,0 +1,543 @@
+/* Keep the editorial title slot stable while the glyph shape changes. The
+   full draft is available in the copy editor; the exported card keeps a
+   compact title slot so it never pushes the subject or supporting copy. */
+.canvas-board {
+  --card-title-line-slot: clamp(30px, 7.4cqw, 64px);
+  --card-subtitle-line-slot: clamp(12px, 2.1cqw, 22px);
+  --card-title-gap: clamp(3px, .7cqw, 8px);
+}
+
+.canvas-board .board-editorial-header .board-title-block {
+  display: grid;
+  grid-template-rows: var(--card-title-line-slot) var(--card-subtitle-line-slot);
+  row-gap: var(--card-title-gap);
+  height: calc(var(--card-title-line-slot) + var(--card-subtitle-line-slot) + var(--card-title-gap));
+  min-height: 0 !important;
+  align-content: start;
+}
+
+.canvas-board .board-editorial-header .board-title-block::after {
+  display: none;
+}
+
+.canvas-board .board-editorial-header .board-title-block > strong {
+  max-width: 100%;
+  height: var(--card-title-line-slot);
+  min-height: 0;
+  overflow: hidden;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A very narrow card may still need more than the readable one-line minimum.
+   Let that title wrap inside the local header instead of cutting glyphs at
+   the right edge. The fit script marks this fallback after measuring the
+   active display font. */
+.canvas-board .board-editorial-header .board-title-block:has(> strong[data-title-fit="wrap"]) {
+  grid-template-rows: auto auto;
+  height: auto;
+}
+
+.canvas-board .board-editorial-header .board-title-block > strong[data-title-fit="wrap"] {
+  height: auto;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.canvas-board .board-editorial-header .caption-description {
+  height: var(--card-subtitle-line-slot);
+  min-height: 0;
+  margin-top: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis;
+  white-space: nowrap !important;
+}
+
+/* Direct editing should never hide the draft behind the export slot. The
+   compact one-line treatment returns on blur, while focus temporarily lets
+   the title block grow and wraps the complete value inside the card. */
+.canvas-board .board-editorial-header .board-title-block:has(> [contenteditable="true"]:focus) {
+  grid-template-rows: auto auto;
+  height: auto;
+  min-height: 0 !important;
+}
+
+.canvas-board .board-editorial-header .board-title-block > strong[contenteditable="true"]:focus,
+.canvas-board .board-editorial-header .caption-description[contenteditable="true"]:focus {
+  height: auto;
+  min-height: 0;
+  max-width: 100%;
+  overflow: visible !important;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal !important;
+  word-break: break-word;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+/* Readability is never borrowed from the character beneath the copy. */
+.canvas-board[data-style="quiet-paper"] .board-gear-tiles .board-gear-item,
+.canvas-board[data-style="soft-pixel"] .board-gear-tiles .board-gear-item {
+  background: rgb(250 248 244 / .985);
+}
+
+.canvas-board[data-style="blue-bitmap"] .board-gear-tiles .board-gear-item {
+  background: rgb(235 247 248 / .985);
+}
+
+.canvas-board[data-style="scrapbook-pop"] .board-gear-tiles .board-gear-item {
+  background: rgb(255 247 235 / .985);
+}
+
+/* The legacy card grid has a more specific display rule. Reassert the actual
+   information-card contract here so copy starts on one predictable inset. */
+.canvas-board .board-gear-tiles .gear-tile-copy,
+.canvas-board[data-ratio="portrait"][data-cast="1"] .board-gear-tiles .gear-tile-copy {
+  display: flex !important;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  text-align: start;
+}
+
+/* A larger working canvas improves direct manipulation without changing the
+   2160 x 2700 export contract. */
+.canvas-board[data-ratio="portrait"] {
+  width: min(100%, 760px);
+  max-width: 760px;
+}
+
+body.canvas-focus-mode .canvas-board[data-ratio="portrait"] {
+  width: min(100%, 840px);
+  max-width: 840px;
+}
+
+.canvas-board[data-ratio="portrait"][data-cast="1"] .board-gear-item {
+  width: 35%;
+  height: 9.5%;
+}
+
+/* Two-person cards keep each outfit attached to the character it describes.
+   Five compact notes per side are easier to scan than one mixed sequence. */
+.canvas-board[data-cast="2"] .portrait-wrap {
+  inset: 20% 22% 3% !important;
+}
+
+.canvas-board[data-cast="2"] .board-gear-list {
+  inset: 0 !important;
+  display: block !important;
+  pointer-events: none;
+}
+
+.canvas-board[data-cast="2"] .board-gear-rail {
+  position: absolute;
+  top: 23%;
+  bottom: 4%;
+  display: grid;
+  width: 22%;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 5px;
+  pointer-events: auto;
+}
+
+.canvas-board[data-cast="2"] .board-gear-rail--left {
+  left: 2.5%;
+}
+
+.canvas-board[data-cast="2"] .board-gear-rail--right {
+  right: 2.5%;
+}
+
+.canvas-board[data-cast="2"] .board-gear-rail-items {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.canvas-board[data-cast="2"] .board-gear-rail .board-gear-item {
+  position: static;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  align-self: stretch;
+}
+
+.canvas-board[data-cast="2"] .board-gear-rail .board-gear-item:nth-child(n) {
+  grid-column: 1 !important;
+  grid-row: auto !important;
+  justify-self: stretch;
+  width: auto !important;
+}
+
+.canvas-board[data-cast="2"] .board-gear-rail .gear-tile-copy {
+  padding: 8% 9%;
+}
+
+.canvas-board[data-cast="2"] .board-gear-rail .gear-slot-label {
+  font-size: clamp(6px, .7cqw, 9px);
+}
+
+.canvas-board[data-cast="2"] .board-gear-rail .gear-tile-copy strong {
+  font-size: clamp(7px, .88cqw, 11px);
+}
+
+.canvas-board[data-cast="2"] .board-gear-rail .gear-item-secondary {
+  font-size: clamp(5px, .58cqw, 8px);
+}
+
+/* Full-frame screenshots have uncontrolled local contrast. Protect only the
+   overlaid item copy with a soft paper halo; there is no opaque panel and the
+   photograph remains the dominant surface. Mixed source cards use the same
+   treatment so a single cutout cannot make the lineup visually inconsistent. */
+.canvas-board[data-source-mode="original"][data-info="true"] .multi-info-column,
+.canvas-board[data-source-mode="mixed"][data-info="true"] .multi-info-column {
+  position: relative;
+  isolation: isolate;
+}
+
+.canvas-board[data-source-mode="original"][data-info="true"] .multi-info-column::before,
+.canvas-board[data-source-mode="mixed"][data-info="true"] .multi-info-column::before {
+  position: absolute;
+  inset: 18% 4% 16%;
+  z-index: -1;
+  border-radius: 999px;
+  background: radial-gradient(
+    ellipse,
+    color-mix(in srgb, var(--recipe-panel, rgb(255 255 255 / .86)) 74%, transparent) 0%,
+    color-mix(in srgb, var(--recipe-panel, rgb(255 255 255 / .86)) 42%, transparent) 46%,
+    transparent 76%
+  );
+  content: "";
+  filter: blur(8px);
+  opacity: .76;
+  pointer-events: none;
+}
+
+.portrait-wrap {
+  cursor: grab;
+  touch-action: none;
+}
+
+.character-empty-placeholder {
+  display: grid;
+  width: min(68%, 250px);
+  min-height: 170px;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+  padding: 20px;
+  border: 1px dashed color-mix(in oklch, var(--recipe-ink, var(--foreground)) 32%, transparent);
+  border-radius: var(--radius);
+  color: var(--recipe-ink, var(--foreground));
+  background: color-mix(in oklch, var(--recipe-panel, var(--card)) 72%, transparent);
+  text-align: center;
+}
+
+.character-empty-placeholder strong {
+  font-family: var(--sans);
+  font-size: clamp(12px, 1.8cqw, 18px);
+  font-weight: 700;
+}
+
+.character-empty-placeholder small {
+  color: var(--recipe-muted, var(--muted-foreground));
+  font-family: var(--sans);
+  font-size: clamp(9px, 1.1cqw, 12px);
+}
+
+.character-figure.is-empty {
+  cursor: pointer;
+}
+
+.portrait-wrap.is-dragging {
+  cursor: grabbing;
+}
+
+/* Common output grammar. Recipe changes are deliberately token-level only. */
+.canvas-board[data-style="quiet-paper"],
+.canvas-board[data-style="custom"] {
+  --recipe-ink: #263238;
+  --recipe-muted: rgb(38 50 56 / .58);
+  --recipe-panel: rgb(255 252 247 / .94);
+  --recipe-edge: rgb(38 50 56 / .18);
+  --recipe-shadow: rgb(38 50 56 / .1);
+}
+
+.canvas-board[data-style="blue-bitmap"] {
+  --recipe-ink: #214854;
+  --recipe-muted: rgb(33 72 84 / .58);
+  --recipe-panel: rgb(239 249 249 / .94);
+  --recipe-edge: rgb(33 72 84 / .22);
+  --recipe-shadow: rgb(33 72 84 / .11);
+}
+
+.canvas-board[data-style="soft-pixel"] {
+  --recipe-ink: #5c465d;
+  --recipe-muted: rgb(92 70 93 / .58);
+  --recipe-panel: rgb(255 250 252 / .94);
+  --recipe-edge: rgb(92 70 93 / .18);
+  --recipe-shadow: rgb(92 70 93 / .1);
+}
+
+.canvas-board[data-style="scrapbook-pop"] {
+  --recipe-ink: #6b3943;
+  --recipe-muted: rgb(107 57 67 / .58);
+  --recipe-panel: rgb(255 248 238 / .95);
+  --recipe-edge: rgb(107 57 67 / .2);
+  --recipe-shadow: rgb(107 57 67 / .11);
+}
+
+.canvas-board[data-style="custom"][data-background="ink"],
+.canvas-board[data-style="custom"][data-background="charcoal"] {
+  --recipe-ink: #f7f3ed;
+  --recipe-muted: rgb(247 243 237 / .62);
+  --recipe-panel: rgb(29 34 40 / .94);
+  --recipe-edge: rgb(247 243 237 / .22);
+  --recipe-shadow: rgb(9 12 16 / .28);
+}
+
+.canvas-board[data-style] .board-editorial-header {
+  color: var(--recipe-ink);
+}
+
+.canvas-board[data-style] .board-editorial-header::after {
+  display: none !important;
+}
+
+/* Title contrast belongs to the glyph itself. The removed full-header halo
+   painted a white gradient over the artwork and made the export feel cropped. */
+.canvas-board[data-style] .board-editorial-header {
+  height: auto;
+  min-height: 0 !important;
+  pointer-events: none;
+}
+
+.canvas-board[data-style] .board-editorial-header::before {
+  display: none !important;
+}
+
+.canvas-board[data-style] .board-editorial-header .board-title-block::before {
+  display: none !important;
+}
+
+.canvas-board[data-style] .board-editorial-header .board-title-block {
+  pointer-events: auto;
+}
+
+.canvas-board[data-style] .board-editorial-header .board-title-block {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.canvas-board[data-style] .board-editorial-header .board-title-block > strong {
+  text-shadow: none !important;
+  -webkit-text-stroke: var(--title-outline-width, 0px) var(--title-outline-color, transparent);
+  paint-order: stroke fill;
+}
+
+.canvas-board[data-style] .board-gear-tiles .board-gear-item {
+  border-color: var(--recipe-edge) !important;
+  border-radius: 12px !important;
+  background: var(--recipe-panel) !important;
+  box-shadow: 0 10px 24px var(--recipe-shadow) !important;
+}
+
+.canvas-board[data-style] .board-gear-tiles .gear-tile-copy,
+.canvas-board[data-style] .board-gear-tiles .gear-tile-copy strong {
+  color: var(--recipe-ink) !important;
+}
+
+.canvas-board[data-style] .board-gear-tiles .gear-tile-copy span,
+.canvas-board[data-style] .board-gear-tiles .gear-item-secondary {
+  color: var(--recipe-muted) !important;
+}
+
+.canvas-board[data-style] .multi-info-column {
+  color: var(--recipe-ink);
+}
+
+/* Material 3 state treatment, kept in the app's neutral visual language. */
+.compact-segments {
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.compact-segments button {
+  min-height: 28px;
+  border-radius: 999px;
+  transition: color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.compact-segments button:hover:not(:disabled) {
+  color: var(--foreground);
+  background: color-mix(in oklch, var(--background) 68%, var(--muted));
+}
+
+.compact-segments button.is-selected {
+  color: var(--foreground);
+  background: var(--background);
+  box-shadow: 0 1px 3px rgb(20 24 28 / .12);
+}
+
+.cast-count-control {
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.cast-count-control button {
+  border-radius: 999px;
+  transition: color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.cast-count-control button.is-selected {
+  color: var(--foreground);
+  background: var(--background);
+  box-shadow: 0 1px 3px rgb(20 24 28 / .12);
+}
+
+.rail-mode-button {
+  box-shadow: none !important;
+}
+
+.rail-mode-button .tool-key {
+  min-width: 30px;
+  padding: 4px 5px;
+  border-radius: 999px;
+  text-align: center;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+
+.rail-mode-button.is-active .tool-key {
+  color: var(--primary);
+  background: color-mix(in oklch, var(--primary) 10%, transparent);
+}
+
+.toolbar-button:focus-visible,
+.toolbar-icon:focus-visible,
+.background-art-choice:focus-visible,
+.compact-segments button:focus-visible,
+.cast-count-control button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px color-mix(in oklch, var(--primary) 16%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .compact-segments button,
+  .cast-count-control button,
+  .rail-mode-button .tool-key {
+    transition: none;
+  }
+}
+
+@media (max-width: 920px) and (min-height: 600px) {
+  body:not(.image-placement-mode):not(.canvas-focus-mode) .canvas-board[data-ratio="portrait"] {
+    width: min(100%, 22svh); margin-inline: auto; min-height: 0;
+  }
+  body:not(.image-placement-mode):not(.canvas-focus-mode) .canvas-board[data-ratio="landscape"] {
+    width: 100%; min-height: 0;
+  }
+}
+
+/* Direct pattern selection controls the live preview opacity. */
+.canvas-board[data-style] .scene-pattern {
+  opacity: var(--pattern-opacity, 0) !important;
+}
+
+.canvas-board .scene-pattern[data-pattern="none"],
+.canvas-board .scene-pattern[data-pattern="gradient"],
+.canvas-board .scene-pattern[data-pattern="grain"] {
+  display: none !important;
+}
+
+.canvas-board .scene-pattern[data-pattern="stars"]::before,
+.canvas-board .scene-pattern[data-pattern="stars"]::after {
+  display: none;
+}
+
+.toolbar-button:focus-visible,
+.toolbar-icon:focus-visible,
+.background-art-choice:focus-visible,
+.backdrop-swatch:focus-visible,
+.compact-segments button:focus-visible,
+.cast-count-control button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px color-mix(in oklch, var(--primary) 16%, transparent);
+}
+
+/* The selected figure is the edit surface. Dim the other figures so the
+   cursor, focus ring, and keyboard target all point to the same object. */
+body.image-placement-mode .canvas-board {
+  outline: 2px solid var(--primary);
+  outline-offset: 8px;
+  box-shadow: 0 18px 44px color-mix(in oklch, var(--primary) 12%, transparent), 16px 18px 0 color-mix(in oklch, var(--primary) 16%, transparent);
+}
+
+body.image-placement-mode .canvas-board .character-figure {
+  transition: opacity 180ms ease, filter 180ms ease, box-shadow 180ms ease;
+}
+
+body.image-placement-mode .canvas-board .portrait-wrap {
+  z-index: 20 !important;
+}
+
+body.image-placement-mode .canvas-board .board-editorial-header,
+body.image-placement-mode .canvas-board .multi-info-layer,
+body.image-placement-mode .canvas-board .board-gear-list {
+  opacity: .2;
+  pointer-events: none !important;
+}
+
+body.image-placement-mode .canvas-board .character-figure:not(.is-selected) {
+  opacity: .24;
+  filter: saturate(.45);
+  pointer-events: none;
+}
+
+body.image-placement-mode .canvas-board .character-figure.is-selected {
+  z-index: 16;
+  opacity: 1;
+  outline: 2px solid var(--primary);
+  outline-offset: 5px;
+  box-shadow: 0 0 0 8px color-mix(in oklch, var(--primary) 12%, transparent);
+}
+
+body.image-placement-mode .canvas-board .character-figure.is-selected img {
+  filter: none !important;
+}
+
+body.image-placement-mode .canvas-board .character-figure.is-selected:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 8px;
+  box-shadow: 0 0 0 12px color-mix(in oklch, var(--primary) 20%, transparent);
+}
+
+body.image-placement-mode .canvas-board .portrait-wrap {
+  cursor: grab;
+}
+
+body.image-placement-mode .canvas-board .portrait-wrap.is-dragging,
+body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-figure.is-selected {
+  cursor: grabbing;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.image-placement-mode .canvas-board .character-figure {
+    transition: none;
+  }
+}

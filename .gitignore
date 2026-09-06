@@ -1,0 +1,9 @@
+.venv-bg/
+.models/
+.runtime/
+artifacts/
+node_modules/
+__pycache__/
+*.py[cod]
+.dev.vars*
+.env*
