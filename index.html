@@ -277,18 +277,16 @@
                   <div class="background-preset-list" id="backgroundPresetList" role="list" hidden></div>
                   <p class="background-preset-empty" id="backgroundPresetEmpty">단색·패턴·질감을 고른 뒤 저장하면 여기에서 다시 사용할 수 있습니다.</p>
                 </div>
-                <button class="style-advanced-toggle" id="styleAdvancedToggle" type="button" aria-expanded="false" aria-controls="styleAdvancedControls"><span>세부 스타일</span><span class="style-advanced-icon" aria-hidden="true">＋</span></button>
-                <div class="style-advanced-controls" id="styleAdvancedControls" hidden>
-                </div>
+                <button class="style-advanced-toggle" id="styleAdvancedToggle" type="button" aria-expanded="false" aria-controls="outlineAdvancedSection shadowAdvancedSection"><span>세부 스타일</span><span class="style-advanced-icon" aria-hidden="true">＋</span></button>
               </section>
 
-              <section class="inspector-section compact-section" data-style-advanced>
+              <section class="inspector-section compact-section" id="outlineAdvancedSection" data-style-advanced>
                 <div class="panel-section-head"><h2>테두리</h2><span class="value-readout" id="outlineValue">02 px</span></div>
                 <div class="control-line"><span class="control-label">색상</span><div class="swatch-row" id="outlineSwatches"><button class="color-swatch is-selected" data-color="#f1dfbb" style="--swatch:#f1dfbb" type="button" aria-label="웜 아이보리"></button><button class="color-swatch" data-color="#b9d4d5" style="--swatch:#b9d4d5" type="button" aria-label="미스트 블루"></button><button class="color-swatch" data-color="#171820" style="--swatch:#171820" type="button" aria-label="잉크"></button><button class="color-swatch" data-color="#b87663" style="--swatch:#b87663" type="button" aria-label="테라코타"></button></div></div>
                 <div class="range-line"><input id="outlineRange" type="range" min="0" max="8" value="0" step="1" aria-label="외곽선 두께" /><div class="range-labels"><span>없음</span><span>굵게</span></div></div>
               </section>
 
-              <section class="inspector-section compact-section" data-style-advanced>
+              <section class="inspector-section compact-section" id="shadowAdvancedSection" data-style-advanced>
                 <div class="panel-section-head"><h2>그림자</h2><span class="value-readout" id="shadowValue">35%</span></div>
                 <div class="range-line"><input id="shadowRange" type="range" min="0" max="70" value="20" step="1" aria-label="그림자 강도" /><div class="range-labels"><span>부드럽게</span><span>진하게</span></div></div>
                 <div class="shadow-controls"><span class="control-label">방향</span><div class="direction-pad" role="group" aria-label="그림자 방향"><button data-shadow="nw" type="button" aria-label="왼쪽 위">↖</button><button data-shadow="n" type="button" aria-label="위">↑</button><button data-shadow="ne" type="button" aria-label="오른쪽 위">↗</button><button data-shadow="w" type="button" aria-label="왼쪽">←</button><span class="direction-center" aria-hidden="true"></span><button data-shadow="e" type="button" aria-label="오른쪽">→</button><button data-shadow="sw" type="button" aria-label="왼쪽 아래">↙</button><button data-shadow="s" type="button" aria-label="아래">↓</button><button data-shadow="se" type="button" aria-label="오른쪽 아래">↘</button></div></div>

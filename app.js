@@ -648,11 +648,14 @@ function ensureItemLanguageName(item, language) {
 }
 
 async function hydrateEnglishItemNames(items = []) {
+  const operationEpoch = workspaceEpoch;
+  const lookId = state.selectedLookId;
   const uniqueItems = Array.from(new Map(items.filter(Boolean).map((item) => [String(item.id), item])).values());
   const languages = state.language === "en" ? ["en"] : [state.language, "en"];
   const results = await Promise.all(
     uniqueItems.flatMap((item) => languages.map((language) => ensureItemLanguageName(item, language))),
   );
+  if (operationEpoch !== workspaceEpoch || lookId !== state.selectedLookId) return;
   if (!results.some(Boolean)) return;
   renderEquipment();
   renderMultiInfo();
@@ -1552,9 +1555,7 @@ function renderStyles({ refreshInfo = true, refreshPattern = true } = {}) {
     backgroundCurrentLabel.dataset.custom = String(!currentPreset);
   }
   const advancedToggle = $("#styleAdvancedToggle");
-  const advancedControls = $("#styleAdvancedControls");
-  if (advancedToggle && advancedControls) {
-    advancedControls.hidden = !styleAdvancedOpen;
+  if (advancedToggle) {
     advancedToggle.setAttribute("aria-expanded", String(styleAdvancedOpen));
     advancedToggle.querySelector(".style-advanced-icon").textContent = styleAdvancedOpen ? "－" : "＋";
   }
@@ -2298,7 +2299,7 @@ async function resetWorkspace() {
     await characterAssetVault.clear();
   } catch {
     showToast("이미지 보관함을 삭제하지 못했습니다. 잠시 후 다시 시도해주세요.");
-    return;
+    return false;
   }
   looks.forEach(look => revokeCharacterAssets(look.editor?.characters || []));
   revokeCharacterAssets();
@@ -2314,6 +2315,7 @@ async function resetWorkspace() {
   });
   itemRecordCache.clear();
   itemSearch.clear();
+  localizedItemNameRequests.clear();
   elements.itemSearch.value = "";
   $("#lookSearch").value = "";
   backgroundPresets = [];
@@ -2368,6 +2370,7 @@ async function resetWorkspace() {
     setSaveStatus("빈 작업공간 · 이 브라우저에 자동 저장");
     showToast("이 브라우저의 LOOK BOOK, 이미지, 프리셋을 모두 삭제했습니다.");
   }
+  return !storageFailed;
 }
 
 function ensureMobileControlVisible(element) {
@@ -2671,7 +2674,10 @@ function initialiseInteractions() {
   $("#deleteWorkspaceDialog").addEventListener("close", () => $("#resetButton").focus({ preventScroll: true }));
   $("#confirmWorkspaceDelete").addEventListener("click", async () => {
     const button = $("#confirmWorkspaceDelete"); button.disabled = true; button.textContent = "삭제 중…";
-    try { await resetWorkspace(); $("#deleteWorkspaceDialog").close(); }
+    try {
+      const completed = await resetWorkspace();
+      if (completed) $("#deleteWorkspaceDialog").close();
+    }
     finally { button.disabled = false; button.textContent = "모두 삭제"; }
   });
   document.addEventListener("pointerdown", (event) => {
@@ -2817,6 +2823,10 @@ function initialiseInteractions() {
     boardTitleResizeObserver = new ResizeObserver(() => window.requestAnimationFrame(fitBoardTitle));
     boardTitleResizeObserver.observe(titleBlock);
   }
+  // ResizeObserver delivery can lag one frame during a mobile viewport
+  // change. Fit synchronously on resize as a guard so a stale desktop size
+  // never paints an ellipsis while the card is narrowing.
+  window.addEventListener("resize", fitBoardTitle, { passive: true });
   if (document.fonts?.ready) document.fonts.ready.then(fitBoardTitle);
   document.addEventListener("keydown", (event) => {
     if (document.querySelector("dialog[open]")) return;
