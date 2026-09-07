@@ -10,7 +10,7 @@ const focusTargets = [
   "#lookSearch",
   "#styleTab",
   "#exportButton",
-  "#imageDropZone",
+  "#portraitWrap .character-figure",
   "#focusCanvasButton",
   "#boardTitle",
 ];

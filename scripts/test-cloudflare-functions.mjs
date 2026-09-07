@@ -11,7 +11,7 @@ if (!globalThis.crypto?.randomUUID) {
 const originalFetch = globalThis.fetch;
 
 function request(body = Uint8Array.from([1, 2, 3]), headers = { "Content-Type": "image/png" }) {
-  return new Request("https://atelier.example/api/background-removal", {
+  return new Request("https://tuyeong-set-maker2.example/api/background-removal", {
     method: "POST",
     headers,
     body,
@@ -39,7 +39,7 @@ try {
 
   let indexFetches = 0;
   const itemSearchResponse = await onRequestGet({
-    request: new Request("https://atelier.example/api/items/search?q=%EB%9A%B1%EB%83%A5%EC%9D%B4%20%EB%91%90%EA%B1%B4&slot=head&language=ko"),
+    request: new Request("https://tuyeong-set-maker2.example/api/items/search?q=%EB%9A%B1%EB%83%A5%EC%9D%B4%20%EB%91%90%EA%B1%B4&slot=head&language=ko"),
     env: {
       ASSETS: {
         fetch: async () => {
@@ -90,6 +90,26 @@ try {
   assert.equal(calls[0].url, "https://gpu.example.test/remove");
   assert.equal(calls[0].options.headers.get("Authorization"), "Bearer test-token");
   assert.equal(calls[0].options.headers.get("Content-Type"), "image/png");
+
+  response = await onRequestPost({
+    request: request(Uint8Array.from([1]), {
+      "Content-Type": "image/png",
+      "Content-Length": String(16 * 1024 * 1024 + 1),
+    }),
+    env: { CUTOUT_SERVICE_URL: "https://gpu.example.test/remove" },
+  });
+  assert.equal(response.status, 413, "request bodies must be bounded before forwarding to the service");
+
+  globalThis.fetch = async () => new Response(Uint8Array.from([137, 80, 78, 71]), {
+    status: 200,
+    headers: { "Content-Type": "image/png", "Content-Length": String(32 * 1024 * 1024 + 1) },
+  });
+  response = await onRequestPost({
+    request: request(),
+    env: { CUTOUT_SERVICE_URL: "https://gpu.example.test/remove" },
+  });
+  assert.equal(response.status, 502);
+  assert.equal((await response.json()).code, "cutout_result_too_large");
 
   globalThis.fetch = async () => new Response("not an image", {
     status: 200,

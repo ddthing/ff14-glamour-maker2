@@ -172,58 +172,6 @@
   text-align: end;
 }
 
-.image-drop-zone {
-  width: 100%;
-  font: inherit;
-  text-align: left;
-  display: flex;
-  min-height: 58px;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--radius-sm);
-  color: var(--foreground);
-  background: var(--background);
-  cursor: pointer;
-  transition: border-color 140ms ease, background-color 140ms ease;
-}
-
-.image-drop-zone:hover,
-.image-drop-zone.is-drop-target {
-  border-color: var(--primary);
-  background: color-mix(in srgb, var(--primary) 5%, var(--background));
-}
-
-.image-drop-icon {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 50%;
-  color: var(--background);
-  background: var(--foreground);
-  font-size: 16px;
-}
-
-.image-drop-zone > span:last-child {
-  display: grid;
-  min-width: 0;
-  gap: 3px;
-}
-
-.image-drop-zone strong {
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.image-drop-zone small {
-  color: var(--muted-foreground);
-  font-size: 8px;
-  line-height: 1.35;
-}
-
 /* Discrete weights communicate what will happen better than a numeric slider. */
 .catalog-result-copy strong {
   color: var(--foreground);
@@ -452,12 +400,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .image-drop-zone {
-    transition: none;
-  }
-}
-
 /* M3-inspired inspector grouping: explicit background axes followed by
    optional user-owned combinations. The art panel remains compact enough to scan. */
 .style-current-label {
@@ -667,20 +609,6 @@
   animation: cutout-progress 1.25s ease-in-out infinite;
 }
 
-.image-drop-zone {
-  transition: color 180ms ease, border-color 180ms ease, background-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
-}
-
-.image-drop-zone:hover,
-.image-drop-zone.is-drop-target {
-  box-shadow: 0 5px 14px color-mix(in oklch, var(--primary) 12%, transparent);
-  transform: translateY(-1px);
-}
-
-.image-drop-zone.is-drop-target {
-  animation: drop-zone-breathe 900ms ease-in-out infinite alternate;
-}
-
 @keyframes image-state-pop {
   from { opacity: .45; transform: translateY(-3px) scale(.96); }
   to { opacity: 1; transform: translateY(0) scale(1); }
@@ -696,16 +624,10 @@
   to { transform: translateX(340%); }
 }
 
-@keyframes drop-zone-breathe {
-  from { box-shadow: 0 3px 10px color-mix(in oklch, var(--primary) 9%, transparent); }
-  to { box-shadow: 0 7px 20px color-mix(in oklch, var(--primary) 20%, transparent); }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .image-state[data-state="cutout"],
   .source-thumb.is-cutout::after,
-  .cutout-action.is-processing .cutout-progress,
-  .image-drop-zone.is-drop-target {
+  .cutout-action.is-processing .cutout-progress {
     animation: none;
   }
 
@@ -714,8 +636,7 @@
   .source-thumb,
   .image-zoom-controls button,
   .image-nudge-grid button,
-  .cutout-action,
-  .image-drop-zone {
+  .cutout-action {
     transition: none;
   }
 }
@@ -1595,13 +1516,8 @@
 }
 
 /* Inspector image flow ---------------------------------------------------
-   The order mirrors the user's task: bring in a source, choose its frame,
-   place it on the card, then run the optional cutout action. */
-.portrait-section .image-drop-zone {
-  min-height: 58px;
-  margin-top: 0;
-}
-
+   The order mirrors the user's task: inspect the current source, choose its
+   frame, place it on the card, then run the optional cutout action. */
 .portrait-section .image-fit-row {
   margin-top: 2px;
   padding-top: 12px;
@@ -1634,10 +1550,6 @@
 }
 
 @media (max-width: 560px) {
-  .portrait-section .image-drop-zone {
-    min-height: 58px;
-  }
-
   .portrait-section .image-placement-tip-row .image-editor-hint {
     align-items: flex-start;
   }
@@ -2126,26 +2038,167 @@
 .inspector .panel-section-head h2 { font-size: 16px; line-height: 1.5; }
 .inspector .inspector-section { padding-block: 24px; scroll-margin-block-start: 64px; }
 .inspector :is(.panel-eyebrow, .panel-state, .panel-selection-summary,
-  .source-copy span, .image-drop-zone small, .image-state, .copy-editor-hint,
+  .source-copy span, .image-state, .copy-editor-hint,
   .copy-editor-count, .copy-editor-field > span, .copy-editor-typography-head small,
   .title-weight-option small, .title-weight-label, .background-art-heading span,
   .background-art-choice span, .backdrop-swatch > span:last-child,
   .image-editor-hint, .compact-control-hint, .background-preset-empty,
   .compact-option-row > span) { font-size: 12px; line-height: 1.5; }
 .inspector :is(.copy-editor-typography-head span, .compact-segments button,
-  .cast-count-control button, .image-placement-launch, .cutout-action,
-  .image-drop-zone strong) { font-size: 13px; line-height: 1.5; }
+  .cast-count-control button, .image-placement-launch, .cutout-action) { font-size: 13px; line-height: 1.5; }
 .inspector :is(.compact-segments button, .cast-count-control button) { min-height: 36px; }
 .inspector :is(.copy-editor-field textarea, .title-font-control select) { font-size: 14px; line-height: 1.6; }
-.editor-section-nav { display: flex; gap: 4px; position: sticky; top: 0; z-index: 5;
-  background: var(--card); padding: 12px 0; border-bottom: 1px solid var(--border); }
-.editor-section-nav button { flex: 1; min-height: 40px; padding: 8px 12px;
-  border: 0; border-radius: var(--radius-sm); color: var(--muted-foreground);
-  background: transparent; font: 600 14px/1.4 var(--sans);
-  transition: background-color 160ms ease, color 160ms ease; }
-.editor-section-nav button[aria-pressed="true"] { color: var(--primary-foreground); background: var(--primary); }
-.editor-section-nav button:hover:not([aria-pressed="true"]) { color: var(--foreground); background: var(--muted); }
-@media (prefers-reduced-motion: reduce) { .editor-section-nav button { transition: none; } }
+.editor-category-section {
+  border-top: 1px solid var(--border);
+}
+.editor-category-section .panel-section-head {
+  min-height: 32px;
+}
+.editor-category-section .panel-section-head h2 {
+  color: var(--foreground);
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: -.02em;
+}
+
+/* Empty cast slots are actions, not miniature portrait cards. Keep the
+   target compact and let the circular affordance carry the empty state. */
+.cast-selector {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.cast-selector button {
+  display: grid;
+  grid-template-rows: 40px auto;
+  align-content: center;
+  justify-items: center;
+  min-width: 0;
+  min-height: 64px;
+  aspect-ratio: auto;
+  overflow: visible;
+  padding: 6px 2px 5px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--muted-foreground);
+  background: transparent;
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+.cast-selector button:hover,
+.cast-selector button:focus-visible {
+  color: var(--foreground);
+  background: var(--muted);
+}
+.cast-selector button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.cast-selector button.is-selected {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+.cast-selector button::after { display: none; content: none; }
+.cast-selector .cast-slot-visual {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  overflow: hidden;
+  position: static;
+  top: auto;
+  left: auto;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: inherit;
+  background: var(--background);
+  font-size: inherit;
+  font-weight: inherit;
+}
+.cast-selector .cast-slot-visual:not(.is-empty) {
+  border-radius: 8px;
+}
+.cast-selector button.is-selected .cast-slot-visual {
+  border-color: var(--foreground);
+  box-shadow: 0 0 0 1px var(--foreground);
+}
+.cast-selector img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  opacity: .92;
+}
+.cast-selector button.is-selected img { opacity: 1; }
+.cast-selector .cast-empty-thumb {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  position: static;
+  top: auto;
+  left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  color: var(--foreground);
+  background: transparent;
+  font: 500 21px/1 var(--sans);
+}
+.cast-selector .cast-slot-index {
+  position: static;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  font: 700 10px/1 var(--mono);
+  letter-spacing: .04em;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cast-selector button { transition: none; }
+}
+
+/* Card output settings stay with card styling. The equipment panel edits the
+   source data; this row controls whether that data is printed on lineup cards. */
+.card-display-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  padding-block: 14px;
+  border-block: 1px solid var(--border);
+}
+
+.card-display-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.card-display-copy > span {
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.card-display-copy > small {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.card-display-switch {
+  min-height: 36px;
+  flex: 0 0 auto;
+}
+
+.card-display-switch b {
+  color: var(--foreground);
+  font-size: 12px;
+}
+
+.card-display-control[hidden] { display: none; }
 
 /* Shared disclosure grammar: collapsed style controls and precise placement
    controls should expose the same 36px row, divider, and state affordance. */
@@ -2194,16 +2247,587 @@
 }
 .equipment-section .equipment-row { grid-template-columns: 52px minmax(0, 1fr) auto; }
 .catalog-section .catalog-result { grid-template-columns: 52px minmax(0, 1fr) 32px; }
+
+/* An assigned slot keeps selection/change on the row and exposes removal as
+   a sibling action. The sibling avoids nested interactive controls while
+   keeping the destructive action visibly adjacent to the selected item. */
+.equipment-section .equipment-row-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: var(--equipment-control-gap, 6px);
+  min-width: 0;
+}
+
+.equipment-section .equipment-row-shell .equipment-row {
+  width: 100%;
+  min-width: 0;
+}
+
+.equipment-section .equipment-remove {
+  display: inline-flex;
+  min-width: 52px;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted-foreground);
+  background: var(--background);
+  font: 600 11px/1.4 var(--sans);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.equipment-section .equipment-remove:hover {
+  transform: translateY(-1px);
+  border-color: var(--primary);
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.equipment-section .equipment-remove:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.equipment-section .equipment-icon.has-item-image,
+.catalog-section .catalog-result-icon.has-item-image {
+  padding: 2px;
+  background: var(--background);
+}
+
+.equipment-section .equipment-row.is-selected .equipment-icon.has-item-image {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.equipment-section .equipment-icon .item-image,
+.catalog-section .catalog-result-icon .item-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  border-radius: inherit;
+  object-fit: contain;
+}
+
+.equipment-section .equipment-icon .item-image-fallback,
+.catalog-section .catalog-result-icon .item-image-fallback {
+  display: none;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.equipment-section .equipment-icon.is-image-fallback .item-image,
+.catalog-section .catalog-result-icon.is-image-fallback .item-image {
+  display: none;
+}
+
+.equipment-section .equipment-icon.is-image-fallback .item-image-fallback,
+.catalog-section .catalog-result-icon.is-image-fallback .item-image-fallback {
+  display: flex;
+}
+
 @media (max-width: 920px) and (min-height: 600px) {
-  /* The inspector header and section nav form one command stack. Keeping the
-     nav at the preview height leaves a large, contextless gap between them
-     while the user scrolls through a long panel. */
-  .editor-section-nav {
-    top: calc(var(--mobile-inspector-header-height, 69px) + 1px);
-    z-index: 9;
+  .inspector .inspector-section {
+    scroll-margin-top: calc(var(--mobile-inspector-header-height, 69px) + 8px);
+  }
+}
+
+/* Image workflow ---------------------------------------------------------
+   Keep importing, placing, processing, and image effects on one route so a
+   user does not have to hunt through the background section for image-only
+   controls. Each group has one short heading and one visual divider. */
+.portrait-section .image-workflow-group {
+  display: grid;
+  min-width: 0;
+  gap: 9px;
+}
+
+.portrait-section .image-workflow-group + .image-workflow-group {
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.image-workflow-head {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.image-workflow-head > span {
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.image-workflow-head > small {
+  min-width: 0;
+  color: var(--muted-foreground);
+  font-size: 10px;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.image-treatment-group .cutout-action {
+  margin-top: 0;
+}
+
+.image-style-toggle {
+  margin-top: 2px;
+}
+
+.image-style-control {
+  display: grid;
+  min-width: 0;
+  gap: 9px;
+  padding: 10px 0 2px;
+  border-top: 1px solid var(--border);
+}
+
+.image-style-control[hidden] {
+  display: none !important;
+}
+
+.image-style-control-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.image-style-control-head h3 {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.image-style-control .control-line {
+  min-height: 36px;
+}
+
+.image-style-control .range-line {
+  margin-top: 0;
+}
+
+/* Copy controls ---------------------------------------------------------- */
+.copy-editor-style-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.copy-editor-style-field {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 8px;
+}
+
+.copy-editor-style-field .compact-segments {
+  width: 100%;
+}
+
+.title-alignment-controls button {
+  flex: 1;
+  min-height: 36px;
+  padding-inline: 6px;
+}
+
+.copy-editor-color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.copy-editor-color-row input[type="color"],
+.title-outline-color-picker input[type="color"] {
+  width: 42px;
+  height: 36px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+  cursor: pointer;
+}
+
+.copy-editor-color-row input[type="color"]:focus-visible,
+.title-outline-color-picker input[type="color"]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.copy-editor-color-reset {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted-foreground);
+  background: var(--background);
+  font: 650 12px/1.3 var(--sans);
+}
+
+.copy-editor-color-reset:not(:disabled):hover {
+  border-color: var(--primary);
+  color: var(--foreground);
+}
+
+.field-optional {
+  color: var(--muted-foreground);
+  font-size: .85em;
+  font-style: normal;
+  font-weight: 500;
+}
+
+.title-outline-controls {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.25fr);
+}
+
+.title-outline-color-picker {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+  .copy-editor-style-grid {
+    grid-template-columns: 1fr;
   }
 
-  .inspector .inspector-section {
-    scroll-margin-top: calc(var(--mobile-inspector-header-height, 69px) + 77px);
+  .title-outline-controls {
+    grid-template-columns: 1fr auto;
   }
+
+  .title-outline-range {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copy-editor-color-reset { transition: none; }
+}
+
+/* Inspector control contract -------------------------------------------
+   Keep the authoring rail calm at both desktop and phone widths. The card
+   itself owns the visual language; this contract only regularises inspector
+   hit areas, fields, color controls, ranges, and scroll affordances. */
+.inspector {
+  --inspector-control-height: 40px;
+  --inspector-control-radius: 12px;
+  --inspector-pill-radius: 999px;
+  scrollbar-color: color-mix(in srgb, var(--muted-foreground) 42%, transparent) transparent;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
+
+/* Direction controls are still compact, but each arrow owns a real touch
+   target and follows the same rounded control language as the inspector. */
+.inspector .direction-pad {
+  grid-template-columns: repeat(3, 24px);
+  grid-template-rows: repeat(3, 24px);
+  gap: 3px;
+}
+
+.inspector .direction-pad button {
+  width: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  border-radius: 8px;
+}
+
+.inspector .direction-center {
+  margin: 7px;
+  border-radius: 50%;
+}
+
+.inspector::-webkit-scrollbar,
+.inspector .catalog-results::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.inspector::-webkit-scrollbar-track,
+.inspector .catalog-results::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.inspector::-webkit-scrollbar-thumb,
+.inspector .catalog-results::-webkit-scrollbar-thumb {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted-foreground) 42%, transparent);
+  background-clip: padding-box;
+}
+
+.inspector::-webkit-scrollbar-thumb:hover,
+.inspector .catalog-results::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--muted-foreground) 64%, transparent);
+  background-clip: padding-box;
+}
+
+.inspector .copy-editor-section {
+  gap: 18px;
+}
+
+.inspector .copy-editor-fields {
+  gap: 14px;
+}
+
+.inspector .copy-editor-field {
+  gap: 7px;
+}
+
+.inspector .copy-editor-field textarea,
+.inspector .title-font-control select {
+  min-height: var(--inspector-control-height);
+  border-color: var(--muted-foreground);
+  border-radius: var(--inspector-control-radius);
+}
+
+.inspector .copy-editor-field textarea {
+  min-height: 68px;
+  padding: 11px 12px;
+  line-height: 1.55;
+}
+
+.inspector .copy-editor-hint {
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--inspector-control-radius);
+  color: var(--muted-foreground);
+  background: var(--muted);
+}
+
+.inspector .copy-editor-style-grid {
+  grid-template-columns: 1fr;
+  gap: 10px;
+  padding-top: 16px;
+}
+
+.inspector .copy-editor-style-field {
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--inspector-control-radius);
+  background: color-mix(in srgb, var(--background) 72%, var(--muted));
+}
+
+.inspector .copy-editor-typography-head {
+  gap: 8px;
+}
+
+.inspector .copy-editor-typography-head > span {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.inspector .copy-editor-typography-head > small {
+  font-size: 10px;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.inspector .copy-editor-color-row {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inspector-color-picker {
+  display: inline-flex;
+  min-width: 0;
+  min-height: var(--inspector-control-height);
+  flex: 1 1 116px;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 11px 5px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--inspector-pill-radius);
+  color: var(--muted-foreground);
+  background: var(--background);
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.inspector-color-picker:hover {
+  border-color: var(--line-strong);
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--background) 70%, var(--muted));
+}
+
+.inspector-color-picker:focus-within {
+  border-color: var(--primary);
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px color-mix(in oklch, var(--primary) 14%, transparent);
+}
+
+.inspector-color-picker input[type="color"] {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  flex: 0 0 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  appearance: none;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.inspector-color-picker input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.inspector-color-picker input[type="color"]::-webkit-color-swatch,
+.inspector-color-picker input[type="color"]::-moz-color-swatch {
+  border: 0;
+  border-radius: 50%;
+}
+
+.inspector .copy-editor-color-reset {
+  min-height: var(--inspector-control-height);
+  flex: 0 0 auto;
+  padding-inline: 14px;
+  border-radius: var(--inspector-pill-radius);
+}
+
+.inspector .copy-editor-typography,
+.inspector .copy-editor-title-outline {
+  gap: 10px;
+  padding-top: 16px;
+}
+
+.inspector .title-font-control {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+
+.inspector .title-font-control select {
+  padding-inline: 12px 34px;
+}
+
+.inspector .title-weight-row {
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.inspector .title-weight-options {
+  gap: 8px;
+}
+
+.inspector .title-weight-option {
+  min-height: 52px;
+  border-radius: var(--inspector-control-radius);
+}
+
+.inspector .title-outline-controls {
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+}
+
+.inspector .title-outline-swatches {
+  gap: 8px;
+}
+
+.inspector :is(.color-swatch, .title-outline-swatch) {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border-radius: 50%;
+}
+
+.inspector .color-swatch.is-selected::after {
+  border-radius: 50%;
+}
+
+.inspector .title-outline-color-picker {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.inspector .title-outline-range {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.inspector input[type="range"],
+.inspector .title-outline-range input[type="range"] {
+  width: 100%;
+  height: var(--inspector-control-height);
+  min-height: var(--inspector-control-height);
+}
+
+.inspector .range-line {
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.inspector .range-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.inspector .image-position-slider {
+  grid-template-columns: 38px minmax(0, 1fr) 52px;
+  gap: 8px;
+  min-height: var(--inspector-control-height);
+}
+
+.inspector :is(.image-center-button, .image-placement-launch, .cutout-action) {
+  min-height: var(--inspector-control-height);
+  border-radius: var(--inspector-pill-radius);
+}
+
+@media (max-width: 420px) {
+  .inspector .copy-editor-style-grid {
+    gap: 12px;
+  }
+
+  .inspector .copy-editor-style-field {
+    padding: 12px 11px;
+  }
+
+  .inspector .title-outline-controls {
+    gap: 10px;
+  }
+
+  .inspector .title-outline-color-picker {
+    flex-basis: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inspector-color-picker { transition: none; }
 }

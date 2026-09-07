@@ -9,7 +9,7 @@ const subtitle = "설원에서 포착한 파란빛 겨울 산책입니다. This 
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     await page.addInitScript(() => localStorage.clear());
-    await page.goto("http://localhost:4173/?text-editor-check=1");
+    await page.goto((process.env.TEST_BASE_URL || "http://localhost:4173") + "/?text-editor-check=1");
     await page.waitForSelector("#cardTitleInput");
 
     assert.equal(await page.locator("#cardTitleInput").inputValue(), "새로운 룩");
@@ -20,14 +20,14 @@ const subtitle = "설원에서 포착한 파란빛 겨울 산책입니다. This 
     assert.equal(await page.locator("#boardTitle").textContent(), title);
     assert.equal(await page.locator("#cardTitleCount").textContent(), `${Array.from(title).length} / 64`);
     await page.locator("#cardTitleInput").press("Enter");
-    assert.equal((await page.evaluate(() => JSON.parse(localStorage.getItem("glamour-atelier-draft-v3")).title)), title);
+    assert.equal((await page.evaluate(() => JSON.parse(localStorage.getItem("tuyeong-set-maker2-draft-v3")).title)), title);
     const savedTitleMetrics = await page.locator("#boardTitle").evaluate((element) => {
       const style = getComputedStyle(element);
       return { overflow: style.overflow, whiteSpace: style.whiteSpace, textOverflow: style.textOverflow };
     });
-    assert.equal(savedTitleMetrics.overflow, "hidden");
+    assert.equal(savedTitleMetrics.overflow, "visible");
     assert.equal(savedTitleMetrics.whiteSpace, "nowrap");
-    assert.equal(savedTitleMetrics.textOverflow, "ellipsis");
+    assert.equal(savedTitleMetrics.textOverflow, "clip");
 
     await page.locator("#cardSubtitleInput").fill(subtitle);
     assert.equal(await page.locator("#boardSubtitle").textContent(), subtitle);

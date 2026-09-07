@@ -10,7 +10,7 @@ const fixturePng = Buffer.from(
   const browser = await chromium.launch({ headless: true, channel: "msedge" });
   const page = await browser.newPage({ viewport: { width: 875, height: 797 }, deviceScaleFactor: 1 });
   try {
-    await page.goto("http://localhost:4173", { waitUntil: "networkidle" });
+    await page.goto(process.env.TEST_BASE_URL || "http://localhost:4173", { waitUntil: "networkidle" });
     await page.evaluate(() => localStorage.clear());
     await page.reload({ waitUntil: "networkidle" });
     await page.locator("#imageInput").setInputFiles({ name: "dock-source.png", mimeType: "image/png", buffer: fixturePng });

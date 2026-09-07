@@ -41,7 +41,7 @@ async function assertAboveRail(page, selector, label) {
 
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await page.waitForTimeout(80);
-    await assertAboveRail(page, ".equipment-row:last-child", "last equipment row at the bottom of the page");
+    await assertAboveRail(page, ".equipment-row-shell:last-child .equipment-row", "last equipment row at the bottom of the page");
 
     const layout = await page.evaluate(() => ({
       horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,

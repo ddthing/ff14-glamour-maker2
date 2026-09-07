@@ -121,11 +121,18 @@ function drawExportBackground(context, width, height, background) {
   context.restore();
 }
 
-async function render({ state, dimensions, exportTheme, background, patternStars, images, copyLayout, gear, outlineColor }) {
+async function render({ state, dimensions, exportTheme, background, patternStars, images, copyLayout, gear, outlineColor, placementScale = 1, infoTextColor = exportTheme.text, infoTextMuted = exportTheme.muted, infoTextHalo = exportTheme.infoShadow }) {
   const activeCharacters = state.characters.slice(0, state.characterCount);
   const isPortrait = dimensions.layoutHeight > dimensions.layoutWidth;
+    const characterFrames = CardLayout.characterFrames({
+      characterCount: state.characterCount,
+      singleRatio: isPortrait ? "portrait" : "landscape",
+      singleLayout: state.singleLayout,
+      characters: activeCharacters,
+    });
     const { layoutWidth, layoutHeight, exportWidth, exportHeight } = dimensions;
-    const outputScale = 2;
+    const outputScale = CardCopy.outputScale;
+    const resolvedPlacementScale = Number.isFinite(placementScale) && placementScale > 0 ? placementScale : 1;
     const canvas = document.createElement("canvas");
     canvas.width = exportWidth;
     canvas.height = exportHeight;
@@ -146,18 +153,18 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       const scale = fitScale * (placement.zoom / 100);
       const imageWidth = image.naturalWidth * scale;
       const imageHeight = image.naturalHeight * scale;
-      const imageX = x + (width - imageWidth) / 2 + placement.panX * 2;
-      const imageY = placement.imageFit === "cover"
-        ? y + (height - imageHeight) / 2 + placement.panY * 2
-        : y + height - imageHeight + placement.panY * 2;
+      const imageX = x + (width - imageWidth) / 2 + placement.panX * resolvedPlacementScale;
+      const imageY = y + (height - imageHeight) / 2 + placement.panY * resolvedPlacementScale;
       context.drawImage(image, imageX, imageY, imageWidth, imageHeight);
     };
     const drawCharacter = (image, character, x, y, width, height) => {
       context.save();
       const informationMode = state.characterCount >= 3 && state.multiInfoEnabled;
-      if (informationMode) {
-        context.globalAlpha = state.multiInfoMode === "silhouette" && character.cutout ? 0.72 : 0.48;
-        context.filter = state.multiInfoMode === "silhouette" && character.cutout
+      const silhouetteMode = informationMode && state.multiInfoMode === "silhouette" && character.cutout;
+      const fadeMode = informationMode && state.multiInfoMode === "fade";
+      if (silhouetteMode || fadeMode) {
+        context.globalAlpha = silhouetteMode ? 0.72 : 0.48;
+        context.filter = silhouetteMode
           ? "brightness(0)"
           : "grayscale(82%) saturate(35%) contrast(86%) brightness(108%)";
       }
@@ -176,14 +183,16 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       const imageScale = fitScale * (placement.zoom / 100);
       const imageW = image.naturalWidth * imageScale;
       const imageH = image.naturalHeight * imageScale;
-      const imageX = x + (width - imageW) / 2 + placement.panX * 2;
+      const imageX = x + (width - imageW) / 2 + placement.panX * resolvedPlacementScale;
       const imageY = placement.imageFit === "cover"
-        ? y + (height - imageH) / 2 + placement.panY * 2
-        : y + height - imageH + placement.panY * 2;
+        ? y + (height - imageH) / 2 + placement.panY * resolvedPlacementScale
+        : y + height - imageH + placement.panY * resolvedPlacementScale;
       const outline = state.outline.width * 2;
-      const characterTreatment = informationMode
-        ? state.multiInfoMode === "silhouette" ? "brightness(0)" : "grayscale(82%) saturate(35%) contrast(86%) brightness(108%)"
-        : "";
+      const characterTreatment = silhouetteMode
+        ? "brightness(0)"
+        : fadeMode
+          ? "grayscale(82%) saturate(35%) contrast(86%) brightness(108%)"
+          : "";
       context.filter = `${outline ? `drop-shadow(${outline}px 0 0 ${outlineColor}) drop-shadow(-${outline}px 0 0 ${outlineColor})` : ""} drop-shadow(${state.shadow.x * 2}px ${state.shadow.y * 2}px ${state.shadow.blur * 2}px rgba(10,11,18,${state.shadow.strength / 100})) ${characterTreatment}`.trim();
       context.drawImage(image, imageX, imageY, imageW, imageH);
       context.restore();
@@ -194,12 +203,13 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       while (shortened.length > 1 && context.measureText(shortened + "…").width > maxWidth) shortened = shortened.slice(0, -1);
       return shortened + "…";
     };
-    const drawGearTile = (item, x, y, width, height) => {
+    const drawGearTile = (item, x, y, width, height, { textAlign = "left" } = {}) => {
       const padding = Math.max(10, Math.round(width * 0.045));
       const secondaryName = item.secondaryName;
       const slotSize = Math.max(9, Math.min(13, Math.round(height * 0.13)));
       const primarySize = Math.max(11, Math.min(17, Math.round(height * 0.18)));
       const secondarySize = Math.max(8, Math.min(11, Math.round(height * 0.11)));
+      const textX = textAlign === "right" ? x + width - padding : x + padding;
       context.save();
       roundRect(x, y, width, height, exportTheme.radius);
       context.fillStyle = exportTheme.panel;
@@ -208,17 +218,23 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       context.lineWidth = 2;
       context.stroke();
       context.fillStyle = exportTheme.muted;
-      context.fillRect(x + padding, y + Math.round(height * 0.22), Math.max(14, Math.round(width * 0.08)), 2);
       context.font = `600 ${slotSize}px "Pretendard Variable", sans-serif`;
-      context.fillText(item.slotName, x + padding, y + Math.round(height * 0.38));
+      const slotWidth = context.measureText(item.slotName).width;
+      const slotLineWidth = Math.max(14, Math.round(width * 0.08));
+      const slotLineX = textAlign === "right"
+        ? textX - slotWidth - Math.max(4, Math.round(slotSize * 0.55)) - slotLineWidth
+        : textX;
+      context.fillRect(slotLineX, y + Math.round(height * 0.22), slotLineWidth, 2);
+      context.textAlign = textAlign;
+      context.fillText(item.slotName, textX, y + Math.round(height * 0.38));
       context.fillStyle = exportTheme.text;
       context.font = `700 ${primarySize}px "Pretendard Variable", sans-serif`;
       const primaryY = y + Math.round(height * (secondaryName ? 0.64 : 0.72));
-      context.fillText(fitText(item.name, width - padding * 2), x + padding, primaryY);
+      context.fillText(fitText(item.name, width - padding * 2), textX, primaryY);
       if (secondaryName) {
         context.fillStyle = exportTheme.muted;
         context.font = `500 ${secondarySize}px "Pretendard Variable", sans-serif`;
-        context.fillText(fitText(secondaryName, width - padding * 2), x + padding, y + Math.round(height * 0.84));
+        context.fillText(fitText(secondaryName, width - padding * 2), textX, y + Math.round(height * 0.84));
       }
       context.restore();
     };
@@ -241,61 +257,36 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       if (item) drawGearTile(item, ...position);
     });
     const drawTwoPersonGear = () => {
-      const railX = [24, 930];
-      const railWidth = 246;
-      const itemTop = 150;
-      const itemHeight = 82;
-      const itemGap = 6;
+      const rails = CardLayout.infoRails({ characterCount: state.characterCount });
       activeCharacters.slice(0, 2).forEach((character, characterIndex) => {
+        const rail = rails[characterIndex];
         const items = gear[characterIndex] || [];
-        const x = railX[characterIndex];
         items.forEach((item, itemIndex) => {
-          drawGearTile(item, x, itemTop + itemIndex * (itemHeight + itemGap), railWidth, itemHeight);
+          drawGearTile(
+            item,
+            rail.x,
+            rail.y + itemIndex * (rail.itemHeight + rail.gap),
+            rail.width,
+            rail.itemHeight,
+            { textAlign: rail.textAlign },
+          );
         });
       });
     };
 
-    const isLineup = state.characterCount >= 3;
-    const hasFullFrameSource = activeCharacters.some((character) => !character.cutout);
-    const figureTop = isLineup && hasFullFrameSource ? 0 : 142;
-    const figureBottom = isLineup
-      ? hasFullFrameSource ? layoutHeight : layoutHeight - 14
-      : 640;
-    if (state.characterCount === 1) {
-      if (isPortrait) {
-        drawCharacter(images[0], activeCharacters[0], 95, 150, 890, 1180);
-      } else {
-        const characterX = state.singleLayout === "info-right" ? 18 : 362;
-        drawCharacter(images[0], activeCharacters[0], characterX, 108, 820, 532);
-      }
-    } else if (state.characterCount === 2) {
-      drawCharacter(images[0], activeCharacters[0], 210, figureTop, 390, figureBottom - figureTop);
-      drawCharacter(images[1], activeCharacters[1], 600, figureTop, 390, figureBottom - figureTop);
-    } else {
-      const lineupWidth = layoutWidth / state.characterCount;
-      images.forEach((image, index) => drawCharacter(image, activeCharacters[index], lineupWidth * index, figureTop, lineupWidth, figureBottom - figureTop));
-    }
+    characterFrames.forEach((frame, index) => {
+      drawCharacter(images[index], activeCharacters[index], frame.x, frame.y, frame.width, frame.height);
+    });
 
     context.fillStyle = "rgba(255,255,255,.2)";
     for (let index = 0; index < layoutWidth; index += 27) {
       context.fillRect((index * 47) % layoutWidth, (index * 83) % layoutHeight, 1, 1);
     }
 
-    // Paint the same line geometry captured from the visible card, including
-    // wrapped copy and the outline's scale, instead of a second title recipe.
-    for (const copy of copyLayout) {
-      context.save(); context.textAlign = "left"; context.textBaseline = "alphabetic";
-      context.font = copy.font; context.fillStyle = copy.color;
-      context.letterSpacing = `${copy.letterSpacing}px`;
-      context.lineJoin = "round"; context.lineWidth = copy.stroke; context.strokeStyle = copy.strokeColor;
-      for (const line of copy.lines) {
-        const metrics = context.measureText(line.text);
-        const baseline = line.y + line.height - (metrics.fontBoundingBoxDescent || 0);
-        if (copy.stroke) context.strokeText(line.text, line.x, baseline);
-        context.fillText(line.text, line.x, baseline);
-      }
-      context.restore();
-    }
+    // The preview renders this same high-resolution copy layer. Keeping the
+    // text implementation behind one small interface prevents DOM and PNG
+    // glyphs from drifting apart again.
+    CardCopy.draw(context, copyLayout);
 
     if (state.characterCount === 1) {
       if (isPortrait) {
@@ -312,20 +303,19 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       context.textAlign = "center";
       activeCharacters.forEach((character, characterIndex) => {
         const items = gear[characterIndex] || [];
-        const shownItems = state.infoDensity === "summary" ? items.slice(0, 3) : items;
         const centerX = columnWidth * characterIndex + columnWidth / 2;
-        const startY = state.infoDensity === "summary" ? 274 : 242;
-        context.fillStyle = exportTheme.muted;
-        context.shadowColor = exportTheme.infoShadow;
+        const startY = 242;
+        context.fillStyle = infoTextMuted;
+        context.shadowColor = infoTextHalo;
         context.shadowBlur = 10;
         let itemY = startY;
-        shownItems.forEach((item) => {
+        items.forEach((item) => {
           const secondaryName = item.secondaryName;
-          context.fillStyle = exportTheme.text;
+          context.fillStyle = infoTextColor;
           context.font = `650 ${state.characterCount === 5 ? 12 : 14}px \"Pretendard Variable\", sans-serif`;
           context.fillText(fitText(item.name, columnWidth - 24), centerX, itemY);
           if (secondaryName) {
-            context.fillStyle = exportTheme.muted;
+            context.fillStyle = infoTextMuted;
             context.font = `500 ${state.characterCount === 5 ? 8 : 10}px \"Pretendard Variable\", sans-serif`;
             context.fillText(fitText(secondaryName, columnWidth - 24), centerX, itemY + 14);
             itemY += 34;
@@ -333,11 +323,6 @@ async function render({ state, dimensions, exportTheme, background, patternStars
             itemY += 23;
           }
         });
-        if (state.infoDensity === "summary" && items.length > 3) {
-          context.fillStyle = exportTheme.muted;
-          context.font = "600 10px Consolas, monospace";
-          context.fillText(`+${items.length - 3} ITEMS`, centerX, itemY + 3);
-        }
       });
       context.shadowColor = "transparent";
       context.shadowBlur = 0;

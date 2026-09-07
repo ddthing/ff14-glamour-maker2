@@ -13,8 +13,89 @@ const fixturePng = Buffer.from(
     await page.addInitScript(() => localStorage.clear());
     await page.goto(process.env.TEST_BASE_URL || "http://localhost:4173/?image-placement-check=1");
     await page.waitForSelector("#canvasBoard");
-    await page.locator("#imageInput").setInputFiles({ name: "placement-source.png", mimeType: "image/png", buffer: fixturePng });
+    const emptyGeometry = await page.evaluate(() => {
+      const figure = document.querySelector("#portraitWrap .character-figure").getBoundingClientRect();
+      const placeholder = document.querySelector(".character-empty-placeholder").getBoundingClientRect();
+      return {
+        figureCenter: figure.top + figure.height / 2,
+        placeholderCenter: placeholder.top + placeholder.height / 2,
+      };
+    });
+    assert.ok(Math.abs(emptyGeometry.figureCenter - emptyGeometry.placeholderCenter) <= 2, `empty photo slot is not centered: ${JSON.stringify(emptyGeometry)}`);
+    assert.equal(await page.locator(".character-figure.is-empty").getAttribute("aria-label"), "캐릭터 1 사진 추가", "the empty card itself should expose a direct add action");
+    assert.equal(await page.locator("#imageDropZone").count(), 0, "photo import should not rely on a duplicate bottom upload target");
+
+    const addChooser = page.waitForEvent("filechooser");
+    await page.locator(".character-figure.is-empty").click();
+    await (await addChooser).setFiles({ name: "placement-source.png", mimeType: "image/png", buffer: fixturePng });
     await page.waitForFunction(() => document.querySelector("#imageState")?.dataset.state === "original");
+
+    assert.equal(await page.locator("#portraitWrap .character-figure button").count(), 0, "photo actions must not be nested interactive controls");
+    assert.deepEqual(await page.locator("[data-character-image-action]").evaluateAll((buttons) => buttons.map((button) => button.dataset.characterImageAction)), ["change", "remove"]);
+    const imagePlacement = await page.locator("#portraitWrap img").evaluate((image) => ({
+      objectPosition: getComputedStyle(image).objectPosition,
+      transformOrigin: getComputedStyle(image).transformOrigin.split(" ").map(parseFloat),
+      width: image.getBoundingClientRect().width,
+      height: image.getBoundingClientRect().height,
+    }));
+    assert.equal(imagePlacement.objectPosition, "50% 50%", "source photos should use a centered default frame");
+    assert.ok(Math.abs(imagePlacement.transformOrigin[0] - imagePlacement.width / 2) <= 1 && Math.abs(imagePlacement.transformOrigin[1] - imagePlacement.height / 2) <= 1, `source photo zoom should use the centered frame as its origin: ${JSON.stringify(imagePlacement)}`);
+
+    const changeChooser = page.waitForEvent("filechooser");
+    await page.locator('[data-character-image-action="change"]').click();
+    await (await changeChooser).setFiles({ name: "placement-replacement.png", mimeType: "image/png", buffer: fixturePng });
+    await page.waitForFunction(() => document.querySelector("#sourceFileName")?.textContent === "placement-replacement.png");
+
+    await page.locator('[data-character-image-action="remove"]').click();
+    await page.waitForFunction(() => document.querySelector("#portraitWrap .character-figure")?.classList.contains("is-empty"));
+    assert.equal(await page.locator("#portraitWrap img").count(), 0, "remove should clear the preview image");
+    assert.equal(await page.locator(".character-figure.is-empty").getAttribute("aria-label"), "캐릭터 1 사진 추가", "remove should restore the direct add action");
+    assert.equal(await page.locator("#imageState").getAttribute("data-state"), "empty");
+
+    await page.locator("#undoButton").click();
+    await page.waitForFunction(() => document.querySelector("#portraitWrap img") && document.querySelector("#sourceFileName")?.textContent === "placement-replacement.png");
+    await page.locator('[data-character-image-action="remove"]').click();
+    await page.waitForFunction(() => document.querySelector("#portraitWrap .character-figure")?.classList.contains("is-empty"));
+
+    const readdChooser = page.waitForEvent("filechooser");
+    await page.locator(".character-figure.is-empty").click();
+    await (await readdChooser).setFiles({ name: "placement-source.png", mimeType: "image/png", buffer: fixturePng });
+    await page.waitForFunction(() => document.querySelector("#imageState")?.dataset.state === "original");
+
+    const exportPlacement = await page.evaluate(async () => {
+      const calls = [];
+      const originalDrawImage = CanvasRenderingContext2D.prototype.drawImage;
+      CanvasRenderingContext2D.prototype.drawImage = function drawImageProbe(image, ...args) {
+        calls.push(args);
+      };
+      try {
+        await CardPng.render({
+          state: {
+            characters: [{ cutout: false, imageFit: "contain", zoom: 100, panX: 0, panY: 0 }],
+            characterCount: 1,
+            backgroundPattern: "none",
+            backgroundTexture: "none",
+            multiInfoEnabled: false,
+            multiInfoMode: "clear",
+            singleLayout: "info-left",
+            outline: { width: 0 },
+            shadow: { x: 0, y: 0, blur: 0, strength: 0 },
+          },
+          dimensions: { layoutWidth: 1000, layoutHeight: 1300, exportWidth: 2000, exportHeight: 2600 },
+          exportTheme: { radius: 12, panel: "#fff", panelBorder: "#fff", muted: "#999", text: "#111", infoShadow: "transparent" },
+          background: { solid: "#fff", pattern: ["#000", "#fff"] },
+          patternStars: [],
+          images: [{ naturalWidth: 100, naturalHeight: 100 }],
+          copyLayout: [],
+          gear: [[]],
+          outlineColor: "#000",
+        });
+        return calls;
+      } finally {
+        CanvasRenderingContext2D.prototype.drawImage = originalDrawImage;
+      }
+    });
+    assert.deepEqual(exportPlacement[0], [95, 295, 890, 890], `PNG source frame should be centered like the preview: ${JSON.stringify(exportPlacement)}`);
 
     await page.locator('[data-pattern="stars"]').click();
     const stars = await page.locator("#scenePattern .pattern-motif--star").count();

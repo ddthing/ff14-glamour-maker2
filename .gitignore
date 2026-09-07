@@ -1,6 +1,7 @@
 .venv-bg/
 .models/
 .runtime/
+dist/
 .wrangler/
 artifacts/
 node_modules/

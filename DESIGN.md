@@ -1,6 +1,6 @@
-# Glamour Atelier design contract
+# 투영세트메이커2 design contract
 
-This file is the visual source of truth for the FF14 glamour lookbook editor.
+This file is the visual source of truth for the FF14 lookbook editor.
 It is intentionally small: the editor should help a creator make a card, not
 make the creator manage a dashboard.
 

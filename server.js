@@ -15,19 +15,21 @@ const remoteCutoutTimeoutMs = 120 * 1000;
 const supportedBackgroundImageTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
 let worker = null;
 let workerReady = null;
-let workerBuffer = "";
 const pendingJobs = new Map();
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".md": "text/plain; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8",
+  ".xml": "application/xml; charset=utf-8",
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".webp": "image/webp",
   ".json": "application/json; charset=utf-8",
   ".ttf": "font/ttf",
+  ".svg": "image/svg+xml",
 };
 
 const koreanItemCsvUrl = "https://raw.githubusercontent.com/Ra-Workspace/ffxiv-datamining-ko/master/csv/Item.csv";
@@ -158,7 +160,7 @@ async function loadKoreanItemIndex() {
     return koreanItemIndexPromise;
   }
   koreanItemIndexPromise = fetchWithTimeout(koreanItemCsvUrl, {
-    headers: { "User-Agent": "glamour-atelier-item-search" },
+    headers: { "User-Agent": "tuyeong-set-maker2-item-search" },
   }, 15000).then(async (result) => {
     if (!result.ok) throw new Error(`한국어 장비 데이터 응답 오류 (${result.status})`);
     return parseKoreanItemIndex(await result.text());
@@ -249,7 +251,7 @@ async function fetchXivItem(id, language) {
   const url = new URL(`${xivApiBaseUrl}/sheet/Item/${encodeURIComponent(id)}`);
   url.searchParams.set("fields", "Name,Icon,LevelItem,EquipSlotCategory");
   url.searchParams.set("language", language);
-  const result = await fetchWithTimeout(url, { headers: { "User-Agent": "glamour-atelier-item-search" } });
+  const result = await fetchWithTimeout(url, { headers: { "User-Agent": "tuyeong-set-maker2-item-search" } });
   if (!result.ok) throw new Error(`XIVAPI 아이템 조회 오류 (${result.status})`);
   return normaliseXivItem(await result.json(), language);
 }
@@ -266,7 +268,7 @@ async function searchXivItems(query, language, slot) {
   url.searchParams.set("query", `Name~"${safeQuery}"`);
   url.searchParams.set("language", language);
   url.searchParams.set("limit", "24");
-  const result = await fetchWithTimeout(url, { headers: { "User-Agent": "glamour-atelier-item-search" } });
+  const result = await fetchWithTimeout(url, { headers: { "User-Agent": "tuyeong-set-maker2-item-search" } });
   if (!result.ok) throw new Error(`XIVAPI 검색 오류 (${result.status})`);
   const payload = await result.json();
   return (payload.results || [])
@@ -283,9 +285,10 @@ function resolveItemSearchLanguage(query, requestedLanguage) {
 }
 
 async function handleItemSearch(request, response) {
-  const requestUrl = new URL(request.url || "/", `http://${request.headers.host || "localhost"}`);
+  const requestUrl = new URL(request.url || "/", "http://localhost");
   const query = (requestUrl.searchParams.get("q") || "").trim().slice(0, 80);
-  const slot = requestUrl.searchParams.get("slot") || "";
+  const requestedSlot = requestUrl.searchParams.get("slot") || "";
+  const slot = supportedItemSlots.has(requestedSlot) ? requestedSlot : "";
   const requestedLanguage = ["ko", "en", "ja"].includes(requestUrl.searchParams.get("language"))
     ? requestUrl.searchParams.get("language")
     : "ko";
@@ -355,9 +358,12 @@ async function handleItemSearch(request, response) {
   }
 }
 
-function failPendingJobs(message) {
-  pendingJobs.forEach(({ reject }) => reject(new Error(message)));
-  pendingJobs.clear();
+function failPendingJobs(message, targetWorker = null) {
+  pendingJobs.forEach((job, id) => {
+    if (targetWorker && job.worker !== targetWorker) return;
+    pendingJobs.delete(id);
+    job.reject(new Error(message));
+  });
 }
 
 function ensureWorker() {
@@ -366,59 +372,78 @@ function ensureWorker() {
     return Promise.reject(new Error("배경 제거 환경이 없습니다. README의 설치 안내를 확인해주세요."));
   }
   fs.mkdirSync(runtimeDir, { recursive: true });
-  worker = spawn(pythonPath, [workerPath], {
+  const child = spawn(pythonPath, [workerPath], {
     cwd: root,
     env: { ...process.env, U2NET_HOME: path.join(root, ".models", "rembg") },
     stdio: ["pipe", "pipe", "pipe"],
     windowsHide: true,
   });
-  workerReady = new Promise((resolve, reject) => {
-    const readyTimeout = setTimeout(() => reject(new Error("배경 제거 모델 준비 시간이 초과되었습니다.")), 120000);
-    worker.stdout.on("data", (chunk) => {
-      workerBuffer += chunk.toString("utf8");
-      const lines = workerBuffer.split(/\r?\n/);
-      workerBuffer = lines.pop() || "";
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        try {
-          const message = JSON.parse(line);
-          if (message.type === "ready") {
-            clearTimeout(readyTimeout);
-            resolve();
-            continue;
-          }
-          if (message.type === "fatal") {
-            clearTimeout(readyTimeout);
-            reject(new Error(message.error));
-            continue;
-          }
-          const job = pendingJobs.get(message.id);
-          if (!job) continue;
-          pendingJobs.delete(message.id);
-          message.type === "result" ? job.resolve(message.output) : job.reject(new Error(message.error));
-        } catch {
-          // Ignore non-protocol output from native dependencies.
+  worker = child;
+  let buffer = "";
+  let readySettled = false;
+  let resolveReady;
+  let rejectReady;
+  const readyTimeout = setTimeout(() => failWorker(new Error("배경 제거 모델 준비 시간이 초과되었습니다.")), 120000);
+  const readyPromise = new Promise((resolve, reject) => {
+    resolveReady = resolve;
+    rejectReady = reject;
+  });
+  workerReady = readyPromise;
+
+  function settleReady(error) {
+    if (readySettled) return;
+    readySettled = true;
+    clearTimeout(readyTimeout);
+    error ? rejectReady(error) : resolveReady();
+  }
+
+  function failWorker(error) {
+    settleReady(error);
+    failPendingJobs(error.message, child);
+    if (worker === child) {
+      worker = null;
+      workerReady = null;
+    }
+    if (!child.killed) child.kill();
+  }
+
+  child.stdout.on("data", (chunk) => {
+    buffer += chunk.toString("utf8");
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() || "";
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const message = JSON.parse(line);
+        if (message.type === "ready") {
+          settleReady();
+          continue;
         }
+        if (message.type === "fatal") {
+          failWorker(new Error(message.error || "배경 제거 워커가 시작되지 않았습니다."));
+          continue;
+        }
+        const job = pendingJobs.get(message.id);
+        if (!job) continue;
+        pendingJobs.delete(message.id);
+        message.type === "result" ? job.resolve(message.output) : job.reject(new Error(message.error));
+      } catch {
+        // Ignore non-protocol output from native dependencies.
       }
-    });
+    }
   });
-  worker.stderr.on("data", (chunk) => process.stderr.write(`[background-worker] ${chunk}`));
-  worker.on("exit", (code) => {
-    failPendingJobs(`배경 제거 프로세스가 종료되었습니다 (${code ?? "unknown"}).`);
-    worker = null;
-    workerReady = null;
-    workerBuffer = "";
+  child.stderr.on("data", (chunk) => process.stderr.write(`[background-worker] ${chunk}`));
+  child.on("exit", (code) => {
+    failWorker(new Error(`배경 제거 프로세스가 종료되었습니다 (${code ?? "unknown"}).`));
   });
-  worker.on("error", (error) => {
-    failPendingJobs(error.message);
-    worker = null;
-    workerReady = null;
+  child.on("error", (error) => {
+    failWorker(error);
   });
-  return workerReady;
+  return readyPromise;
 }
 
 async function removeBackground(inputPath, outputPath) {
-  await ensureWorker();
+  const activeWorker = await ensureWorker();
   const id = crypto.randomUUID();
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
@@ -426,10 +451,23 @@ async function removeBackground(inputPath, outputPath) {
       reject(new Error("배경 제거 시간이 초과되었습니다."));
     }, 180000);
     pendingJobs.set(id, {
+      worker: activeWorker,
       resolve: (value) => { clearTimeout(timeout); resolve(value); },
       reject: (error) => { clearTimeout(timeout); reject(error); },
     });
-    worker.stdin.write(`${JSON.stringify({ id, input: inputPath, output: outputPath })}\n`);
+    try {
+      if (activeWorker.stdin.destroyed) throw new Error("배경 제거 프로세스에 연결할 수 없습니다.");
+      activeWorker.stdin.write(`${JSON.stringify({ id, input: inputPath, output: outputPath })}\n`, (error) => {
+        if (!error || !pendingJobs.has(id)) return;
+        pendingJobs.delete(id);
+        clearTimeout(timeout);
+        reject(error);
+      });
+    } catch (error) {
+      pendingJobs.delete(id);
+      clearTimeout(timeout);
+      reject(error);
+    }
   });
 }
 
@@ -437,11 +475,14 @@ function readRequestBody(request) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
+    let rejected = false;
     request.on("data", (chunk) => {
+      if (rejected) return;
       size += chunk.length;
       if (size > maxUploadBytes) {
-        reject(new Error("16MB 이하 이미지를 사용해주세요."));
-        request.destroy();
+        rejected = true;
+        reject(createUploadTooLargeError());
+        request.resume();
         return;
       }
       chunks.push(chunk);
@@ -456,10 +497,13 @@ async function handleBackgroundRemoval(request, response) {
     await handleRemoteBackgroundRemoval(request, response);
     return;
   }
-  const contentType = request.headers["content-type"] || "";
-  if (!contentType.startsWith("image/")) {
-    response.writeHead(415, { "Content-Type": "application/json; charset=utf-8" });
-    response.end(JSON.stringify({ error: "이미지 파일만 처리할 수 있습니다." }));
+  const contentType = String(request.headers["content-type"] || "")
+    .split(";", 1)[0]
+    .trim()
+    .toLowerCase();
+  if (!supportedBackgroundImageTypes.has(contentType)) {
+    sendJson(response, 415, { error: "PNG, JPEG, WEBP 이미지만 처리할 수 있습니다." });
+    request.resume();
     return;
   }
   const contentLength = Number(request.headers["content-length"]);
@@ -475,6 +519,10 @@ async function handleBackgroundRemoval(request, response) {
     fs.mkdirSync(runtimeDir, { recursive: true });
     fs.writeFileSync(inputPath, await readRequestBody(request));
     await removeBackground(inputPath, outputPath);
+    const outputSize = fs.statSync(outputPath).size;
+    if (outputSize > maxResultBytes) {
+      throw createResultTooLargeError();
+    }
     const output = fs.readFileSync(outputPath);
     response.writeHead(200, {
       "Content-Type": "image/png",
@@ -485,8 +533,11 @@ async function handleBackgroundRemoval(request, response) {
     response.end(output);
   } catch (error) {
     if (!response.headersSent) {
-      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify({ error: error.message || "배경 제거에 실패했습니다." }));
+      sendJson(response, error.code === "RESULT_TOO_LARGE" ? 502 : error.code === "UPLOAD_TOO_LARGE" ? 413 : 500, {
+        error: error.code === "RESULT_TOO_LARGE"
+          ? error.message
+          : error.code === "UPLOAD_TOO_LARGE" ? error.message : "배경 제거에 실패했습니다.",
+      });
     }
   } finally {
     fs.rmSync(inputPath, { force: true });
@@ -520,7 +571,7 @@ async function handleRemoteBackgroundRemoval(request, response) {
   try {
     body = await readRequestBody(request);
   } catch (error) {
-    sendJson(response, 400, { error: error.message || "이미지를 읽지 못했습니다." });
+    sendJson(response, error.code === "UPLOAD_TOO_LARGE" ? 413 : 400, { error: error.message || "이미지를 읽지 못했습니다." });
     return;
   }
   const headers = {
@@ -556,11 +607,23 @@ async function handleRemoteBackgroundRemoval(request, response) {
     .split(";", 1)[0]
     .trim()
     .toLowerCase();
-  if (!resultType.startsWith("image/")) {
+  if (!supportedBackgroundImageTypes.has(resultType)) {
+    await upstream.body?.cancel();
     sendJson(response, 502, { error: "배경 제거 결과를 확인할 수 없습니다." });
     return;
   }
-  const output = Buffer.from(await upstream.arrayBuffer());
+  let output;
+  try {
+    output = await readLimitedResponseBody(upstream, maxResultBytes, remoteCutoutTimeoutMs);
+  } catch (error) {
+    const timedOut = error.code === "UPSTREAM_TIMEOUT";
+    sendJson(response, timedOut ? 504 : 502, {
+      error: error.code === "RESULT_TOO_LARGE"
+        ? error.message
+        : timedOut ? "배경 제거 시간이 초과되었습니다. 잠시 후 다시 시도해주세요." : "배경 제거 결과를 읽지 못했습니다.",
+    });
+    return;
+  }
   if (output.length > maxResultBytes) {
     sendJson(response, 502, { error: "배경 제거 결과가 너무 큽니다." });
     return;
@@ -572,6 +635,71 @@ async function handleRemoteBackgroundRemoval(request, response) {
     "X-Background-Mode": "gpu",
   });
   response.end(output);
+}
+
+function createResultTooLargeError() {
+  const error = new Error("배경 제거 결과가 너무 큽니다.");
+  error.code = "RESULT_TOO_LARGE";
+  return error;
+}
+
+function createUploadTooLargeError() {
+  const error = new Error("16MB 이하 이미지를 사용해주세요.");
+  error.code = "UPLOAD_TOO_LARGE";
+  return error;
+}
+
+async function readLimitedResponseBody(response, limit, timeoutMs = 0) {
+  const contentLength = Number(response.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > limit) {
+    await response.body?.cancel();
+    throw createResultTooLargeError();
+  }
+  if (!response.body?.getReader) {
+    const output = Buffer.from(await response.arrayBuffer());
+    if (output.length > limit) throw createResultTooLargeError();
+    return output;
+  }
+  const reader = response.body.getReader();
+  const chunks = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await readStreamChunk(reader, timeoutMs);
+      if (done) break;
+      const chunk = Buffer.from(value);
+      size += chunk.length;
+      if (size > limit) {
+        await reader.cancel();
+        throw createResultTooLargeError();
+      }
+      chunks.push(chunk);
+    }
+  } catch (error) {
+    try { await reader.cancel(); } catch {}
+    throw error;
+  }
+  return Buffer.concat(chunks, size);
+}
+
+async function readStreamChunk(reader, timeoutMs) {
+  if (!timeoutMs) return reader.read();
+  let timer;
+  try {
+    return await Promise.race([
+      reader.read(),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          reader.cancel().catch(() => {});
+          const error = new Error("upstream response timed out");
+          error.code = "UPSTREAM_TIMEOUT";
+          reject(error);
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function resolveRemoteCutoutUrl(value) {
@@ -598,7 +726,7 @@ const server = http.createServer(async (request, response) => {
   try { requestPath = decodeURIComponent((request.url || "/").split("?")[0]); }
   catch { sendJson(response, 400, { error: "올바르지 않은 요청 주소입니다." }); return; }
   const relativePath = requestPath === "/" ? "index.html" : requestPath.replace(/^\/+/, "");
-  const publicFile = ["index.html", "app.js", "styles.css", "models/look-editor.js", "models/look-book.js", "models/image-assets.js", "models/item-search.js", "models/card-png.js", "models/editor-navigation.js", "models/background-presets.js", "models/title-typography.js", "models/background-removal.js"].includes(relativePath)
+  const publicFile = ["index.html", "app.js", "styles.css", "robots.txt", "sitemap.xml", "models/look-editor.js", "models/look-book.js", "models/image-assets.js", "models/item-search.js", "models/card-layout.js", "models/card-copy.js", "models/color-contrast.js", "models/card-png.js", "models/editor-navigation.js", "models/background-presets.js", "models/title-typography.js", "models/background-removal.js"].includes(relativePath)
     || /^(styles\/[^/]+\.css|assets\/(data|fonts|icons)\/[^/]+\.(json|ttf|woff2?|svg))$/.test(relativePath);
   const filePath = path.resolve(root, relativePath);
   const isInsideRoot = filePath === root || filePath.startsWith(`${root}${path.sep}`);
@@ -618,5 +746,5 @@ const server = http.createServer(async (request, response) => {
 });
 
 server.listen(port, process.env.HOST || "127.0.0.1", () => {
-  console.log(`Glamour Atelier running at http://localhost:${port}`);
+  console.log(`투영세트메이커2 running at http://localhost:${port}`);
 });

@@ -37,12 +37,12 @@ const baseUrl = process.env.TEST_BASE_URL || "http://localhost:4173";
     await page.locator("#resetWorkspaceButton").click();
     await page.locator("#confirmWorkspaceDelete").click();
     await page.waitForFunction(() => document.querySelectorAll(".look-list-item").length === 1);
-    assert.equal(await page.evaluate(() => localStorage.getItem("glamour-atelier-draft-v3")), null);
+    assert.equal(await page.evaluate(() => localStorage.getItem("tuyeong-set-maker2-draft-v3")), null);
 
     releaseSearch();
     await page.waitForTimeout(150);
     assert.equal(
-      await page.evaluate(() => localStorage.getItem("glamour-atelier-draft-v3")),
+      await page.evaluate(() => localStorage.getItem("tuyeong-set-maker2-draft-v3")),
       null,
       "a late item-name hydration must not recreate a draft after permanent deletion",
     );

@@ -91,6 +91,35 @@ function syncTitleFontControls() {
   if (hadWeightFocus) optionsHost.querySelector('[aria-checked="true"]')?.focus();
 }
 
+function syncTitleAlignmentControls() {
+  const controls = document.getElementById("titleAlignmentControls");
+  if (!controls) return;
+  const selectedAlignment = resolveTitleAlign();
+  controls.querySelectorAll("[data-title-align]").forEach((button) => {
+    const selected = button.dataset.titleAlign === selectedAlignment;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-checked", String(selected));
+    button.setAttribute("aria-pressed", String(selected));
+    button.tabIndex = selected ? 0 : -1;
+  });
+}
+
+function syncCopyColorControls() {
+  const titleOutlineInput = document.getElementById("titleOutlineColorInput");
+  if (titleOutlineInput) titleOutlineInput.value = normaliseHexColor(state.titleOutline?.color, "#ffffff");
+  const titleColorInput = document.getElementById("titleColorInput");
+  const hasCustomTitleColor = Boolean(normaliseOptionalHexColor(state.titleColor));
+  if (titleColorInput) {
+    titleColorInput.value = hasCustomTitleColor ? state.titleColor : defaultTitleColor();
+    titleColorInput.dataset.mode = hasCustomTitleColor ? "custom" : "auto";
+  }
+  const autoButton = document.getElementById("titleColorAutoButton");
+  if (autoButton) {
+    autoButton.disabled = !hasCustomTitleColor;
+    autoButton.setAttribute("aria-pressed", String(!hasCustomTitleColor));
+  }
+}
+
 // Kept only to migrate drafts created before background presets existed.
 // These values never appear in the editor or in the new preset library.
 const legacyStyleRecipes = {
@@ -133,6 +162,10 @@ function getExportTheme() {
   };
 }
 
+function getSilhouetteInfoTheme(background) {
+  return ColorContrast.themeFor(background?.solid);
+}
+
 // One filled five-point star is shared by the live preview and PNG export.
 // Keeping one geometry prevents the preview and downloaded card from drifting.
 const patternStars = [
@@ -171,14 +204,24 @@ const patternStars = [
 
 const backgroundPatternOptions = new Set(["none", "dots", "stars", "halftone", "bitmap"]);
 const backgroundTextureOptions = new Set(["none", "grain"]);
-const draftStorageKey = "glamour-atelier-draft-v3";
-const uiPreferencesStorageKey = "glamour-atelier-ui-v2";
-const backgroundPresetStorageKey = "glamour-atelier-background-presets-v2";
+const projectName = "투영세트메이커2";
+const storageNamespace = "tuyeong-set-maker2";
+const draftStorageKey = `${storageNamespace}-draft-v3`;
+const uiPreferencesStorageKey = `${storageNamespace}-ui-v2`;
+const backgroundPresetStorageKey = `${storageNamespace}-background-presets-v2`;
+const legacyStorageMigrations = [
+  { source: "glamour-atelier-draft-v3", target: draftStorageKey },
+  { source: "glamour-atelier-ui-v2", target: uiPreferencesStorageKey },
+  { source: "glamour-atelier-background-presets-v2", target: backgroundPresetStorageKey },
+];
 const legacyStorageKeys = [
   "glamour-atelier-draft-v1",
   "glamour-atelier-draft-v2",
+  "glamour-atelier-draft-v3",
   "glamour-atelier-ui-v1",
+  "glamour-atelier-ui-v2",
   "glamour-atelier-background-presets-v1",
+  "glamour-atelier-background-presets-v2",
 ];
 const backgroundPresetLimit = 18;
 const backgroundPatternLabels = Object.freeze({
@@ -354,8 +397,16 @@ function createOutfits(itemIds, variants = []) {
   return Array.from({ length: 5 }, (_, index) => createOutfit(variants[index] || itemIds));
 }
 
+function normaliseOutfit(outfit = {}) {
+  return Object.fromEntries(outfitSlots.map((slot) => {
+    const value = outfit?.[slot];
+    const itemId = String(value ?? "");
+    return [slot, /^\d{1,32}$/.test(itemId) ? itemId : null];
+  }));
+}
+
 function cloneOutfits(outfits) {
-  return (outfits || []).map((outfit) => ({ ...outfit }));
+  return (outfits || []).map((outfit) => normaliseOutfit(outfit));
 }
 
 function outfitToItemIds(outfit) {
@@ -369,7 +420,7 @@ function ensureLookOutfits(look) {
   while (look.outfits.length < 5) {
     look.outfits.push(createOutfit(look.itemIds || []));
   }
-  look.outfits = look.outfits.slice(0, 5).map((outfit) => ({ ...createOutfit(), ...outfit }));
+  look.outfits = look.outfits.slice(0, 5).map((outfit) => normaliseOutfit(outfit));
   look.itemIds = outfitToItemIds(look.outfits[0]);
   return look.outfits;
 }
@@ -399,6 +450,8 @@ function createBlankLook(number = 1, id = `look-${number}`) {
     backgroundTexture: "none",
     titleFont: defaultTitleFont,
     titleWeight: defaultTitleWeight,
+    titleAlign: "auto",
+    titleColor: "",
     outline: { color: "#f1dfbb", width: 0 },
     titleOutline: { color: "#ffffff", width: 0 },
   };
@@ -420,6 +473,8 @@ function createLookResetSnapshot(look, index = 0) {
     background: blank.background,
     backgroundPattern: blank.backgroundPattern,
     backgroundTexture: blank.backgroundTexture,
+    titleAlign: blank.titleAlign,
+    titleColor: blank.titleColor,
   };
 }
 
@@ -439,10 +494,11 @@ const state = {
   characters: createEmptyCharacters(),
   background: "paper",
   multiInfoEnabled: true,
-  multiInfoMode: "fade",
-  infoDensity: "summary",
+  multiInfoMode: "clear",
   titleFont: defaultTitleFont,
   titleWeight: defaultTitleWeight,
+  titleAlign: "auto",
+  titleColor: "",
   singleRatio: "portrait",
   singleLayout: "info-left",
   backgroundPattern: "none",
@@ -472,6 +528,7 @@ const elements = {
   portraitWrap: $("#portraitWrap"),
   scenePattern: $("#scenePattern"),
   multiInfoLayer: $("#multiInfoLayer"),
+  boardCopyCanvas: $("#boardCopyCanvas"),
   sourceThumb: $("#sourceThumb"),
   sourceThumbFrame: $("#sourceThumbFrame"),
   sourceFileName: $("#sourceFileName"),
@@ -524,6 +581,7 @@ let imageEditorSnapshot = null;
 let imageEditorDirty = false;
 let imageEditorReturnFocus = null;
 let boardTitleResizeObserver = null;
+let cardCopyRenderFrame = 0;
 
 const panelLabels = {
   stylePanel: "꾸미기",
@@ -549,6 +607,18 @@ function saveUiPreferences() {
   } catch {
     // The workspace remains usable when browser storage is unavailable.
   }
+}
+
+function migrateLegacyStorage() {
+  legacyStorageMigrations.forEach(({ source, target }) => {
+    try {
+      if (localStorage.getItem(target) !== null) return;
+      const saved = localStorage.getItem(source);
+      if (saved !== null) localStorage.setItem(target, saved);
+    } catch {
+      // A blocked storage area should not prevent the editor from opening.
+    }
+  });
 }
 
 function purgeLegacyStorage() {
@@ -595,14 +665,47 @@ function syncStateIntoLook(look = getSelectedLook()) {
   look.backgroundTexture = backgroundTextureOptions.has(state.backgroundTexture) ? state.backgroundTexture : "none";
   look.titleFont = titleFonts[state.titleFont] ? state.titleFont : defaultTitleFont;
   look.titleWeight = normaliseTitleWeight(look.titleFont, state.titleWeight ?? defaultTitleWeight);
-  look.outline = { ...state.outline };
-  look.titleOutline = { ...state.titleOutline };
+  look.titleAlign = normaliseTitleAlign(state.titleAlign);
+  look.titleColor = normaliseOptionalHexColor(state.titleColor);
+  look.outline = normaliseOutline(state.outline, "#f1dfbb", 8);
+  look.titleOutline = normaliseOutline(state.titleOutline, "#ffffff", 6);
   look.outfits = cloneOutfits(getLookOutfits(look));
   look.itemIds = outfitToItemIds(look.outfits[0]);
 }
 
 function getItem(itemId) {
   return itemRecordCache.get(String(itemId)) || null;
+}
+
+function serializeItemRecord(item) {
+  const localise = (values) => Object.fromEntries(["ko", "en", "ja"]
+    .filter((language) => typeof values?.[language] === "string")
+    .map((language) => [language, values[language].slice(0, 160)]));
+  return {
+    id: String(item.id),
+    slot: outfitSlots.includes(item.slot) ? item.slot : "",
+    icon: typeof item.icon === "string" ? item.icon.slice(0, 160) : "",
+    iconUrl: typeof item.iconUrl === "string" && item.iconUrl.startsWith("https://") ? item.iconUrl.slice(0, 320) : "",
+    names: localise(item.names),
+    meta: localise(item.meta),
+    source: typeof item.source === "string" ? item.source.slice(0, 80) : "",
+  };
+}
+
+function getPersistedItemRecords() {
+  const referencedIds = new Set();
+  for (const look of looks) {
+    for (const outfit of getLookOutfits(look)) {
+      for (const itemId of outfitToItemIds(outfit)) {
+        const id = String(itemId);
+        if (/^\d+$/.test(id)) referencedIds.add(id);
+      }
+    }
+  }
+  return Array.from(referencedIds)
+    .map((id) => getItem(id))
+    .filter((item) => item && outfitSlots.includes(item.slot))
+    .map(serializeItemRecord);
 }
 
 function registerItemRecords(items = []) {
@@ -696,8 +799,36 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
+function getItemImageUrl(item) {
+  const value = String(item?.iconUrl || "").trim();
+  if (!value) return "";
+  try {
+    const url = new URL(value, window.location.origin);
+    if (url.protocol !== "https:" || !["xivapi.com", "www.xivapi.com", "v2.xivapi.com"].includes(url.hostname)) return "";
+    return url.href;
+  } catch {
+    return "";
+  }
+}
+
+function renderItemImage(item, fallbackSlot = item?.slot) {
+  const imageUrl = getItemImageUrl(item);
+  if (!imageUrl) return renderEquipmentIcon(fallbackSlot);
+  return `<img class="item-image" src="${escapeHtml(imageUrl)}" alt="" loading="eager" decoding="async" referrerpolicy="no-referrer"><span class="item-image-fallback" aria-hidden="true">${renderEquipmentIcon(fallbackSlot)}</span>`;
+}
+
+function bindItemImageFallbacks(container) {
+  container.querySelectorAll("img.item-image").forEach((image) => {
+    const markFallback = () => image.closest(".equipment-icon, .catalog-result-icon")?.classList.add("is-image-fallback");
+    image.addEventListener("error", markFallback, { once: true });
+    // A cached failure can complete before the listener is attached after a
+    // catalog re-render. Only then expose the slot glyph as a real fallback.
+    if (image.complete && image.naturalWidth === 0) markFallback();
+  });
+}
+
 function renderCatalogIcon(item) {
-  return renderEquipmentIcon(item?.slot);
+  return renderItemImage(item);
 }
 
 function renderEquipmentIcon(slot) {
@@ -718,7 +849,7 @@ function resolveCharacterAsset(character, role = "hero") {
 }
 
 function getCanvasRatio() {
-  return state.characterCount === 1 && state.singleRatio === "portrait" ? "portrait" : "landscape";
+  return CardLayout.ratioFor(state.characterCount, state.singleRatio);
 }
 
 function getBackgroundSurfaceCss(background) {
@@ -745,9 +876,7 @@ function restoreBackgroundStyle(pattern, legacyMotif = "none", texture = "none")
 }
 
 function getExportDimensions() {
-  return getCanvasRatio() === "portrait"
-    ? { layoutWidth: 1080, layoutHeight: 1350, exportWidth: 2160, exportHeight: 2700 }
-    : { layoutWidth: 1200, layoutHeight: 675, exportWidth: 2400, exportHeight: 1350 };
+  return CardLayout.dimensionsFor(state.characterCount, state.singleRatio);
 }
 
 function rgba(hex, alpha) {
@@ -766,7 +895,10 @@ function showToast(message) {
   toastTimer = window.setTimeout(() => elements.toast.classList.remove("is-visible"), 2600);
 }
 
-const characterAssetVault = ImageAssets.create({ indexedDB: window.indexedDB });
+const characterAssetVault = ImageAssets.create({
+  indexedDB: window.indexedDB,
+  legacyDatabaseNames: ["glamour-atelier-assets-v1"],
+});
 
 let assetCleanupTimer;
 let workspaceEpoch = 0;
@@ -813,6 +945,59 @@ function revokeCharacterAssets(characters = state.characters) {
 function clamp(value, min, max, fallback = min) {
   const numericValue = Number(value);
   return Number.isFinite(numericValue) ? Math.min(max, Math.max(min, numericValue)) : fallback;
+}
+
+function normaliseOutline(value, fallbackColor, maxWidth) {
+  return {
+    color: normaliseHexColor(value?.color, fallbackColor),
+    width: clamp(value?.width, 0, maxWidth, 0),
+  };
+}
+
+function normaliseHexColor(value, fallback = "") {
+  return /^#[0-9a-f]{6}$/i.test(String(value || "")) ? String(value).toLowerCase() : fallback;
+}
+
+function normaliseOptionalHexColor(value) {
+  return normaliseHexColor(value, "");
+}
+
+function normaliseTitleAlign(value) {
+  return ["auto", "left", "center", "right"].includes(value) ? value : "auto";
+}
+
+function resolveTitleAlign() {
+  if (state.titleAlign !== "auto") return state.titleAlign;
+  if (state.characterCount === 1 && state.singleRatio === "portrait") return "center";
+  if (state.characterCount >= 3) return "center";
+  if (state.characterCount === 1 && state.singleLayout === "info-right") return "right";
+  return "left";
+}
+
+function defaultTitleColor() {
+  return ["ink", "charcoal"].includes(state.background) ? "#f7f3ed" : "#263238";
+}
+
+function serializeCharacter(character = {}) {
+  const normalized = {
+    ...LookEditor.emptyCharacter(),
+    ...character,
+    assetKey: typeof character.assetKey === "string" && character.assetKey.length <= 160 ? character.assetKey : null,
+    fileName: typeof character.fileName === "string" ? character.fileName.slice(0, 160) : "이미지를 추가하세요",
+    fileMeta: typeof character.fileMeta === "string" ? character.fileMeta.slice(0, 240) : "PNG, JPG 또는 WebP · 아직 선택하지 않음",
+    cutout: character.cutout === true,
+  };
+  LookEditor.normalizeCharacter(normalized);
+  return {
+    assetKey: normalized.assetKey,
+    fileName: normalized.fileName,
+    fileMeta: normalized.fileMeta,
+    cutout: normalized.cutout,
+    imageFit: normalized.imageFit,
+    zoom: normalized.zoom,
+    panX: normalized.panX,
+    panY: normalized.panY,
+  };
 }
 
 
@@ -880,7 +1065,7 @@ function finishImageEditor(apply) {
   } else if (changed && imageEditorSnapshot) {
     const { zoom, panX, panY, imageFit } = imageEditorSnapshot;
     updateSelectedImageState({ zoom, panX, panY, imageFit });
-    renderStyles({ refreshInfo: false, refreshPattern: false });
+    renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
   }
   imageEditorOpen = false;
   imageEditorDirty = false;
@@ -896,14 +1081,14 @@ function finishImageEditor(apply) {
   if (apply && changed) showToast("이미지 배치를 적용했습니다.");
 }
 
-async function restoreCharacterAssets(savedCharacters = [], characters = state.characters) {
+async function restoreCharacterAssets(savedCharacters = [], characters = state.characters, { sync = true } = {}) {
   const restoreJobs = characters.map(async (character, index) => {
     const saved = savedCharacters[index];
     if (!saved?.assetKey) return;
     character.assetKey = saved.assetKey;
     character.fileName = saved.fileName || character.fileName;
     character.fileMeta = saved.fileMeta || character.fileMeta;
-    character.cutout = Boolean(saved.cutout);
+    character.cutout = saved.cutout === true;
     try {
       const record = await characterAssetVault.read(saved.assetKey);
       if (!record?.originalBlob) {
@@ -923,11 +1108,12 @@ async function restoreCharacterAssets(savedCharacters = [], characters = state.c
     }
   });
   await Promise.all(restoreJobs);
-  syncSelectedCharacter();
+  if (sync) syncSelectedCharacter();
 }
 
 
 function serializeLook(look) {
+  const editor = normaliseLookEditor(look.editor || defaultLookEditor());
   return {
     id: String(look.id),
     title: typeof look.title === "string" ? look.title : "새로운 룩",
@@ -938,13 +1124,37 @@ function serializeLook(look) {
     backgroundTexture: backgroundTextureOptions.has(look.backgroundTexture) ? look.backgroundTexture : "none",
     titleFont: titleFonts[look.titleFont] ? look.titleFont : defaultTitleFont,
     titleWeight: normaliseTitleWeight(look.titleFont || defaultTitleFont, look.titleWeight ?? defaultTitleWeight),
-    outline: { ...(look.outline || { color: "#f1dfbb", width: 0 }) },
-    titleOutline: { ...(look.titleOutline || { color: "#ffffff", width: 0 }) },
-    editor: { ...(look.editor || defaultLookEditor()), characters: (look.editor?.characters || createEmptyCharacters()).map(({ src, originalSrc, ...character }) => character) },
+    titleAlign: normaliseTitleAlign(look.titleAlign),
+    titleColor: normaliseOptionalHexColor(look.titleColor ?? look.subtitleColor),
+    outline: normaliseOutline(look.outline, "#f1dfbb", 8),
+    titleOutline: normaliseOutline(look.titleOutline, "#ffffff", 6),
+    editor: { ...editor, characters: editor.characters.map(serializeCharacter) },
   };
 }
 
+const draftSaveDebounceMs = 180;
+let scheduledSaveTimer = 0;
+
+function scheduleSaveState() {
+  window.clearTimeout(scheduledSaveTimer);
+  scheduledSaveTimer = window.setTimeout(() => {
+    scheduledSaveTimer = 0;
+    saveState();
+  }, draftSaveDebounceMs);
+}
+
+function flushScheduledSaveState() {
+  if (!scheduledSaveTimer) return;
+  window.clearTimeout(scheduledSaveTimer);
+  scheduledSaveTimer = 0;
+  saveState();
+}
+
 function saveState() {
+  if (scheduledSaveTimer) {
+    window.clearTimeout(scheduledSaveTimer);
+    scheduledSaveTimer = 0;
+  }
   const look = getSelectedLook();
   syncStateIntoLook(look);
   const snapshot = {
@@ -954,9 +1164,9 @@ function saveState() {
     subtitle: look.subtitle,
     background: state.background,
     cutout: state.cutout,
-    outline: state.outline,
-    titleOutline: state.titleOutline,
-    shadow: state.shadow,
+    outline: normaliseOutline(state.outline, "#f1dfbb", 8),
+    titleOutline: normaliseOutline(state.titleOutline, "#ffffff", 6),
+    shadow: LookEditor.normalizeShadow(state.shadow),
     zoom: state.zoom,
     panX: state.panX,
     panY: state.panY,
@@ -965,26 +1175,20 @@ function saveState() {
     characterCount: state.characterCount,
     selectedCharacter: state.selectedCharacter,
     outfits: cloneOutfits(getLookOutfits(look)),
-    catalogItems: Array.from(itemRecordCache.values()).filter((item) => /^\d+$/.test(String(item.id))),
+    // Search results are ephemeral. Persist only records referenced by a
+    // saved outfit; otherwise every search grows the localStorage draft.
+    catalogItems: getPersistedItemRecords(),
     multiInfoEnabled: state.multiInfoEnabled,
     multiInfoMode: state.multiInfoMode,
-    infoDensity: state.infoDensity,
     titleFont: state.titleFont,
     titleWeight: state.titleWeight,
+    titleAlign: normaliseTitleAlign(state.titleAlign),
+    titleColor: normaliseOptionalHexColor(state.titleColor),
     singleRatio: state.singleRatio,
     singleLayout: state.singleLayout,
     backgroundPattern: state.backgroundPattern,
     backgroundTexture: state.backgroundTexture,
-    characters: state.characters.map((character) => ({
-      assetKey: character.assetKey || null,
-      fileName: character.fileName,
-      fileMeta: character.fileMeta,
-      cutout: Boolean(character.cutout),
-      imageFit: character.imageFit || "contain",
-      zoom: Number.isFinite(character.zoom) ? character.zoom : 100,
-      panX: Number.isFinite(character.panX) ? character.panX : 0,
-      panY: Number.isFinite(character.panY) ? character.panY : 0,
-    })),
+    characters: state.characters.map(serializeCharacter),
   };
   try {
     localStorage.setItem(draftStorageKey, JSON.stringify(snapshot));
@@ -1022,9 +1226,9 @@ function createSnapshot() {
     subtitle: look.subtitle,
     background: state.background,
     cutout: state.cutout,
-    outline: { ...state.outline },
-    titleOutline: { ...state.titleOutline },
-    shadow: { ...state.shadow },
+    outline: normaliseOutline(state.outline, "#f1dfbb", 8),
+    titleOutline: normaliseOutline(state.titleOutline, "#ffffff", 6),
+    shadow: LookEditor.normalizeShadow(state.shadow),
     zoom: state.zoom,
     panX: state.panX,
     panY: state.panY,
@@ -1034,9 +1238,10 @@ function createSnapshot() {
     outfits: cloneOutfits(getLookOutfits(look)),
     multiInfoEnabled: state.multiInfoEnabled,
     multiInfoMode: state.multiInfoMode,
-    infoDensity: state.infoDensity,
     titleFont: state.titleFont,
     titleWeight: state.titleWeight,
+    titleAlign: normaliseTitleAlign(state.titleAlign),
+    titleColor: normaliseOptionalHexColor(state.titleColor),
     singleRatio: state.singleRatio,
     singleLayout: state.singleLayout,
     backgroundPattern: state.backgroundPattern,
@@ -1050,28 +1255,41 @@ function restoreSnapshot(snapshot) {
   const look = getSelectedLook();
   if (typeof snapshot.title === "string") look.title = snapshot.title;
   if (typeof snapshot.subtitle === "string") look.subtitle = snapshot.subtitle;
-  state.background = snapshot.background;
-  state.cutout = snapshot.cutout;
-  state.outline = { ...snapshot.outline };
-  state.titleOutline = { ...snapshot.titleOutline };
-  state.shadow = { ...snapshot.shadow };
-  state.zoom = snapshot.zoom;
-  state.panX = snapshot.panX;
-  state.panY = snapshot.panY;
-  if (snapshot.characterCount) state.characterCount = snapshot.characterCount;
+  state.background = backgrounds[snapshot.background] ? snapshot.background : "paper";
+  state.cutout = snapshot.cutout === true;
+  state.outline = normaliseOutline(snapshot.outline, "#f1dfbb", 8);
+  state.titleOutline = normaliseOutline(snapshot.titleOutline, "#ffffff", 6);
+  state.shadow = LookEditor.normalizeShadow(snapshot.shadow);
+  const placement = LookEditor.normalizeCharacter({
+    imageFit: snapshot.imageFit,
+    zoom: snapshot.zoom,
+    panX: snapshot.panX,
+    panY: snapshot.panY,
+  });
+  state.zoom = placement.zoom;
+  state.panX = placement.panX;
+  state.panY = placement.panY;
+  state.imageFit = placement.imageFit;
+  if (snapshot.characterCount) state.characterCount = clamp(snapshot.characterCount, 1, 5, 1) | 0;
   if (Number.isInteger(snapshot.selectedCharacter)) state.selectedCharacter = Math.min(state.characterCount - 1, Math.max(0, snapshot.selectedCharacter));
   if (snapshot.activeSlot) state.activeSlot = snapshot.activeSlot;
   if (typeof snapshot.multiInfoEnabled === "boolean") state.multiInfoEnabled = snapshot.multiInfoEnabled;
-  if (snapshot.multiInfoMode) state.multiInfoMode = snapshot.multiInfoMode;
-  if (snapshot.infoDensity) state.infoDensity = snapshot.infoDensity;
+  if (["clear", "fade", "silhouette"].includes(snapshot.multiInfoMode)) state.multiInfoMode = snapshot.multiInfoMode;
   if (snapshot.titleFont && titleFonts[snapshot.titleFont]) state.titleFont = snapshot.titleFont;
   if (Number.isFinite(snapshot.titleWeight)) state.titleWeight = normaliseTitleWeight(state.titleFont, snapshot.titleWeight);
-  if (snapshot.singleRatio) state.singleRatio = snapshot.singleRatio;
-  if (snapshot.singleLayout) state.singleLayout = snapshot.singleLayout;
+  state.titleAlign = normaliseTitleAlign(snapshot.titleAlign);
+  state.titleColor = normaliseOptionalHexColor(snapshot.titleColor ?? snapshot.subtitleColor);
+  if (["portrait", "landscape"].includes(snapshot.singleRatio)) state.singleRatio = snapshot.singleRatio;
+  if (["info-left", "info-right"].includes(snapshot.singleLayout)) state.singleLayout = snapshot.singleLayout;
   restoreBackgroundStyle(snapshot.backgroundPattern, snapshot.backgroundMotif, snapshot.backgroundTexture);
-  if (snapshot.imageFit) state.imageFit = snapshot.imageFit;
   if (Array.isArray(snapshot.characters)) {
-    state.characters = snapshot.characters.map((character) => ({ ...character }));
+    state.characters = snapshot.characters.slice(0, 5).map((character) => {
+      const copy = { ...character };
+      LookEditor.normalizeCharacter(copy);
+      copy.cutout = character.cutout === true;
+      return copy;
+    });
+    while (state.characters.length < 5) state.characters.push(LookEditor.emptyCharacter());
     syncSelectedCharacter();
   }
   if (Array.isArray(snapshot.outfits)) {
@@ -1182,8 +1400,9 @@ function renderLook() {
   elements.boardSubtitle.textContent = look.subtitle || "";
   elements.boardSubtitle.dataset.empty = String(!look.subtitle);
   fitBoardTitle();
+  scheduleCardCopyPreview();
   syncCopyEditorFields();
-  document.title = `글래머 아틀리에 | ${look.title}`;
+  document.title = `${projectName} | ${look.title}`;
   $$(".look-list-item").forEach((button) => {
     const selected = button.dataset.lookId === state.selectedLookId;
     button.classList.toggle("is-current", selected);
@@ -1231,6 +1450,9 @@ function syncCharacterSelectionUI() {
     button.classList.toggle("is-selected", selected);
     button.setAttribute("aria-pressed", String(selected));
   });
+  $$(".character-slot").forEach((slot) => {
+    slot.classList.toggle("is-selected", Number(slot.dataset.characterSlot) === state.selectedCharacter);
+  });
   $$('[data-character-select], [data-item-character]').forEach((button) => {
     const index = Number(button.dataset.characterSelect ?? button.dataset.itemCharacter);
     const selected = index === state.selectedCharacter;
@@ -1251,6 +1473,28 @@ function selectCharacter(index) {
   renderSourcePanel();
   renderEquipment();
   renderCatalog();
+}
+
+function openCharacterImagePicker(index) {
+  if (imageEditorOpen) return;
+  selectCharacter(index);
+  elements.imageInput?.click();
+}
+
+function removeCharacterImage(index = state.selectedCharacter) {
+  if (imageEditorOpen) return;
+  const targetIndex = Math.min(state.characterCount - 1, Math.max(0, Number(index) || 0));
+  const character = state.characters[targetIndex];
+  if (!resolveCharacterAsset(character, "source")) return;
+  selectCharacter(targetIndex);
+  recordHistory();
+  // Keep the previous asset in history so undo remains reversible. The normal
+  // cleanup pass can prune it once it is no longer reachable.
+  state.characters[targetIndex] = LookEditor.emptyCharacter();
+  syncSelectedCharacter();
+  renderAll();
+  saveState();
+  showToast(`캐릭터 ${String(targetIndex + 1).padStart(2, "0")} 사진을 제거했습니다. 되돌리기로 복원할 수 있어요.`);
 }
 
 // Replacing a selector must preserve the user's keyboard position, not focus body.
@@ -1285,16 +1529,19 @@ function renderCast() {
   replaceCharacterButtons(elements.portraitWrap, "data-character-index", state.characters.slice(0, state.characterCount).map((character, index) => {
     const source = resolveCharacterAsset(character, "hero");
     return `
-    <button class="character-figure${index === state.selectedCharacter ? " is-selected" : ""}${source ? "" : " is-empty"}" type="button" data-character-index="${index}" data-cutout="${Boolean(character.cutout)}" data-empty="${!source}" aria-pressed="${index === state.selectedCharacter}" aria-label="캐릭터 ${index + 1} ${source ? "선택" : "사진 선택"}">
-      ${source ? `<img src="${escapeHtml(source)}" alt="룩북 캐릭터 ${index + 1}" draggable="false" />` : `<span class="character-empty-placeholder" aria-hidden="true"><small class="character-empty-kicker">캐릭터 ${String(index + 1).padStart(2, "0")}</small><span class="character-empty-mark">＋</span><strong>이미지 슬롯</strong><small>사진을 배치할 영역</small></span>`}
-    </button>
+    <div class="character-slot${index === state.selectedCharacter ? " is-selected" : ""}${source ? "" : " is-empty"}" data-character-slot="${index}">
+      <button class="character-figure${index === state.selectedCharacter ? " is-selected" : ""}${source ? "" : " is-empty"}" type="button" data-character-index="${index}" data-cutout="${Boolean(character.cutout)}" data-empty="${!source}" aria-pressed="${index === state.selectedCharacter}" aria-label="캐릭터 ${index + 1} ${source ? "선택" : "사진 추가"}">
+        ${source ? `<img src="${escapeHtml(source)}" alt="룩북 캐릭터 ${index + 1}" draggable="false" />` : `<span class="character-empty-placeholder" aria-hidden="true"><small class="character-empty-kicker">캐릭터 ${String(index + 1).padStart(2, "0")}</small><span class="character-empty-mark">＋</span><strong>사진 추가</strong><small>카드에서 바로 선택</small></span>`}
+      </button>
+      ${source ? `<div class="character-image-actions" aria-label="캐릭터 ${index + 1} 사진 작업"><button class="character-image-action" data-character-image-action="change" data-character-image-action-index="${index}" type="button" aria-label="캐릭터 ${index + 1} 사진 변경">변경</button><button class="character-image-action character-image-action--remove" data-character-image-action="remove" data-character-image-action-index="${index}" type="button" aria-label="캐릭터 ${index + 1} 사진 제거">제거</button></div>` : ""}
+    </div>
   `;
   }).join(""));
   replaceCharacterButtons($("#castSelector"), "data-character-select", state.characters.slice(0, state.characterCount).map((character, index) => `
     ${(() => {
       const source = resolveCharacterAsset(character, "hero");
       return `<button class="${index === state.selectedCharacter ? "is-selected" : ""}${source ? "" : " is-empty"}" type="button" data-character-select="${index}" aria-pressed="${index === state.selectedCharacter}" aria-label="캐릭터 ${index + 1} 편집">
-      ${source ? `<img src="${escapeHtml(source)}" alt="" />` : `<span class="cast-empty-thumb" aria-hidden="true">＋</span>`}<span>${String(index + 1).padStart(2, "0")}</span>
+      <span class="cast-slot-visual${source ? "" : " is-empty"}" aria-hidden="true">${source ? `<img src="${escapeHtml(source)}" alt="" />` : `<span class="cast-empty-thumb">＋</span>`}</span><span class="cast-slot-index">${String(index + 1).padStart(2, "0")}</span>
     </button>`;
     })()}
   `).join(""));
@@ -1309,6 +1556,12 @@ function renderCast() {
     button.setAttribute("aria-checked", String(selected));
     button.tabIndex = selected ? 0 : -1;
   });
+
+  $$('[data-character-image-action]').forEach((button) => button.addEventListener("click", () => {
+    const index = Number(button.dataset.characterImageActionIndex);
+    if (button.dataset.characterImageAction === "remove") removeCharacterImage(index);
+    else openCharacterImagePicker(index);
+  }));
 
   $$(".character-figure").forEach((button) => button.addEventListener("click", (event) => {
     const characterIndex = Number(button.dataset.characterIndex);
@@ -1407,14 +1660,13 @@ function renderMultiInfo() {
   elements.multiInfoLayer.hidden = !visible;
   elements.multiInfoLayer.innerHTML = visible ? state.characters.slice(0, state.characterCount).map((character, index) => {
     const items = getCharacterItemIds(index).map(getItem).filter(Boolean);
-    const shownItems = state.infoDensity === "summary" ? items.slice(0, 3) : items;
     const itemNames = items.map((item) => getItemName(item)).filter(Boolean);
     const accessibleItems = itemNames.length ? `: ${itemNames.join(", ")}` : "";
     return `<button class="multi-info-column${index === state.selectedCharacter ? " is-selected" : ""}" type="button" data-info-character="${index}" aria-label="${escapeHtml(`캐릭터 ${index + 1} 장비 편집${accessibleItems}`)}">
-      <span class="multi-info-items">${shownItems.map((item) => {
+      <span class="multi-info-items">${items.map((item) => {
         const secondaryName = getSecondaryItemName(item);
         return `<span class="multi-info-item"><span>${escapeHtml(getItemName(item))}</span>${secondaryName ? `<small>${escapeHtml(secondaryName)}</small>` : ""}</span>`;
-      }).join("")}${state.infoDensity === "summary" && items.length > 3 ? `<small class="multi-info-more">+${items.length - 3} ITEMS</small>` : ""}</span>
+      }).join("")}</span>
     </button>`;
   }).join("") : "";
   $$('[data-info-character]').forEach((button) => button.addEventListener("click", () => {
@@ -1435,14 +1687,18 @@ function renderPattern() {
   ).join("");
 }
 
-function renderStyles({ refreshInfo = true, refreshPattern = true } = {}) {
+function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = true } = {}) {
   const background = backgrounds[state.background] || backgrounds.dusk;
+  const silhouetteInfoTheme = getSilhouetteInfoTheme(background);
   if (!titleFonts[state.titleFont]) state.titleFont = defaultTitleFont;
   state.titleWeight = normaliseTitleWeight(state.titleFont, state.titleWeight ?? defaultTitleWeight);
   const backgroundCss = getBackgroundSurfaceCss(background);
   elements.board.style.setProperty("--board-bg", backgroundCss);
   elements.board.style.setProperty("--pattern-ink", background.pattern[0]);
   elements.board.style.setProperty("--pattern-light", background.pattern[1]);
+  elements.board.style.setProperty("--silhouette-info-color", silhouetteInfoTheme.foreground);
+  elements.board.style.setProperty("--silhouette-info-muted", silhouetteInfoTheme.muted);
+  elements.board.style.setProperty("--silhouette-info-halo", silhouetteInfoTheme.halo);
   const patternOpacity = {
     none: 0,
     dots: 0.16,
@@ -1461,7 +1717,8 @@ function renderStyles({ refreshInfo = true, refreshPattern = true } = {}) {
   const cutoutCount = activeCharacters.filter((character) => character.cutout).length;
   const sourceMode = allCutout ? "cutout" : cutoutCount === 0 ? "original" : "mixed";
   const silhouetteReady = activeCharacters.length > 0 && allCutout;
-  if (!silhouetteReady && state.multiInfoMode === "silhouette") state.multiInfoMode = "fade";
+  if (!["clear", "fade", "silhouette"].includes(state.multiInfoMode)) state.multiInfoMode = "clear";
+  if (!silhouetteReady && state.multiInfoMode === "silhouette") state.multiInfoMode = "clear";
   const infoModeHint = $("#infoModeHint");
   if (infoModeHint) {
     infoModeHint.textContent = silhouetteReady
@@ -1479,14 +1736,38 @@ function renderStyles({ refreshInfo = true, refreshPattern = true } = {}) {
   elements.board.dataset.style = "custom";
   elements.board.dataset.ratio = getCanvasRatio();
   elements.board.dataset.singleLayout = state.singleLayout;
+  const twoPersonRails = CardLayout.infoRails({ characterCount: 2 });
+  const twoPersonDimensions = CardLayout.dimensionsFor(2, "landscape");
+  const [leftInfoRail, rightInfoRail] = twoPersonRails;
+  elements.board.style.setProperty("--two-info-rail-left", `${(leftInfoRail.x / twoPersonDimensions.layoutWidth) * 100}%`);
+  elements.board.style.setProperty("--two-info-rail-right", `${((twoPersonDimensions.layoutWidth - rightInfoRail.x - rightInfoRail.width) / twoPersonDimensions.layoutWidth) * 100}%`);
+  elements.board.style.setProperty("--two-info-rail-width", `${(leftInfoRail.width / twoPersonDimensions.layoutWidth) * 100}%`);
+  elements.board.style.setProperty("--two-info-rail-top", `${(leftInfoRail.y / twoPersonDimensions.layoutHeight) * 100}%`);
+  elements.board.style.setProperty("--two-info-rail-height", `${(leftInfoRail.height / twoPersonDimensions.layoutHeight) * 100}%`);
+  elements.board.style.setProperty("--two-info-rail-gap", `${(leftInfoRail.gap / twoPersonDimensions.layoutWidth) * 100}cqw`);
+  const characterFrames = CardLayout.characterFrames({
+    characterCount: state.characterCount,
+    singleRatio: state.singleRatio,
+    singleLayout: state.singleLayout,
+    characters: activeCharacters,
+  });
+  elements.portraitWrap.style.setProperty(
+    "inset",
+    CardLayout.cssInsetFor(characterFrames, state.characterCount, state.singleRatio),
+    "important",
+  );
   const titleFontConfig = getTitleFontConfig(state.titleFont);
   elements.board.style.setProperty("--card-title-font", titleFontConfig.family);
   elements.board.style.setProperty("--card-title-weight", String(state.titleWeight));
   const titleOutlineWidth = clamp(Number(state.titleOutline?.width), 0, 6, 0);
-  const titleOutlineColor = /^#[0-9a-f]{6}$/i.test(state.titleOutline?.color || "") ? state.titleOutline.color : "#ffffff";
+  const titleOutlineColor = normaliseHexColor(state.titleOutline?.color, "#ffffff");
   state.titleOutline = { color: titleOutlineColor, width: titleOutlineWidth };
+  state.titleAlign = normaliseTitleAlign(state.titleAlign);
+  state.titleColor = normaliseOptionalHexColor(state.titleColor);
   elements.board.style.setProperty("--title-outline-width", `${titleOutlineWidth}px`);
   elements.board.style.setProperty("--title-outline-color", titleOutlineColor);
+  elements.board.style.setProperty("--card-title-align", resolveTitleAlign());
+  elements.board.style.setProperty("--card-title-color", state.titleColor || "var(--recipe-ink)");
   elements.portraitWrap.style.setProperty("--portrait-scale", 1);
   elements.portraitWrap.style.setProperty("--pan-x", "0px");
   elements.portraitWrap.style.setProperty("--pan-y", "0px");
@@ -1504,10 +1785,15 @@ function renderStyles({ refreshInfo = true, refreshPattern = true } = {}) {
     const character = getCharacterImageState(activeCharacters[index]);
     const cutout = image.closest(".character-figure")?.dataset.cutout === "true";
     const baseFilter = cutout ? `${outlineShadows} ${shadow}`.trim() : "";
-    const infoTreatment = state.characterCount >= 3 && state.multiInfoEnabled
-      ? state.multiInfoMode === "silhouette" && cutout ? "brightness(0) opacity(.68)" : "grayscale(.82) saturate(.35) contrast(.86) brightness(1.08)"
-      : "";
+    const informationMode = state.characterCount >= 3 && state.multiInfoEnabled;
+    const infoTreatment = informationMode && state.multiInfoMode === "silhouette" && cutout
+      ? "brightness(0) opacity(.68)"
+      : informationMode && state.multiInfoMode === "fade"
+        ? "grayscale(.82) saturate(.35) contrast(.86) brightness(1.08)"
+        : "";
     image.style.objectFit = character.imageFit;
+    image.style.objectPosition = character.cutout && character.imageFit !== "cover" ? "center bottom" : "center center";
+    image.style.transformOrigin = character.cutout && character.imageFit !== "cover" ? "center bottom" : "center center";
     image.style.transform = `translate(${character.panX}px, ${character.panY}px) scale(${character.zoom / 100})`;
     image.style.filter = `${baseFilter} ${infoTreatment}`.trim() || "none";
   });
@@ -1554,6 +1840,8 @@ function renderStyles({ refreshInfo = true, refreshPattern = true } = {}) {
   syncImagePlacementSummary();
   $("#multiInfoToggle").checked = state.multiInfoEnabled;
   syncTitleFontControls();
+  syncTitleAlignmentControls();
+  syncCopyColorControls();
   const backgroundCurrentLabel = $("#backgroundCurrentLabel");
   if (backgroundCurrentLabel) {
     const currentPreset = backgroundPresets.find((preset) => getBackgroundSelectionSignature(preset) === getBackgroundSelectionSignature());
@@ -1587,11 +1875,6 @@ function renderStyles({ refreshInfo = true, refreshPattern = true } = {}) {
     button.classList.toggle("is-selected", selected);
     button.setAttribute("aria-pressed", String(selected));
   });
-  $$('button[data-info-density]').forEach((button) => {
-    const selected = button.dataset.infoDensity === state.infoDensity;
-    button.classList.toggle("is-selected", selected);
-    button.setAttribute("aria-pressed", String(selected));
-  });
   $$('button[data-pattern]').forEach((button) => {
     const selected = button.dataset.pattern === state.backgroundPattern;
     button.classList.toggle("is-selected", selected);
@@ -1612,6 +1895,7 @@ function renderStyles({ refreshInfo = true, refreshPattern = true } = {}) {
   });
   renderBackgroundPresets();
   $("#multiCardControls").hidden = state.characterCount < 3;
+  $("#cardDisplaySetting").hidden = state.characterCount < 3;
   const dimensions = getExportDimensions();
   const exportReady = activeCharacters.length > 0 && activeCharacters.every((character) => Boolean(resolveCharacterAsset(character, "hero")));
   const exportButton = $("#exportButton");
@@ -1625,7 +1909,8 @@ function renderStyles({ refreshInfo = true, refreshPattern = true } = {}) {
     : "이미지를 모두 추가하면 PNG로 저장할 수 있습니다";
   if (refreshPattern) renderPattern();
   if (refreshInfo) renderMultiInfo();
-  fitBoardTitle();
+  if (fitTitle) fitBoardTitle();
+  scheduleCardCopyPreview();
 }
 
 function shadowDirection() {
@@ -1633,6 +1918,13 @@ function shadowDirection() {
   const y = state.shadow.y;
   if (x === 0 && y === 0) return "n";
   return `${y < 0 ? "n" : y > 0 ? "s" : ""}${x < 0 ? "w" : x > 0 ? "e" : ""}` || "s";
+}
+
+function focusItemSearch() {
+  window.requestAnimationFrame(() => {
+    elements.itemSearch.focus();
+    ensureMobileControlVisible(elements.itemSearch);
+  });
 }
 
 function renderEquipment() {
@@ -1647,21 +1939,26 @@ function renderEquipment() {
     const secondaryName = item ? getSecondaryItemName(item) : "";
     const itemMeta = [getOutfitSlotName(slot), secondaryName || (!item ? "아이템을 검색해 연결" : "")].filter(Boolean).join(" · ");
     const visualLabel = getOutfitSlotVisualLabel(slot);
-    return `<button class="equipment-row${selected ? " is-selected" : ""}${item ? "" : " is-empty"}" data-slot="${slot}" type="button" aria-pressed="${selected}" aria-label="${escapeHtml(`${visualLabel} (${getOutfitSlotName(slot)}) 슬롯 ${item ? itemName : "아이템 연결"}`)}">
-      <span class="equipment-icon" aria-hidden="true">${renderEquipmentIcon(slot)}</span>
-      <span class="equipment-copy"><strong>${escapeHtml(itemName)}</strong><span>${escapeHtml(itemMeta)}</span></span>
-      <span class="equipment-check">${item ? "변경" : "연결"}</span>
-    </button>`;
+    const hasItemImage = Boolean(getItemImageUrl(item));
+    return `<div class="equipment-row-shell">
+      <button class="equipment-row${selected ? " is-selected" : ""}${item ? "" : " is-empty"}" data-slot="${slot}" type="button" aria-pressed="${selected}" aria-label="${escapeHtml(`${visualLabel} (${getOutfitSlotName(slot)}) 슬롯 ${item ? itemName : "아이템 연결"}`)}">
+        <span class="equipment-icon${hasItemImage ? " has-item-image" : ""}" aria-hidden="true">${renderItemImage(item, slot)}</span>
+        <span class="equipment-copy"><strong>${escapeHtml(itemName)}</strong><span>${escapeHtml(itemMeta)}</span></span>
+        <span class="equipment-check">${item ? "변경" : "연결"}</span>
+      </button>
+      ${item ? `<button class="equipment-remove" data-remove-slot="${slot}" type="button" aria-label="${escapeHtml(`${getOutfitSlotName(slot)} ${itemName} 제거`)}">제거</button>` : ""}
+    </div>`;
   }).join("");
-  $$(".equipment-row").forEach((row) => row.addEventListener("click", () => {
+  elements.equipmentList.querySelectorAll(".equipment-row").forEach((row) => row.addEventListener("click", () => {
     state.activeSlot = row.dataset.slot;
     renderEquipment();
     renderCatalog();
-    window.requestAnimationFrame(() => {
-      elements.itemSearch.focus();
-      ensureMobileControlVisible(elements.itemSearch);
-    });
+    focusItemSearch();
   }));
+  elements.equipmentList.querySelectorAll(".equipment-remove").forEach((button) => button.addEventListener("click", () => {
+    removeItem(button.dataset.removeSlot);
+  }));
+  bindItemImageFallbacks(elements.equipmentList);
   if (elements.languageSelect) elements.languageSelect.value = state.language;
   renderBoardGear();
 }
@@ -1678,9 +1975,11 @@ function renderCatalogResults(results, { notice = "" } = {}) {
   elements.catalogResults.setAttribute("aria-busy", "false");
   const resultMarkup = results.length ? results.map((item) => {
     const secondaryName = getSecondaryItemName(item);
-    return `<button class="catalog-result" data-item-id="${escapeHtml(item.id)}" type="button"><span class="catalog-result-icon">${renderCatalogIcon(item)}</span><span class="catalog-result-copy"><strong>${escapeHtml(getItemName(item))}</strong><span>${escapeHtml(secondaryName || getOutfitSlotName(item.slot))}</span></span><span class="catalog-result-action" aria-hidden="true">＋</span></button>`;
+    const hasItemImage = Boolean(getItemImageUrl(item));
+    return `<button class="catalog-result" data-item-id="${escapeHtml(item.id)}" type="button"><span class="catalog-result-icon${hasItemImage ? " has-item-image" : ""}">${renderCatalogIcon(item)}</span><span class="catalog-result-copy"><strong>${escapeHtml(getItemName(item))}</strong><span>${escapeHtml(secondaryName || getOutfitSlotName(item.slot))}</span></span><span class="catalog-result-action" aria-hidden="true">＋</span></button>`;
   }).join("") : `<div class="empty-results"><strong>일치하는 장비가 없습니다.</strong></div>`;
   elements.catalogResults.innerHTML = `${notice ? `<div class="catalog-results-notice" role="status">${escapeHtml(notice)}</div>` : ""}${resultMarkup}`;
+  bindItemImageFallbacks(elements.catalogResults);
   $$(".catalog-result").forEach((button) => button.addEventListener("click", () => { void linkItem(button.dataset.itemId); }));
 }
 
@@ -1733,11 +2032,28 @@ async function linkItem(itemId) {
   renderCatalog();
   showToast(`${getItemName(newItem)}을(를) ${getItemMeta(newItem)}에 연결했습니다.`);
   saveState();
-  window.requestAnimationFrame(() => {
-    elements.itemSearch.focus();
-    ensureMobileControlVisible(elements.itemSearch);
-  });
+  focusItemSearch();
   await hydrateEnglishItemNames([newItem]);
+}
+
+function removeItem(slot) {
+  if (!outfitSlots.includes(slot)) return;
+  const look = getSelectedLook();
+  const outfit = getCharacterOutfit(state.selectedCharacter, look);
+  const itemId = outfit?.[slot];
+  if (!itemId) return;
+  const item = getItem(itemId);
+  recordHistory();
+  // recordHistory normalizes/replaces the outfit array while taking its
+  // snapshot, so reacquire the mutable row after the snapshot is captured.
+  getCharacterOutfit(state.selectedCharacter, look)[slot] = null;
+  ensureLookOutfits(look);
+  state.activeSlot = slot;
+  renderEquipment();
+  renderCatalog();
+  saveState();
+  showToast(item ? `${getItemName(item)}을(를) 장비에서 제거했습니다.` : `${getOutfitSlotName(slot)} 장비를 제거했습니다.`);
+  focusItemSearch();
 }
 
 function normaliseSavedLook(value, index) {
@@ -1750,14 +2066,10 @@ function normaliseSavedLook(value, index) {
   look.backgroundTexture = backgroundTextureOptions.has(value?.backgroundTexture) ? value.backgroundTexture : "none";
   look.titleFont = titleFonts[value?.titleFont] ? value.titleFont : defaultTitleFont;
   look.titleWeight = normaliseTitleWeight(look.titleFont, value?.titleWeight ?? defaultTitleWeight);
-  look.outline = {
-    color: /^#[0-9a-f]{6}$/i.test(value?.outline?.color || "") ? value.outline.color : "#f1dfbb",
-    width: clamp(value?.outline?.width, 0, 8, 0),
-  };
-  look.titleOutline = {
-    color: /^#[0-9a-f]{6}$/i.test(value?.titleOutline?.color || "") ? value.titleOutline.color : "#ffffff",
-    width: clamp(value?.titleOutline?.width, 0, 6, 0),
-  };
+  look.titleAlign = normaliseTitleAlign(value?.titleAlign);
+  look.titleColor = normaliseOptionalHexColor(value?.titleColor ?? value?.subtitleColor);
+  look.outline = normaliseOutline(value?.outline, "#f1dfbb", 8);
+  look.titleOutline = normaliseOutline(value?.titleOutline, "#ffffff", 6);
   look.outfits = Array.isArray(value?.outfits) ? cloneOutfits(value.outfits) : createOutfits([]);
   look.editor = value?.editor ? normaliseLookEditor(value.editor) : null;
   ensureLookOutfits(look);
@@ -1794,21 +2106,30 @@ function loadDraft() {
     if (saved.background && backgrounds[saved.background]) state.background = saved.background;
     else state.background = look.background || legacyStyle?.background || "paper";
     if (typeof saved.cutout === "boolean") state.cutout = saved.cutout;
-    if (saved.outline) state.outline = { ...state.outline, ...saved.outline };
-    if (saved.titleOutline) state.titleOutline = { ...state.titleOutline, ...saved.titleOutline };
-    if (saved.shadow) state.shadow = { ...state.shadow, ...saved.shadow };
-    if (typeof saved.zoom === "number") state.zoom = saved.zoom;
-    if (typeof saved.panX === "number") state.panX = saved.panX;
-    if (typeof saved.panY === "number") state.panY = saved.panY;
-    if (["contain", "cover"].includes(saved.imageFit)) state.imageFit = saved.imageFit;
+    if (saved.outline) state.outline = normaliseOutline(saved.outline, "#f1dfbb", 8);
+    if (saved.titleOutline) state.titleOutline = normaliseOutline(saved.titleOutline, "#ffffff", 6);
+    if (saved.shadow) state.shadow = LookEditor.normalizeShadow(saved.shadow);
+    if (saved.zoom !== undefined || saved.panX !== undefined || saved.panY !== undefined || saved.imageFit !== undefined) {
+      const placement = LookEditor.normalizeCharacter({
+        imageFit: saved.imageFit,
+        zoom: saved.zoom,
+        panX: saved.panX,
+        panY: saved.panY,
+      });
+      state.zoom = placement.zoom;
+      state.panX = placement.panX;
+      state.panY = placement.panY;
+      state.imageFit = placement.imageFit;
+    }
     if (["ko", "en", "ja"].includes(saved.language)) state.language = saved.language;
     if (typeof saved.multiInfoEnabled === "boolean") state.multiInfoEnabled = saved.multiInfoEnabled;
-    if (["fade", "silhouette"].includes(saved.multiInfoMode)) state.multiInfoMode = saved.multiInfoMode;
-    if (["summary", "full"].includes(saved.infoDensity)) state.infoDensity = saved.infoDensity;
+    if (["clear", "fade", "silhouette"].includes(saved.multiInfoMode)) state.multiInfoMode = saved.multiInfoMode;
     if (titleFonts[saved.titleFont]) state.titleFont = saved.titleFont;
     else if (titleFonts[look.titleFont]) state.titleFont = look.titleFont;
     if (Number.isFinite(saved.titleWeight)) state.titleWeight = normaliseTitleWeight(state.titleFont, saved.titleWeight);
     else state.titleWeight = normaliseTitleWeight(state.titleFont, look.titleWeight);
+    state.titleAlign = normaliseTitleAlign(saved.titleAlign ?? look.titleAlign);
+    state.titleColor = normaliseOptionalHexColor(saved.titleColor ?? saved.subtitleColor ?? look.titleColor ?? look.subtitleColor);
     if (["portrait", "landscape"].includes(saved.singleRatio)) state.singleRatio = saved.singleRatio;
     if (["info-left", "info-right"].includes(saved.singleLayout)) state.singleLayout = saved.singleLayout;
     restoreBackgroundStyle(
@@ -1822,16 +2143,19 @@ function loadDraft() {
       saved.characters.slice(0, 5).forEach((savedCharacter, index) => {
         const character = state.characters[index];
         if (!character || !savedCharacter) return;
-        character.assetKey = savedCharacter.assetKey || null;
-        if (savedCharacter.assetKey) {
-          character.fileName = savedCharacter.fileName || character.fileName;
-          character.fileMeta = savedCharacter.fileMeta || character.fileMeta;
+        character.assetKey = typeof savedCharacter.assetKey === "string" && savedCharacter.assetKey.length <= 160
+          ? savedCharacter.assetKey
+          : null;
+        if (character.assetKey) {
+          if (typeof savedCharacter.fileName === "string") character.fileName = savedCharacter.fileName.slice(0, 160);
+          if (typeof savedCharacter.fileMeta === "string") character.fileMeta = savedCharacter.fileMeta.slice(0, 240);
         }
-        character.cutout = Boolean(savedCharacter.cutout);
+        character.cutout = savedCharacter.cutout === true;
         character.imageFit = ["contain", "cover"].includes(savedCharacter.imageFit) ? savedCharacter.imageFit : "contain";
         if (Number.isFinite(savedCharacter.zoom)) character.zoom = savedCharacter.zoom;
         if (Number.isFinite(savedCharacter.panX)) character.panX = savedCharacter.panX;
         if (Number.isFinite(savedCharacter.panY)) character.panY = savedCharacter.panY;
+        LookEditor.normalizeCharacter(character);
       });
     }
     const selectedCharacter = state.characters[state.selectedCharacter];
@@ -1879,8 +2203,10 @@ function selectLook(id) {
   restoreBackgroundStyle(nextLook.backgroundPattern, nextLook.backgroundMotif, nextLook.backgroundTexture);
   state.titleFont = titleFonts[nextLook.titleFont] ? nextLook.titleFont : defaultTitleFont;
   state.titleWeight = normaliseTitleWeight(state.titleFont, nextLook.titleWeight ?? defaultTitleWeight);
-  state.outline = { ...state.outline, ...(nextLook.outline || {}) };
-  state.titleOutline = { ...state.titleOutline, ...(nextLook.titleOutline || {}) };
+  state.titleAlign = normaliseTitleAlign(nextLook.titleAlign);
+  state.titleColor = normaliseOptionalHexColor(nextLook.titleColor ?? nextLook.subtitleColor);
+  state.outline = normaliseOutline(nextLook.outline, "#f1dfbb", 8);
+  state.titleOutline = normaliseOutline(nextLook.titleOutline, "#ffffff", 6);
   styleAdvancedOpen = false;
   state.activeSlot = "head";
   state.selectedCharacter = 0;
@@ -1912,7 +2238,8 @@ function formatImageOffset(value) {
 
 async function handleImageFile(file, characterIndex = state.selectedCharacter, { render = true, notify = true } = {}) {
   const operationEpoch = workspaceEpoch;
-  if (!file || !file.type.startsWith("image/")) {
+  const fileType = String(file?.type || "").toLowerCase();
+  if (!file || !["image/png", "image/jpeg", "image/webp"].includes(fileType)) {
     if (notify) showToast("PNG, JPG 또는 WebP 이미지를 선택해주세요.");
     return false;
   }
@@ -1984,7 +2311,7 @@ function resetSelectedImagePlacement({ notify = true } = {}) {
   if (imageEditorOpen) imageEditorDirty = true;
   else recordHistory();
   updateSelectedImageState({ imageFit: "contain", zoom: 100, panX: 0, panY: 0 });
-  renderStyles({ refreshInfo: false, refreshPattern: false });
+  renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
   if (!imageEditorOpen) saveState();
   if (notify && !imageEditorOpen) showToast("선택한 이미지를 프레임에 맞췄습니다.");
 }
@@ -1994,7 +2321,7 @@ function resetSelectedImagePosition({ notify = true } = {}) {
   if (imageEditorOpen) imageEditorDirty = true;
   else recordHistory();
   updateSelectedImageState({ panX: 0, panY: 0 });
-  renderStyles({ refreshInfo: false, refreshPattern: false });
+  renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
   if (!imageEditorOpen) saveState();
   if (notify && !imageEditorOpen) showToast("이미지를 카드 중앙에 맞췄습니다.");
 }
@@ -2010,7 +2337,7 @@ function nudgeSelectedImage(direction) {
   if (imageEditorOpen) imageEditorDirty = true;
   else recordHistory();
   updateSelectedImageState({ panX: state.panX + deltaX, panY: state.panY + deltaY });
-  renderStyles({ refreshInfo: false, refreshPattern: false });
+  renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
   if (!imageEditorOpen) saveState();
 }
 
@@ -2018,7 +2345,7 @@ function changeSelectedImageZoom(delta) {
   if (imageEditorOpen) imageEditorDirty = true;
   else recordHistory();
   updateSelectedImageState({ zoom: clamp(state.zoom + delta, 70, 180) });
-  renderStyles({ refreshInfo: false, refreshPattern: false });
+  renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
   if (!imageEditorOpen) saveState();
 }
 
@@ -2037,7 +2364,7 @@ async function quickCutout() {
     character.cutout = false;
     syncSelectedCharacter();
     renderCast();
-    renderStyles({ refreshInfo: false, refreshPattern: false });
+    renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
     renderSourcePanel();
     saveState();
     showToast("원본 이미지로 복원했습니다.");
@@ -2063,6 +2390,8 @@ async function quickCutout() {
     label.textContent = state.cutout ? "원본으로 복원" : "배경 제거";
   };
 
+  let resultUrl = "";
+  let applied = false;
   try {
     const sourceResponse = await fetch(sourceUrl);
     if (!sourceResponse.ok) throw new Error("원본 이미지를 읽지 못했습니다.");
@@ -2098,9 +2427,9 @@ async function quickCutout() {
     }
     if (!resultBlob && serverError) throw serverError;
     if (!resultBlob) {
-      if (!globalThis.GlamourBackgroundRemoval?.removeInBrowser) throw new Error("브라우저 배경 제거 모듈을 불러오지 못했습니다.");
+      if (!globalThis.TuyeongSetMaker2BackgroundRemoval?.removeInBrowser) throw new Error("브라우저 배경 제거 모듈을 불러오지 못했습니다.");
       label.textContent = "브라우저 모델 준비 중 · 첫 실행은 다운로드가 필요합니다";
-      const browserResult = await globalThis.GlamourBackgroundRemoval.removeInBrowser(sourceBlob, {
+      const browserResult = await globalThis.TuyeongSetMaker2BackgroundRemoval.removeInBrowser(sourceBlob, {
         onProgress: (progress) => {
           if (progress.status === "progress" && Number.isFinite(progress.progress)) {
             label.textContent = `브라우저 모델 준비 중 · ${Math.round(progress.progress)}%`;
@@ -2110,7 +2439,7 @@ async function quickCutout() {
       resultBlob = browserResult.blob;
       processingTier = browserResult.tier;
     }
-    const resultUrl = createAssetUrl(resultBlob);
+    resultUrl = createAssetUrl(resultBlob);
     let image;
     try {
       image = await loadCanvasImage(resultUrl);
@@ -2121,6 +2450,23 @@ async function quickCutout() {
     }
     if (!isCurrentSource()) {
       URL.revokeObjectURL(resultUrl);
+      assetUrls.delete(resultUrl);
+      scheduleAssetCleanup();
+      showToast("원본이나 작업 상태가 바뀌어 배경 제거 결과를 적용하지 않았습니다.");
+      return;
+    }
+    try {
+      await writeCharacterAsset(targetCharacter.assetKey, { cutoutBlob: resultBlob });
+    } catch {
+      URL.revokeObjectURL(resultUrl);
+      assetUrls.delete(resultUrl);
+      showToast("배경제거는 완료됐지만 브라우저 저장에 실패했습니다.");
+      return;
+    }
+    if (!isCurrentSource()) {
+      URL.revokeObjectURL(resultUrl);
+      assetUrls.delete(resultUrl);
+      scheduleAssetCleanup();
       showToast("원본이나 작업 상태가 바뀌어 배경 제거 결과를 적용하지 않았습니다.");
       return;
     }
@@ -2130,20 +2476,19 @@ async function quickCutout() {
       fileMeta: `${image.naturalWidth} × ${image.naturalHeight} · 배경 제거`,
       cutout: true,
     });
+    applied = true;
     syncSelectedCharacter();
     renderCast();
     renderStyles();
     renderSourcePanel();
-    try {
-      await writeCharacterAsset(targetCharacter.assetKey, { cutoutBlob: resultBlob });
-      if (!isCurrentSource()) return;
-      saveState();
-    } catch {
-      showToast("배경제거는 완료됐지만 브라우저 저장에 실패했습니다.");
-      return;
-    }
+    saveState();
     showToast(`배경 제거 완료 · ${image.naturalWidth} × ${image.naturalHeight} 원본 해상도${processingTier ? ` · ${processingTier}` : ""}`);
   } catch (error) {
+    if (resultUrl && !applied) {
+      URL.revokeObjectURL(resultUrl);
+      assetUrls.delete(resultUrl);
+      scheduleAssetCleanup();
+    }
     showToast(error.message || "이미지를 처리하지 못했습니다.");
   } finally {
     finishProcessing();
@@ -2181,8 +2526,12 @@ function exportRevision() {
 function captureExportCopy() {
   const board = elements.board.getBoundingClientRect();
   const scale = getExportDimensions().layoutWidth / board.width;
-  return [elements.boardTitle, elements.boardSubtitle].filter(Boolean).map(element => {
+  return [elements.boardTitle, elements.boardSubtitle].filter((element) => {
+    if (!element) return false;
+    return element === elements.boardTitle || Boolean(element.textContent.trim());
+  }).map(element => {
     const style = getComputedStyle(element);
+    const textAlign = ["left", "center", "right"].includes(style.textAlign) ? style.textAlign : "left";
     const lines = [];
     const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
     let node;
@@ -2191,15 +2540,57 @@ function captureExportCopy() {
         const range = document.createRange(); range.setStart(node, index); range.setEnd(node, index + 1);
         const rect = range.getBoundingClientRect();
         let line = lines.find(item => Math.abs(item.top - rect.top) < 1);
-        if (!line) { line = { text: "", top: rect.top, x: (rect.left - board.left) * scale, y: (rect.top - board.top) * scale, height: rect.height * scale }; lines.push(line); }
+        if (!line) {
+          line = { text: "", top: rect.top, left: rect.left, right: rect.right, y: (rect.top - board.top) * scale, height: rect.height * scale };
+          lines.push(line);
+        } else {
+          line.left = Math.min(line.left, rect.left);
+          line.right = Math.max(line.right, rect.right);
+          line.height = Math.max(line.height, rect.height * scale);
+        }
         line.text += node.textContent[index];
       }
     }
-    return { lines, font: `${style.fontWeight} ${parseFloat(style.fontSize) * scale}px ${style.fontFamily}`,
-      color: style.color, stroke: element === elements.boardTitle ? state.titleOutline.width * scale : 0,
+    const positionedLines = lines.map(({ left, right, ...line }) => ({
+      ...line,
+      x: ((textAlign === "right" ? right : textAlign === "center" ? (left + right) / 2 : left) - board.left) * scale,
+    }));
+    return { lines: positionedLines, textAlign, font: `${style.fontWeight} ${parseFloat(style.fontSize) * scale}px ${style.fontFamily}`,
+      color: style.color, opacity: Number.parseFloat(style.opacity) || 1,
+      stroke: element === elements.boardTitle ? state.titleOutline.width * scale : 0,
       strokeColor: state.titleOutline.color, letterSpacing: (parseFloat(style.letterSpacing) || 0) * scale };
   });
 }
+
+function renderCardCopyPreview(copyLayout = null) {
+  const canvas = elements.boardCopyCanvas;
+  if (!(canvas instanceof HTMLCanvasElement) || typeof CardCopy === "undefined" || typeof CardCopy.draw !== "function") return null;
+  const board = elements.board.getBoundingClientRect();
+  if (!board.width || !board.height) return null;
+  const dimensions = getExportDimensions();
+  const layout = copyLayout || captureExportCopy();
+  if (canvas.width !== dimensions.exportWidth || canvas.height !== dimensions.exportHeight) {
+    canvas.width = dimensions.exportWidth;
+    canvas.height = dimensions.exportHeight;
+  }
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+  context.setTransform(1, 0, 0, 1, 0, 0);
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.scale(CardCopy.outputScale, CardCopy.outputScale);
+  CardCopy.draw(context, layout);
+  elements.board.dataset.copyRendered = "true";
+  return layout;
+}
+
+function scheduleCardCopyPreview() {
+  if (!(elements.boardCopyCanvas instanceof HTMLCanvasElement) || cardCopyRenderFrame) return;
+  cardCopyRenderFrame = window.requestAnimationFrame(() => {
+    cardCopyRenderFrame = 0;
+    renderCardCopyPreview();
+  });
+}
+
 async function downloadComposition(event, snapshot = { ...state, characters: state.characters.map(character => ({ ...character })), titleOutline: { ...state.titleOutline }, outline: { ...state.outline }, shadow: { ...state.shadow } }) {
   if (exportInProgress) return;
   const state = snapshot;
@@ -2237,15 +2628,22 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
     assertUnchanged();
     fitBoardTitle();
     const copyLayout = captureExportCopy();
+    renderCardCopyPreview(copyLayout);
     const images = await Promise.all(activeCharacters.map((character) => loadCanvasImage(resolveCharacterAsset(character, "hero"))));
     assertUnchanged();
+    const infoTextTheme = state.multiInfoMode === "silhouette"
+      ? getSilhouetteInfoTheme(backgrounds[state.background])
+      : { foreground: exportTheme.text, muted: exportTheme.muted, halo: exportTheme.infoShadow };
+    const board = elements.board.getBoundingClientRect();
+    const placementScale = board.width > 0 ? dimensions.layoutWidth / board.width : 1;
     const outputBlob = await CardPng.render({ state, dimensions, exportTheme,
       background: backgrounds[state.background], patternStars, images, copyLayout, gear,
-      outlineColor: rgba(state.outline.color, 0.8) });
+      placementScale, outlineColor: rgba(state.outline.color, 0.8), infoTextColor: infoTextTheme.foreground,
+      infoTextMuted: infoTextTheme.muted, infoTextHalo: infoTextTheme.halo });
     assertUnchanged();
     const extension = "png";
     const link = document.createElement("a");
-    link.download = `${look.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "glamour-look"}.${extension}`;
+    link.download = `${look.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "tuyeong-set-maker2-look"}.${extension}`;
     const objectUrl = URL.createObjectURL(outputBlob);
     link.href = objectUrl;
     link.click();
@@ -2282,10 +2680,11 @@ function resetStyles() {
   character.panY = 0;
   character.imageFit = "contain";
   state.multiInfoEnabled = true;
-  state.multiInfoMode = "fade";
-  state.infoDensity = "summary";
+  state.multiInfoMode = "clear";
   state.titleFont = defaultTitleFont;
   state.titleWeight = defaultTitleWeight;
+  state.titleAlign = "auto";
+  state.titleColor = "";
   state.singleRatio = "portrait";
   state.singleLayout = "info-left";
   styleAdvancedOpen = false;
@@ -2316,10 +2715,11 @@ function resetCardData() {
   state.background = defaults.background;
   restoreBackgroundStyle(defaults.backgroundPattern, undefined, defaults.backgroundTexture);
   state.multiInfoEnabled = true;
-  state.multiInfoMode = "fade";
-  state.infoDensity = "summary";
+  state.multiInfoMode = "clear";
   state.titleFont = defaultTitleFont;
   state.titleWeight = defaultTitleWeight;
+  state.titleAlign = normaliseTitleAlign(defaults.titleAlign);
+  state.titleColor = normaliseOptionalHexColor(defaults.titleColor ?? defaults.subtitleColor);
   state.singleRatio = "portrait";
   state.singleLayout = "info-left";
   state.characterCount = 1;
@@ -2388,10 +2788,11 @@ async function resetWorkspace() {
     characters: createEmptyCharacters(),
     background: "paper",
     multiInfoEnabled: true,
-    multiInfoMode: "fade",
-    infoDensity: "summary",
+    multiInfoMode: "clear",
     titleFont: defaultTitleFont,
     titleWeight: defaultTitleWeight,
+    titleAlign: "auto",
+    titleColor: "",
     singleRatio: "portrait",
     singleLayout: "info-left",
     backgroundPattern: "none",
@@ -2480,6 +2881,7 @@ function openPanel(panelId) {
 }
 
 function initialiseInteractions() {
+  window.addEventListener("pagehide", flushScheduledSaveState);
   initialiseLookManager();
   $$(".look-list-item").forEach((button) => button.addEventListener("click", () => selectLook(button.dataset.lookId)));
   $("#previousLook").addEventListener("click", () => cycleLook(-1));
@@ -2512,7 +2914,6 @@ function initialiseInteractions() {
     renderStyles();
     saveState();
   }));
-  $$('button[data-info-density]').forEach((button) => button.addEventListener("click", () => { recordHistory(); state.infoDensity = button.dataset.infoDensity; renderStyles(); saveState(); }));
   $("#styleAdvancedToggle").addEventListener("click", () => {
     styleAdvancedOpen = !styleAdvancedOpen;
     renderStyles();
@@ -2551,6 +2952,14 @@ function initialiseInteractions() {
     renderStyles({ refreshInfo: false, refreshPattern: false });
     saveState();
   });
+  $$('button[data-title-align]').forEach((button) => button.addEventListener("click", () => {
+    const nextAlignment = normaliseTitleAlign(button.dataset.titleAlign);
+    if (nextAlignment === state.titleAlign) return;
+    recordHistory();
+    state.titleAlign = nextAlignment;
+    renderStyles({ refreshInfo: false, refreshPattern: false });
+    saveState();
+  }));
   document.addEventListener("keydown", (event) => {
     const radio = event.target.closest('[role="radio"]');
     const group = radio?.closest('[role="radiogroup"]');
@@ -2565,18 +2974,10 @@ function initialiseInteractions() {
   $("#canvasBoard").addEventListener("dragover", (event) => { event.preventDefault(); elements.board.classList.add("is-drop-target"); });
   $("#canvasBoard").addEventListener("dragleave", () => elements.board.classList.remove("is-drop-target"));
   $("#canvasBoard").addEventListener("drop", (event) => { event.preventDefault(); elements.board.classList.remove("is-drop-target"); void handleImageFiles(event.dataTransfer.files); });
-  const imageDropZone = $("#imageDropZone");
-  imageDropZone.addEventListener("click", () => elements.imageInput.click());
-  imageDropZone.addEventListener("dragover", (event) => { event.preventDefault(); imageDropZone.classList.add("is-drop-target"); });
-  imageDropZone.addEventListener("dragleave", () => imageDropZone.classList.remove("is-drop-target"));
-  imageDropZone.addEventListener("drop", (event) => {
-    event.preventDefault();
-    imageDropZone.classList.remove("is-drop-target");
-    void handleImageFiles(event.dataTransfer.files);
-  });
   let dragState = null;
   elements.portraitWrap.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
+    if (event.target.closest(".character-image-actions")) return;
     const figure = event.target.closest(".character-figure");
     const targetIndex = Number(figure?.dataset.characterIndex);
     if (imageEditorOpen && Number.isInteger(targetIndex) && targetIndex !== state.selectedCharacter) {
@@ -2607,7 +3008,7 @@ function initialiseInteractions() {
       panX: dragState.panX + event.clientX - dragState.startX,
       panY: dragState.panY + event.clientY - dragState.startY,
     });
-    renderStyles({ refreshInfo: false, refreshPattern: false });
+    renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
   });
   const finishDrag = (event) => {
     if (!dragState) return;
@@ -2649,7 +3050,7 @@ function initialiseInteractions() {
     if (imageEditorOpen) imageEditorDirty = true;
     else recordHistory();
     updateSelectedImageState({ imageFit: button.dataset.imageFit });
-    renderStyles({ refreshInfo: false, refreshPattern: false });
+    renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
     if (!imageEditorOpen) saveState();
   }));
   $$('[data-image-nudge]').forEach((button) => button.addEventListener("click", () => nudgeSelectedImage(button.dataset.imageNudge)));
@@ -2662,12 +3063,12 @@ function initialiseInteractions() {
       }
       editing = true;
       update(Number(input.value));
-      renderStyles({ refreshInfo: false, refreshPattern: false });
+      renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
       updateRangeProgress(input);
-      if (!imageEditorOpen) saveState();
+      if (!imageEditorOpen) scheduleSaveState();
     });
-    input.addEventListener("change", () => { editing = false; });
-    input.addEventListener("blur", () => { editing = false; });
+    input.addEventListener("change", () => { editing = false; flushScheduledSaveState(); });
+    input.addEventListener("blur", () => { editing = false; flushScheduledSaveState(); });
   };
   bindHistoryRange(elements.zoomRange, value => { updateSelectedImageState({ zoom: value }); });
   bindHistoryRange(elements.panXRange, value => { updateSelectedImageState({ panX: value }); });
@@ -2675,12 +3076,40 @@ function initialiseInteractions() {
   bindHistoryRange($("#outlineRange"), value => { state.outline.width = value; });
   bindHistoryRange(elements.titleOutlineRange, value => { state.titleOutline.width = value; });
   bindHistoryRange($("#shadowRange"), value => { state.shadow.strength = value; });
+  const bindColorInput = (input, update) => {
+    if (!input) return;
+    let editing = false;
+    input.addEventListener("input", () => {
+      if (!editing) {
+        recordHistory();
+        editing = true;
+      }
+      update(input.value);
+      renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
+      scheduleSaveState();
+    });
+    input.addEventListener("change", () => { editing = false; flushScheduledSaveState(); });
+    input.addEventListener("blur", () => { editing = false; flushScheduledSaveState(); });
+  };
+  bindColorInput($("#titleOutlineColorInput"), (value) => {
+    state.titleOutline.color = normaliseHexColor(value, "#ffffff");
+  });
+  bindColorInput($("#titleColorInput"), (value) => {
+    state.titleColor = normaliseHexColor(value, defaultTitleColor());
+  });
+  $("#titleColorAutoButton")?.addEventListener("click", () => {
+    if (!state.titleColor) return;
+    recordHistory();
+    state.titleColor = "";
+    renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
+    saveState();
+  });
   $$(".color-swatch").forEach((swatch) => swatch.addEventListener("click", () => { recordHistory(); state.outline.color = swatch.dataset.color; renderStyles(); saveState(); }));
   $$(".title-outline-swatch").forEach((swatch) => swatch.addEventListener("click", () => {
     if (swatch.dataset.titleOutlineColor === state.titleOutline.color) return;
     recordHistory();
     state.titleOutline.color = swatch.dataset.titleOutlineColor;
-    renderStyles({ refreshInfo: false, refreshPattern: false });
+    renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
     saveState();
   }));
   $$(".backdrop-swatch").forEach((swatch) => swatch.addEventListener("click", () => { recordHistory(); state.background = swatch.dataset.background; renderStyles(); saveState(); }));
@@ -2791,14 +3220,16 @@ function initialiseInteractions() {
       editSnapshot = createSnapshot();
       element.dataset.editStart = getSelectedLook()[field] || "";
       element.dataset.editing = "true";
+      elements.board.dataset.copyEditing = "true";
     });
     element.addEventListener("input", () => {
       const look = getSelectedLook();
       const value = normaliseInlineText(element.textContent || "");
       look[field] = value || fallback;
       if (field === "title") fitBoardTitle();
+      scheduleCardCopyPreview();
       if (field === "title") {
-        document.title = `글래머 아틀리에 | ${look.title}`;
+        document.title = `${projectName} | ${look.title}`;
         renderLookList();
       }
     });
@@ -2822,6 +3253,7 @@ function initialiseInteractions() {
       if (editSnapshot && look[field] !== editSnapshot[field]) recordHistory(editSnapshot);
       editSnapshot = null;
       element.dataset.editing = "false";
+      elements.board.dataset.copyEditing = "false";
       renderLook();
       saveState();
     });
@@ -2841,8 +3273,9 @@ function initialiseInteractions() {
       elements.boardSubtitle.textContent = look.subtitle || "";
       elements.boardSubtitle.dataset.empty = String(!look.subtitle);
       if (field === "title") fitBoardTitle();
+      scheduleCardCopyPreview();
       if (field === "title") {
-        document.title = `글래머 아틀리에 | ${look.title || "새로운 룩"}`;
+        document.title = `${projectName} | ${look.title || "새로운 룩"}`;
         renderLookList();
       }
       updateCopyEditorCount(input, count);
@@ -2876,14 +3309,23 @@ function initialiseInteractions() {
   const titleBlock = elements.boardTitle?.parentElement;
   if (titleBlock instanceof HTMLElement && "ResizeObserver" in window) {
     boardTitleResizeObserver?.disconnect();
-    boardTitleResizeObserver = new ResizeObserver(() => window.requestAnimationFrame(fitBoardTitle));
+    boardTitleResizeObserver = new ResizeObserver(() => {
+      fitBoardTitle();
+      scheduleCardCopyPreview();
+    });
     boardTitleResizeObserver.observe(titleBlock);
   }
   // ResizeObserver delivery can lag one frame during a mobile viewport
   // change. Fit synchronously on resize as a guard so a stale desktop size
   // never paints an ellipsis while the card is narrowing.
-  window.addEventListener("resize", fitBoardTitle, { passive: true });
-  if (document.fonts?.ready) document.fonts.ready.then(fitBoardTitle);
+  window.addEventListener("resize", () => {
+    fitBoardTitle();
+    scheduleCardCopyPreview();
+  }, { passive: true });
+  if (document.fonts?.ready) document.fonts.ready.then(() => {
+    fitBoardTitle();
+    scheduleCardCopyPreview();
+  });
   document.addEventListener("keydown", (event) => {
     if (document.querySelector("dialog[open]")) return;
     if (imageEditorOpen && event.key === "Escape") {
@@ -2974,6 +3416,15 @@ function initialiseLookManager() {
       const copy = await LookBook.copy(snapshot, { createId: createAssetKey,
         readAsset: characterAssetVault.read, writeAsset: writeCharacterAsset, isCurrent });
       if (!copy || !isCurrent()) return;
+      // The copy owns a new IndexedDB key. Rehydrate fresh Blob URLs before it
+      // becomes visible; revoking the source URL later must never break both
+      // looks at once.
+      copy.editor?.characters?.forEach((character) => {
+        character.src = "";
+        character.originalSrc = "";
+      });
+      await restoreCharacterAssets(copy.editor?.characters, copy.editor?.characters, { sync: false });
+      if (!isCurrent()) return;
       looks.splice(looks.indexOf(source) + 1, 0, copy);
       captureDefaultLookSnapshots();
       $("#lookSearch").value = "";
@@ -3026,6 +3477,7 @@ function initialiseLookManager() {
 }
 
 async function bootstrap() {
+  migrateLegacyStorage();
   purgeLegacyStorage();
   restoreUiPreferences();
   syncLibraryPanel();
@@ -3041,11 +3493,6 @@ async function bootstrap() {
   Object.assign(state, selectedLook.editor);
   syncSelectedCharacter();
   initialiseInteractions();
-  document.querySelectorAll("[data-editor-section]").forEach(button => button.addEventListener("click", () => {
-    document.querySelectorAll("[data-editor-section]").forEach(item => item.setAttribute("aria-pressed", String(item === button)));
-    const section = document.getElementById(button.dataset.editorSection);
-    section?.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
-  }));
   const preview = document.querySelector(".canvas-column");
   new ResizeObserver(() => document.documentElement.style.setProperty("--preview-height", `${preview.getBoundingClientRect().height}px`)).observe(preview);
   renderAll();

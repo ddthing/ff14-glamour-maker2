@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const { spawn } = require("node:child_process");
-const { once } = require("node:events");
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
+const { stopChild } = require("./test-process.cjs");
 
 const fixturePng = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=",
@@ -27,8 +27,13 @@ async function startServer() {
       resolve();
     });
   });
-  await startup;
-  return child;
+  try {
+    await startup;
+    return child;
+  } catch (error) {
+    await stopChild(child);
+    throw error;
+  }
 }
 
 (async () => {
@@ -42,16 +47,30 @@ async function startServer() {
     const moduleResponse = await page.request.get(`${baseUrl}/models/background-removal.js`);
     assert.equal(moduleResponse.status(), 200, "browser model adapter must be publicly served");
     await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
-    await page.waitForFunction(() => typeof window.GlamourBackgroundRemoval?.removeInBrowser === "function");
+    await page.waitForFunction(() => typeof window.TuyeongSetMaker2BackgroundRemoval?.removeInBrowser === "function");
 
     await page.evaluate((bytes) => {
       const blob = new Blob([new Uint8Array(bytes)], { type: "image/png" });
-      window.GlamourBackgroundRemoval = Object.freeze({
+      window.TuyeongSetMaker2BackgroundRemoval = Object.freeze({
         removeInBrowser: async () => ({ blob, tier: "test browser fallback" }),
       });
     }, [...fixturePng]);
     await page.locator("#imageInput").setInputFiles({ name: "browser-fallback.png", mimeType: "image/png", buffer: fixturePng });
     await page.waitForFunction(() => document.querySelector("#imageState")?.dataset.state === "original");
+
+    await page.evaluate(() => {
+      const originalUpdate = characterAssetVault.update;
+      window.restoreAssetUpdate = () => { characterAssetVault.update = originalUpdate; };
+      characterAssetVault.update = async (key, value) => {
+        if (value?.cutoutBlob) throw new Error("simulated storage failure");
+        return originalUpdate(key, value);
+      };
+    });
+    await page.locator("#cutoutButton").click();
+    await page.waitForFunction(() => !document.querySelector("#cutoutButton").disabled);
+    assert.equal(await page.locator("#imageState").getAttribute("data-state"), "original", "failed asset writes must not apply an unpersisted cutout");
+    await page.evaluate(() => window.restoreAssetUpdate());
+
     await page.locator("#cutoutButton").click();
     await page.waitForFunction(() => document.querySelector("#imageState")?.dataset.state === "cutout");
     assert.match(await page.locator("#imageState").textContent(), /배경 제거됨/);
@@ -61,7 +80,7 @@ async function startServer() {
     await page.waitForFunction(() => document.querySelector("#imageState")?.dataset.state === "original");
     await page.evaluate((bytes) => {
       const blob = new Blob([new Uint8Array(bytes)], { type: "image/png" });
-      window.GlamourBackgroundRemoval = Object.freeze({
+      window.TuyeongSetMaker2BackgroundRemoval = Object.freeze({
         removeInBrowser: async () => ({ blob, tier: "test empty result" }),
       });
     }, [...emptyPng]);
@@ -73,7 +92,7 @@ async function startServer() {
     console.log("PASS: browser background-removal adapter is served and API-unavailable fallback applies a cutout.");
   } finally {
     await browser.close();
-    server.kill();
+    await stopChild(server);
   }
 })().catch((error) => {
   console.error(error);

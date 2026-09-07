@@ -20,7 +20,7 @@ const slotByEquipSlotCategory = {
 };
 
 const response = await fetch(sourceUrl, {
-  headers: { "User-Agent": "glamour-atelier-item-index-builder" },
+  headers: { "User-Agent": "tuyeong-set-maker2-item-index-builder" },
 });
 if (!response.ok) throw new Error(`한국어 아이템 CSV 응답 오류 (${response.status})`);
 

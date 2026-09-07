@@ -13,6 +13,22 @@ const castCounts = [1, 2, 3, 5];
     await page.waitForSelector("#canvasBoard");
     await page.waitForSelector("#castCountControl [data-cast-count]");
 
+    const soloLayerOrder = await page.evaluate(() => {
+      const board = document.querySelector("#canvasBoard");
+      const originalCutout = board.dataset.cutout;
+      board.dataset.cast = "1";
+      board.dataset.ratio = "portrait";
+      board.dataset.cutout = "true";
+      const layers = {
+        title: getComputedStyle(board.querySelector(".board-editorial-header")).zIndex,
+        portrait: getComputedStyle(board.querySelector(".portrait-wrap")).zIndex,
+        gear: getComputedStyle(board.querySelector(".board-gear-list")).zIndex,
+      };
+      board.dataset.cutout = originalCutout;
+      return layers;
+    });
+    assert.deepEqual(soloLayerOrder, { title: "16", portrait: "15", gear: "14" }, `solo cutout layer order is not explicit: ${JSON.stringify(soloLayerOrder)}`);
+
     const chooseCount = async (count) => {
       await page.locator(`[data-cast-count="${count}"]`).click();
       await page.waitForFunction((value) => document.querySelector("#canvasBoard")?.dataset.cast === String(value), count);
@@ -39,6 +55,19 @@ const castCounts = [1, 2, 3, 5];
       const buttonName = (element) => (element.getAttribute("aria-label") || element.textContent || "").replace(/\s+/g, " ").trim();
       const gearItems = [...board.querySelectorAll(".board-gear-item")].filter(visible);
       const infoColumns = [...board.querySelectorAll(".multi-info-column")].filter(visible);
+      const emptyPlaceholders = [...board.querySelectorAll(".character-empty-placeholder")].filter(visible).map((element) => {
+        const style = getComputedStyle(element);
+        const mark = element.querySelector(".character-empty-mark")?.getBoundingClientRect();
+        return {
+          borderWidth: style.borderTopWidth,
+          backgroundAlpha: alpha(style.backgroundColor),
+          boxShadow: style.boxShadow,
+          beforeDisplay: getComputedStyle(element, "::before").display,
+          afterDisplay: getComputedStyle(element, "::after").display,
+          markWidth: mark?.width || 0,
+          markHeight: mark?.height || 0,
+        };
+      });
       const boardButtons = [...board.querySelectorAll("button")].filter(visible);
       const title = document.querySelector("#boardTitle");
       const subtitle = document.querySelector("#boardSubtitle");
@@ -55,6 +84,7 @@ const castCounts = [1, 2, 3, 5];
         infoCount: infoColumns.length,
         infoNames: infoColumns.map(buttonName),
         infoHalo: infoColumns.map((element) => getComputedStyle(element, "::before").backgroundImage),
+        emptyPlaceholders,
         titleHalo: getComputedStyle(board).getPropertyValue("--title-halo").trim(),
         unnamedButtons: boardButtons.filter((element) => !buttonName(element)).map((element) => element.outerHTML.slice(0, 160)),
         title: {
@@ -100,6 +130,15 @@ const castCounts = [1, 2, 3, 5];
             }
           }
         }
+        assert.equal(snapshot.emptyPlaceholders.length, count, `expected one frameless empty photo guide per character for ${count}/${background}`);
+        snapshot.emptyPlaceholders.forEach((placeholder) => {
+          assert.equal(placeholder.borderWidth, "0px", `empty photo guide still has a border for ${count}/${background}`);
+          assert.equal(placeholder.backgroundAlpha, 0, `empty photo guide still has a background panel for ${count}/${background}`);
+          assert.equal(placeholder.boxShadow, "none", `empty photo guide still has a box shadow for ${count}/${background}`);
+          assert.equal(placeholder.beforeDisplay, "none", `empty photo guide still renders an inner frame for ${count}/${background}`);
+          assert.equal(placeholder.afterDisplay, "none", `empty photo guide still renders a corner accent for ${count}/${background}`);
+          assert.ok(placeholder.markWidth > 0 && placeholder.markHeight > 0, `empty photo guide lost its circular add affordance for ${count}/${background}`);
+        });
         results.push(`${count}/${background}`);
       }
     }

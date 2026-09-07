@@ -16,7 +16,7 @@ const fixturePng = Buffer.from(
         en: 'ExtraordinarilyLongUnbrokenEquipmentNameForWrappingVerification',
       } }],
     } }));
-    await page.goto('http://localhost:4173');
+    await page.goto(process.env.TEST_BASE_URL || 'http://localhost:4173');
     await page.waitForSelector('#castSelector button');
     await page.locator('[data-cast-count="3"]').click();
     await page.locator('#imageInput').setInputFiles([
