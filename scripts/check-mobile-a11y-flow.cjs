@@ -99,6 +99,31 @@ async function mobileLayout(page) {
     await page.keyboard.press("Escape");
     assert.equal(await page.evaluate(() => document.activeElement?.id), "resetButton", "reset menu Escape restores trigger focus");
 
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    const persistentReset = await page.evaluate(() => {
+      const header = document.querySelector(".inspector-header");
+      const reset = document.querySelector("#resetButton");
+      const rail = document.querySelector(".rail");
+      const headerRect = header?.getBoundingClientRect();
+      const resetRect = reset?.getBoundingClientRect();
+      const railRect = rail?.getBoundingClientRect();
+      const resetStyle = reset ? getComputedStyle(reset) : null;
+      return {
+        headerPosition: header ? getComputedStyle(header).position : "",
+        headerTop: headerRect?.top ?? -1,
+        resetTop: resetRect?.top ?? -1,
+        resetBottom: resetRect?.bottom ?? -1,
+        resetHeight: resetRect?.height ?? 0,
+        railTop: railRect?.top ?? window.innerHeight,
+        resetRadius: resetStyle?.borderRadius || "",
+      };
+    });
+    assert.equal(persistentReset.headerPosition, "sticky", `mobile inspector header should stay available while scrolling: ${JSON.stringify(persistentReset)}`);
+    assert.ok(persistentReset.headerTop >= 0 && persistentReset.resetTop >= 0, `reset action left the mobile viewport: ${JSON.stringify(persistentReset)}`);
+    assert.ok(persistentReset.resetBottom <= persistentReset.railTop - 8, `reset action is covered by the mobile rail: ${JSON.stringify(persistentReset)}`);
+    assert.ok(persistentReset.resetHeight >= 40, `reset action target is too small: ${JSON.stringify(persistentReset)}`);
+    assert.equal(persistentReset.resetRadius, "6px", `reset action should use the shared mobile control radius: ${JSON.stringify(persistentReset)}`);
+
     await page.screenshot({ path: "artifacts/ui-mobile-a11y-flow-after.png", fullPage: false });
     console.log("PASS: mobile search, panel switching, lineup controls, rail clearance, and reset focus are keyboard and touch discoverable.");
   } finally {
