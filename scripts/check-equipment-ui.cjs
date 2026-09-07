@@ -98,7 +98,7 @@ const fixturePng = Buffer.from(
 
     await page.locator('.catalog-result[data-item-id="9000001"]').click();
     const savedCatalogSize = await page.evaluate(() => {
-      const snapshot = JSON.parse(localStorage.getItem("glamour-atelier-draft-v3"));
+      const snapshot = JSON.parse(localStorage.getItem("tuyeong-set-maker2-draft-v3"));
       return snapshot.catalogItems.length;
     });
     assert.equal(savedCatalogSize, 1, "localStorage should retain only catalog records referenced by outfits");
@@ -127,7 +127,7 @@ const fixturePng = Buffer.from(
     await page.locator('.equipment-remove[data-remove-slot="head"]').click();
     await page.waitForFunction(() => document.querySelector('.equipment-row[data-slot="head"]')?.classList.contains("is-empty"));
     const removed = await page.evaluate(() => {
-      const snapshot = JSON.parse(localStorage.getItem("glamour-atelier-draft-v3"));
+      const snapshot = JSON.parse(localStorage.getItem("tuyeong-set-maker2-draft-v3"));
       const row = document.querySelector('.equipment-row[data-slot="head"]');
       return {
         empty: row?.classList.contains("is-empty"),

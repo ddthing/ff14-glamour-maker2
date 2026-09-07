@@ -123,7 +123,7 @@ Tab으로 미선택 캐릭터에 이동한 뒤 방향키를 누르면 기존 선
 
 ## 7차 검토: 브라우저 접근성 트리
 
-Edge DevTools Protocol의 `Accessibility.getFullAXTree`로 브라우저가 실제로 노출하는 접근성 트리를 확인했다. `main`은 `글래머 아틀리에 편집기`, 캔버스 영역은 `룩 캔버스`, 작업 모드는 `tablist`로 노출된다. 카드 제목·설명은 이름 있는 `textbox`로, 주요 편집 영역은 이름 있는 그룹으로 노출된다. 선택된 꾸미기 탭도 AX 트리에서 `selected=true` 상태로 확인했다.
+Edge DevTools Protocol의 `Accessibility.getFullAXTree`로 브라우저가 실제로 노출하는 접근성 트리를 확인했다. `main`은 `투영세트메이커2 편집기`, 캔버스 영역은 `룩 캔버스`, 작업 모드는 `tablist`로 노출된다. 카드 제목·설명은 이름 있는 `textbox`로, 주요 편집 영역은 이름 있는 그룹으로 노출된다. 선택된 꾸미기 탭도 AX 트리에서 `selected=true` 상태로 확인했다.
 
 아이콘의 장식 공백 때문에 `PNG 내보내기 `와 ` 새 룩`처럼 이름이 흔들리던 버튼에는 명시적 `aria-label`을 추가했다. 스크린리더는 이제 아이콘을 제외한 안정적인 이름을 받는다.
 

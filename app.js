@@ -107,16 +107,16 @@ function syncTitleAlignmentControls() {
 function syncCopyColorControls() {
   const titleOutlineInput = document.getElementById("titleOutlineColorInput");
   if (titleOutlineInput) titleOutlineInput.value = normaliseHexColor(state.titleOutline?.color, "#ffffff");
-  const subtitleColorInput = document.getElementById("subtitleColorInput");
-  const hasCustomSubtitleColor = Boolean(normaliseOptionalHexColor(state.subtitleColor));
-  if (subtitleColorInput) {
-    subtitleColorInput.value = hasCustomSubtitleColor ? state.subtitleColor : defaultSubtitleColor();
-    subtitleColorInput.dataset.mode = hasCustomSubtitleColor ? "custom" : "auto";
+  const titleColorInput = document.getElementById("titleColorInput");
+  const hasCustomTitleColor = Boolean(normaliseOptionalHexColor(state.titleColor));
+  if (titleColorInput) {
+    titleColorInput.value = hasCustomTitleColor ? state.titleColor : defaultTitleColor();
+    titleColorInput.dataset.mode = hasCustomTitleColor ? "custom" : "auto";
   }
-  const autoButton = document.getElementById("subtitleColorAutoButton");
+  const autoButton = document.getElementById("titleColorAutoButton");
   if (autoButton) {
-    autoButton.disabled = !hasCustomSubtitleColor;
-    autoButton.setAttribute("aria-pressed", String(!hasCustomSubtitleColor));
+    autoButton.disabled = !hasCustomTitleColor;
+    autoButton.setAttribute("aria-pressed", String(!hasCustomTitleColor));
   }
 }
 
@@ -200,14 +200,24 @@ const patternStars = [
 
 const backgroundPatternOptions = new Set(["none", "dots", "stars", "halftone", "bitmap"]);
 const backgroundTextureOptions = new Set(["none", "grain"]);
-const draftStorageKey = "glamour-atelier-draft-v3";
-const uiPreferencesStorageKey = "glamour-atelier-ui-v2";
-const backgroundPresetStorageKey = "glamour-atelier-background-presets-v2";
+const projectName = "투영세트메이커2";
+const storageNamespace = "tuyeong-set-maker2";
+const draftStorageKey = `${storageNamespace}-draft-v3`;
+const uiPreferencesStorageKey = `${storageNamespace}-ui-v2`;
+const backgroundPresetStorageKey = `${storageNamespace}-background-presets-v2`;
+const legacyStorageMigrations = [
+  { source: "glamour-atelier-draft-v3", target: draftStorageKey },
+  { source: "glamour-atelier-ui-v2", target: uiPreferencesStorageKey },
+  { source: "glamour-atelier-background-presets-v2", target: backgroundPresetStorageKey },
+];
 const legacyStorageKeys = [
   "glamour-atelier-draft-v1",
   "glamour-atelier-draft-v2",
+  "glamour-atelier-draft-v3",
   "glamour-atelier-ui-v1",
+  "glamour-atelier-ui-v2",
   "glamour-atelier-background-presets-v1",
+  "glamour-atelier-background-presets-v2",
 ];
 const backgroundPresetLimit = 18;
 const backgroundPatternLabels = Object.freeze({
@@ -437,7 +447,7 @@ function createBlankLook(number = 1, id = `look-${number}`) {
     titleFont: defaultTitleFont,
     titleWeight: defaultTitleWeight,
     titleAlign: "auto",
-    subtitleColor: "",
+    titleColor: "",
     outline: { color: "#f1dfbb", width: 0 },
     titleOutline: { color: "#ffffff", width: 0 },
   };
@@ -460,7 +470,7 @@ function createLookResetSnapshot(look, index = 0) {
     backgroundPattern: blank.backgroundPattern,
     backgroundTexture: blank.backgroundTexture,
     titleAlign: blank.titleAlign,
-    subtitleColor: blank.subtitleColor,
+    titleColor: blank.titleColor,
   };
 }
 
@@ -484,7 +494,7 @@ const state = {
   titleFont: defaultTitleFont,
   titleWeight: defaultTitleWeight,
   titleAlign: "auto",
-  subtitleColor: "",
+  titleColor: "",
   singleRatio: "portrait",
   singleLayout: "info-left",
   backgroundPattern: "none",
@@ -593,6 +603,18 @@ function saveUiPreferences() {
   }
 }
 
+function migrateLegacyStorage() {
+  legacyStorageMigrations.forEach(({ source, target }) => {
+    try {
+      if (localStorage.getItem(target) !== null) return;
+      const saved = localStorage.getItem(source);
+      if (saved !== null) localStorage.setItem(target, saved);
+    } catch {
+      // A blocked storage area should not prevent the editor from opening.
+    }
+  });
+}
+
 function purgeLegacyStorage() {
   legacyStorageKeys.forEach((key) => {
     try {
@@ -638,7 +660,7 @@ function syncStateIntoLook(look = getSelectedLook()) {
   look.titleFont = titleFonts[state.titleFont] ? state.titleFont : defaultTitleFont;
   look.titleWeight = normaliseTitleWeight(look.titleFont, state.titleWeight ?? defaultTitleWeight);
   look.titleAlign = normaliseTitleAlign(state.titleAlign);
-  look.subtitleColor = normaliseOptionalHexColor(state.subtitleColor);
+  look.titleColor = normaliseOptionalHexColor(state.titleColor);
   look.outline = normaliseOutline(state.outline, "#f1dfbb", 8);
   look.titleOutline = normaliseOutline(state.titleOutline, "#ffffff", 6);
   look.outfits = cloneOutfits(getLookOutfits(look));
@@ -867,7 +889,10 @@ function showToast(message) {
   toastTimer = window.setTimeout(() => elements.toast.classList.remove("is-visible"), 2600);
 }
 
-const characterAssetVault = ImageAssets.create({ indexedDB: window.indexedDB });
+const characterAssetVault = ImageAssets.create({
+  indexedDB: window.indexedDB,
+  legacyDatabaseNames: ["glamour-atelier-assets-v1"],
+});
 
 let assetCleanupTimer;
 let workspaceEpoch = 0;
@@ -942,7 +967,7 @@ function resolveTitleAlign() {
   return "left";
 }
 
-function defaultSubtitleColor() {
+function defaultTitleColor() {
   return ["ink", "charcoal"].includes(state.background) ? "#f7f3ed" : "#263238";
 }
 
@@ -1093,7 +1118,7 @@ function serializeLook(look) {
     titleFont: titleFonts[look.titleFont] ? look.titleFont : defaultTitleFont,
     titleWeight: normaliseTitleWeight(look.titleFont || defaultTitleFont, look.titleWeight ?? defaultTitleWeight),
     titleAlign: normaliseTitleAlign(look.titleAlign),
-    subtitleColor: normaliseOptionalHexColor(look.subtitleColor),
+    titleColor: normaliseOptionalHexColor(look.titleColor ?? look.subtitleColor),
     outline: normaliseOutline(look.outline, "#f1dfbb", 8),
     titleOutline: normaliseOutline(look.titleOutline, "#ffffff", 6),
     editor: { ...editor, characters: editor.characters.map(serializeCharacter) },
@@ -1151,7 +1176,7 @@ function saveState() {
     titleFont: state.titleFont,
     titleWeight: state.titleWeight,
     titleAlign: normaliseTitleAlign(state.titleAlign),
-    subtitleColor: normaliseOptionalHexColor(state.subtitleColor),
+    titleColor: normaliseOptionalHexColor(state.titleColor),
     singleRatio: state.singleRatio,
     singleLayout: state.singleLayout,
     backgroundPattern: state.backgroundPattern,
@@ -1209,7 +1234,7 @@ function createSnapshot() {
     titleFont: state.titleFont,
     titleWeight: state.titleWeight,
     titleAlign: normaliseTitleAlign(state.titleAlign),
-    subtitleColor: normaliseOptionalHexColor(state.subtitleColor),
+    titleColor: normaliseOptionalHexColor(state.titleColor),
     singleRatio: state.singleRatio,
     singleLayout: state.singleLayout,
     backgroundPattern: state.backgroundPattern,
@@ -1246,7 +1271,7 @@ function restoreSnapshot(snapshot) {
   if (snapshot.titleFont && titleFonts[snapshot.titleFont]) state.titleFont = snapshot.titleFont;
   if (Number.isFinite(snapshot.titleWeight)) state.titleWeight = normaliseTitleWeight(state.titleFont, snapshot.titleWeight);
   state.titleAlign = normaliseTitleAlign(snapshot.titleAlign);
-  state.subtitleColor = normaliseOptionalHexColor(snapshot.subtitleColor);
+  state.titleColor = normaliseOptionalHexColor(snapshot.titleColor ?? snapshot.subtitleColor);
   if (["portrait", "landscape"].includes(snapshot.singleRatio)) state.singleRatio = snapshot.singleRatio;
   if (["info-left", "info-right"].includes(snapshot.singleLayout)) state.singleLayout = snapshot.singleLayout;
   restoreBackgroundStyle(snapshot.backgroundPattern, snapshot.backgroundMotif, snapshot.backgroundTexture);
@@ -1369,7 +1394,7 @@ function renderLook() {
   elements.boardSubtitle.dataset.empty = String(!look.subtitle);
   fitBoardTitle();
   syncCopyEditorFields();
-  document.title = `글래머 아틀리에 | ${look.title}`;
+  document.title = `${projectName} | ${look.title}`;
   $$(".look-list-item").forEach((button) => {
     const selected = button.dataset.lookId === state.selectedLookId;
     button.classList.toggle("is-current", selected);
@@ -1699,6 +1724,15 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
   elements.board.dataset.style = "custom";
   elements.board.dataset.ratio = getCanvasRatio();
   elements.board.dataset.singleLayout = state.singleLayout;
+  const twoPersonRails = CardLayout.infoRails({ characterCount: 2 });
+  const twoPersonDimensions = CardLayout.dimensionsFor(2, "landscape");
+  const [leftInfoRail, rightInfoRail] = twoPersonRails;
+  elements.board.style.setProperty("--two-info-rail-left", `${(leftInfoRail.x / twoPersonDimensions.layoutWidth) * 100}%`);
+  elements.board.style.setProperty("--two-info-rail-right", `${((twoPersonDimensions.layoutWidth - rightInfoRail.x - rightInfoRail.width) / twoPersonDimensions.layoutWidth) * 100}%`);
+  elements.board.style.setProperty("--two-info-rail-width", `${(leftInfoRail.width / twoPersonDimensions.layoutWidth) * 100}%`);
+  elements.board.style.setProperty("--two-info-rail-top", `${(leftInfoRail.y / twoPersonDimensions.layoutHeight) * 100}%`);
+  elements.board.style.setProperty("--two-info-rail-height", `${(leftInfoRail.height / twoPersonDimensions.layoutHeight) * 100}%`);
+  elements.board.style.setProperty("--two-info-rail-gap", `${(leftInfoRail.gap / twoPersonDimensions.layoutWidth) * 100}cqw`);
   const characterFrames = CardLayout.characterFrames({
     characterCount: state.characterCount,
     singleRatio: state.singleRatio,
@@ -1717,12 +1751,11 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
   const titleOutlineColor = normaliseHexColor(state.titleOutline?.color, "#ffffff");
   state.titleOutline = { color: titleOutlineColor, width: titleOutlineWidth };
   state.titleAlign = normaliseTitleAlign(state.titleAlign);
-  state.subtitleColor = normaliseOptionalHexColor(state.subtitleColor);
+  state.titleColor = normaliseOptionalHexColor(state.titleColor);
   elements.board.style.setProperty("--title-outline-width", `${titleOutlineWidth}px`);
   elements.board.style.setProperty("--title-outline-color", titleOutlineColor);
   elements.board.style.setProperty("--card-title-align", resolveTitleAlign());
-  elements.board.style.setProperty("--card-subtitle-color", state.subtitleColor || "var(--recipe-ink)");
-  elements.board.style.setProperty("--card-subtitle-opacity", state.subtitleColor ? "1" : ".68");
+  elements.board.style.setProperty("--card-title-color", state.titleColor || "var(--recipe-ink)");
   elements.portraitWrap.style.setProperty("--portrait-scale", 1);
   elements.portraitWrap.style.setProperty("--pan-x", "0px");
   elements.portraitWrap.style.setProperty("--pan-y", "0px");
@@ -2021,7 +2054,7 @@ function normaliseSavedLook(value, index) {
   look.titleFont = titleFonts[value?.titleFont] ? value.titleFont : defaultTitleFont;
   look.titleWeight = normaliseTitleWeight(look.titleFont, value?.titleWeight ?? defaultTitleWeight);
   look.titleAlign = normaliseTitleAlign(value?.titleAlign);
-  look.subtitleColor = normaliseOptionalHexColor(value?.subtitleColor);
+  look.titleColor = normaliseOptionalHexColor(value?.titleColor ?? value?.subtitleColor);
   look.outline = normaliseOutline(value?.outline, "#f1dfbb", 8);
   look.titleOutline = normaliseOutline(value?.titleOutline, "#ffffff", 6);
   look.outfits = Array.isArray(value?.outfits) ? cloneOutfits(value.outfits) : createOutfits([]);
@@ -2083,7 +2116,7 @@ function loadDraft() {
     if (Number.isFinite(saved.titleWeight)) state.titleWeight = normaliseTitleWeight(state.titleFont, saved.titleWeight);
     else state.titleWeight = normaliseTitleWeight(state.titleFont, look.titleWeight);
     state.titleAlign = normaliseTitleAlign(saved.titleAlign ?? look.titleAlign);
-    state.subtitleColor = normaliseOptionalHexColor(saved.subtitleColor ?? look.subtitleColor);
+    state.titleColor = normaliseOptionalHexColor(saved.titleColor ?? saved.subtitleColor ?? look.titleColor ?? look.subtitleColor);
     if (["portrait", "landscape"].includes(saved.singleRatio)) state.singleRatio = saved.singleRatio;
     if (["info-left", "info-right"].includes(saved.singleLayout)) state.singleLayout = saved.singleLayout;
     restoreBackgroundStyle(
@@ -2158,7 +2191,7 @@ function selectLook(id) {
   state.titleFont = titleFonts[nextLook.titleFont] ? nextLook.titleFont : defaultTitleFont;
   state.titleWeight = normaliseTitleWeight(state.titleFont, nextLook.titleWeight ?? defaultTitleWeight);
   state.titleAlign = normaliseTitleAlign(nextLook.titleAlign);
-  state.subtitleColor = normaliseOptionalHexColor(nextLook.subtitleColor);
+  state.titleColor = normaliseOptionalHexColor(nextLook.titleColor ?? nextLook.subtitleColor);
   state.outline = normaliseOutline(nextLook.outline, "#f1dfbb", 8);
   state.titleOutline = normaliseOutline(nextLook.titleOutline, "#ffffff", 6);
   styleAdvancedOpen = false;
@@ -2381,9 +2414,9 @@ async function quickCutout() {
     }
     if (!resultBlob && serverError) throw serverError;
     if (!resultBlob) {
-      if (!globalThis.GlamourBackgroundRemoval?.removeInBrowser) throw new Error("브라우저 배경 제거 모듈을 불러오지 못했습니다.");
+      if (!globalThis.TuyeongSetMaker2BackgroundRemoval?.removeInBrowser) throw new Error("브라우저 배경 제거 모듈을 불러오지 못했습니다.");
       label.textContent = "브라우저 모델 준비 중 · 첫 실행은 다운로드가 필요합니다";
-      const browserResult = await globalThis.GlamourBackgroundRemoval.removeInBrowser(sourceBlob, {
+      const browserResult = await globalThis.TuyeongSetMaker2BackgroundRemoval.removeInBrowser(sourceBlob, {
         onProgress: (progress) => {
           if (progress.status === "progress" && Number.isFinite(progress.progress)) {
             label.textContent = `브라우저 모델 준비 중 · ${Math.round(progress.progress)}%`;
@@ -2480,8 +2513,12 @@ function exportRevision() {
 function captureExportCopy() {
   const board = elements.board.getBoundingClientRect();
   const scale = getExportDimensions().layoutWidth / board.width;
-  return [elements.boardTitle, elements.boardSubtitle].filter(Boolean).map(element => {
+  return [elements.boardTitle, elements.boardSubtitle].filter((element) => {
+    if (!element) return false;
+    return element === elements.boardTitle || Boolean(element.textContent.trim());
+  }).map(element => {
     const style = getComputedStyle(element);
+    const textAlign = ["left", "center", "right"].includes(style.textAlign) ? style.textAlign : "left";
     const lines = [];
     const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
     let node;
@@ -2490,11 +2527,22 @@ function captureExportCopy() {
         const range = document.createRange(); range.setStart(node, index); range.setEnd(node, index + 1);
         const rect = range.getBoundingClientRect();
         let line = lines.find(item => Math.abs(item.top - rect.top) < 1);
-        if (!line) { line = { text: "", top: rect.top, x: (rect.left - board.left) * scale, y: (rect.top - board.top) * scale, height: rect.height * scale }; lines.push(line); }
+        if (!line) {
+          line = { text: "", top: rect.top, left: rect.left, right: rect.right, y: (rect.top - board.top) * scale, height: rect.height * scale };
+          lines.push(line);
+        } else {
+          line.left = Math.min(line.left, rect.left);
+          line.right = Math.max(line.right, rect.right);
+          line.height = Math.max(line.height, rect.height * scale);
+        }
         line.text += node.textContent[index];
       }
     }
-    return { lines, font: `${style.fontWeight} ${parseFloat(style.fontSize) * scale}px ${style.fontFamily}`,
+    const positionedLines = lines.map(({ left, right, ...line }) => ({
+      ...line,
+      x: ((textAlign === "right" ? right : textAlign === "center" ? (left + right) / 2 : left) - board.left) * scale,
+    }));
+    return { lines: positionedLines, textAlign, font: `${style.fontWeight} ${parseFloat(style.fontSize) * scale}px ${style.fontFamily}`,
       color: style.color, opacity: Number.parseFloat(style.opacity) || 1,
       stroke: element === elements.boardTitle ? state.titleOutline.width * scale : 0,
       strokeColor: state.titleOutline.color, letterSpacing: (parseFloat(style.letterSpacing) || 0) * scale };
@@ -2545,7 +2593,7 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
     assertUnchanged();
     const extension = "png";
     const link = document.createElement("a");
-    link.download = `${look.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "glamour-look"}.${extension}`;
+    link.download = `${look.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "tuyeong-set-maker2-look"}.${extension}`;
     const objectUrl = URL.createObjectURL(outputBlob);
     link.href = objectUrl;
     link.click();
@@ -2586,7 +2634,7 @@ function resetStyles() {
   state.titleFont = defaultTitleFont;
   state.titleWeight = defaultTitleWeight;
   state.titleAlign = "auto";
-  state.subtitleColor = "";
+  state.titleColor = "";
   state.singleRatio = "portrait";
   state.singleLayout = "info-left";
   styleAdvancedOpen = false;
@@ -2621,7 +2669,7 @@ function resetCardData() {
   state.titleFont = defaultTitleFont;
   state.titleWeight = defaultTitleWeight;
   state.titleAlign = normaliseTitleAlign(defaults.titleAlign);
-  state.subtitleColor = normaliseOptionalHexColor(defaults.subtitleColor);
+  state.titleColor = normaliseOptionalHexColor(defaults.titleColor ?? defaults.subtitleColor);
   state.singleRatio = "portrait";
   state.singleLayout = "info-left";
   state.characterCount = 1;
@@ -2694,7 +2742,7 @@ async function resetWorkspace() {
     titleFont: defaultTitleFont,
     titleWeight: defaultTitleWeight,
     titleAlign: "auto",
-    subtitleColor: "",
+    titleColor: "",
     singleRatio: "portrait",
     singleLayout: "info-left",
     backgroundPattern: "none",
@@ -2996,13 +3044,13 @@ function initialiseInteractions() {
   bindColorInput($("#titleOutlineColorInput"), (value) => {
     state.titleOutline.color = normaliseHexColor(value, "#ffffff");
   });
-  bindColorInput($("#subtitleColorInput"), (value) => {
-    state.subtitleColor = normaliseHexColor(value, defaultSubtitleColor());
+  bindColorInput($("#titleColorInput"), (value) => {
+    state.titleColor = normaliseHexColor(value, defaultTitleColor());
   });
-  $("#subtitleColorAutoButton")?.addEventListener("click", () => {
-    if (!state.subtitleColor) return;
+  $("#titleColorAutoButton")?.addEventListener("click", () => {
+    if (!state.titleColor) return;
     recordHistory();
-    state.subtitleColor = "";
+    state.titleColor = "";
     renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
     saveState();
   });
@@ -3129,7 +3177,7 @@ function initialiseInteractions() {
       look[field] = value || fallback;
       if (field === "title") fitBoardTitle();
       if (field === "title") {
-        document.title = `글래머 아틀리에 | ${look.title}`;
+        document.title = `${projectName} | ${look.title}`;
         renderLookList();
       }
     });
@@ -3173,7 +3221,7 @@ function initialiseInteractions() {
       elements.boardSubtitle.dataset.empty = String(!look.subtitle);
       if (field === "title") fitBoardTitle();
       if (field === "title") {
-        document.title = `글래머 아틀리에 | ${look.title || "새로운 룩"}`;
+        document.title = `${projectName} | ${look.title || "새로운 룩"}`;
         renderLookList();
       }
       updateCopyEditorCount(input, count);
@@ -3366,6 +3414,7 @@ function initialiseLookManager() {
 }
 
 async function bootstrap() {
+  migrateLegacyStorage();
   purgeLegacyStorage();
   restoreUiPreferences();
   syncLibraryPanel();

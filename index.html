@@ -8,7 +8,7 @@
       name="description"
       content="FFXIV 캐릭터 스크린샷으로 다국어 코디 룩북을 만드는 이미지 편집기"
     />
-    <title>글래머 아틀리에 | LOOK BOOK</title>
+    <title>투영세트메이커2 | LOOK BOOK</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <!-- Optional enhancement: the local fallback stack keeps the editor usable while the font downloads. -->
     <link
@@ -26,17 +26,17 @@
       />
     </noscript>
     <link rel="stylesheet" href="styles.css?v=20260907-parity-1" />
-    <link rel="stylesheet" href="styles/card-composer.css?v=20260907-parity-1" />
+    <link rel="stylesheet" href="styles/card-composer.css?v=20260907-title-controls-1" />
     <link rel="stylesheet" href="styles/editor-controls.css?v=20260907-parity-1" />
-    <link rel="stylesheet" href="styles/card-readability.css?v=20260907-parity-1" />
+    <link rel="stylesheet" href="styles/card-readability.css?v=20260907-title-controls-1" />
   </head>
   <body>
     <a class="skip-link" href="#canvas">편집 영역으로 건너뛰기</a>
     <div class="app-shell">
       <header class="topbar">
-        <a class="wordmark" href="#canvas" aria-label="Glamour Atelier 홈">
-          <span class="wordmark-mark">GA</span>
-          <span class="wordmark-copy"><strong>글래머 아틀리에</strong><small>FFXIV LOOKBOOK</small></span>
+        <a class="wordmark" href="#canvas" aria-label="투영세트메이커2 홈">
+          <span class="wordmark-mark">투2</span>
+          <span class="wordmark-copy"><strong>투영세트메이커2</strong><small>FFXIV LOOKBOOK</small></span>
         </a>
 
         <div class="topbar-actions">
@@ -91,7 +91,7 @@
         </div>
       </aside>
 
-      <main class="workspace" id="canvas" tabindex="-1" aria-label="글래머 아틀리에 편집기">
+      <main class="workspace" id="canvas" tabindex="-1" aria-label="투영세트메이커2 편집기">
         <div class="workspace-grid">
           <section class="canvas-column" aria-label="룩 캔버스">
             <div class="canvas-heading">
@@ -234,10 +234,10 @@
                     </div>
                   </div>
                   <div class="copy-editor-style-field">
-                    <div class="copy-editor-typography-head"><span>설명 색상</span><small>자동 · 직접 선택</small></div>
+                    <div class="copy-editor-typography-head"><span>제목 색상</span><small>자동 · 직접 선택</small></div>
                     <div class="copy-editor-color-row">
-                      <label class="inspector-color-picker copy-editor-color-picker" for="subtitleColorInput"><input id="subtitleColorInput" type="color" value="#263238" aria-label="설명 텍스트 색상" /><span>직접 선택</span></label>
-                      <button class="copy-editor-color-reset" id="subtitleColorAutoButton" type="button">자동</button>
+                      <label class="inspector-color-picker copy-editor-color-picker" for="titleColorInput"><input id="titleColorInput" type="color" value="#263238" aria-label="제목 텍스트 색상" /><span>직접 선택</span></label>
+                      <button class="copy-editor-color-reset" id="titleColorAutoButton" type="button">자동</button>
                     </div>
                   </div>
                 </div>
@@ -399,14 +399,14 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="models/look-editor.js?v=20260906-redesign-1"></script>
     <script src="models/look-book.js?v=20260906-management-1"></script>
-    <script src="models/image-assets.js?v=20260906-storage-1"></script>
+    <script src="models/image-assets.js?v=20260907-project-name-1"></script>
     <script src="models/item-search.js?v=20260906-search-1"></script>
-    <script src="models/card-layout.js?v=20260907-parity-1"></script>
-    <script src="models/card-png.js?v=20260907-parity-1"></script>
+    <script src="models/card-layout.js?v=20260907-two-person-rails-1"></script>
+    <script src="models/card-png.js?v=20260907-title-controls-1"></script>
     <script src="models/editor-navigation.js?v=20260906-navigation-1"></script>
     <script src="models/background-presets.js?v=20260907-background-presets-1"></script>
     <script src="models/title-typography.js?v=20260907-typography-1"></script>
     <script src="models/background-removal.js?v=20260907-browser-birefnet-3"></script>
-    <script src="app.js?v=20260907-parity-1"></script>
+    <script src="app.js?v=20260907-project-name-1"></script>
   </body>
 </html>

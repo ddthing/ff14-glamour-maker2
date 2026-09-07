@@ -11,7 +11,7 @@ if (!globalThis.crypto?.randomUUID) {
 const originalFetch = globalThis.fetch;
 
 function request(body = Uint8Array.from([1, 2, 3]), headers = { "Content-Type": "image/png" }) {
-  return new Request("https://atelier.example/api/background-removal", {
+  return new Request("https://tuyeong-set-maker2.example/api/background-removal", {
     method: "POST",
     headers,
     body,
@@ -39,7 +39,7 @@ try {
 
   let indexFetches = 0;
   const itemSearchResponse = await onRequestGet({
-    request: new Request("https://atelier.example/api/items/search?q=%EB%9A%B1%EB%83%A5%EC%9D%B4%20%EB%91%90%EA%B1%B4&slot=head&language=ko"),
+    request: new Request("https://tuyeong-set-maker2.example/api/items/search?q=%EB%9A%B1%EB%83%A5%EC%9D%B4%20%EB%91%90%EA%B1%B4&slot=head&language=ko"),
     env: {
       ASSETS: {
         fetch: async () => {

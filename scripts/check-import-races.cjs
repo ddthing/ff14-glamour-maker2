@@ -28,7 +28,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.evaluate(async () => { releaseWrites.splice(0).forEach(resolve => resolve()); await Promise.all([importDone, resetDone]); });
     assert.equal(await page.evaluate(() => state.characterCount), 1);
     assert.equal(await page.locator('#portraitWrap img').count(), 0);
-    assert.equal(await page.evaluate(() => localStorage.getItem('glamour-atelier-draft-v3')), null);
+    assert.equal(await page.evaluate(() => localStorage.getItem('tuyeong-set-maker2-draft-v3')), null);
     const count = await page.evaluate(async () => {
       const databases = await indexedDB.databases();
       let total = 0;

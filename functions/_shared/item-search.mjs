@@ -172,7 +172,7 @@ async function fetchJson(url, fetchImpl) {
   try {
     const response = await fetchImpl(url, {
       signal: controller.signal,
-      headers: { "User-Agent": "glamour-atelier-item-search" },
+      headers: { "User-Agent": "tuyeong-set-maker2-item-search" },
     });
     if (!response.ok) throw new Error(`아이템 데이터 응답 오류 (${response.status})`);
     return await response.json();

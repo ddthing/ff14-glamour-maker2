@@ -47,11 +47,11 @@ async function startServer() {
     const moduleResponse = await page.request.get(`${baseUrl}/models/background-removal.js`);
     assert.equal(moduleResponse.status(), 200, "browser model adapter must be publicly served");
     await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
-    await page.waitForFunction(() => typeof window.GlamourBackgroundRemoval?.removeInBrowser === "function");
+    await page.waitForFunction(() => typeof window.TuyeongSetMaker2BackgroundRemoval?.removeInBrowser === "function");
 
     await page.evaluate((bytes) => {
       const blob = new Blob([new Uint8Array(bytes)], { type: "image/png" });
-      window.GlamourBackgroundRemoval = Object.freeze({
+      window.TuyeongSetMaker2BackgroundRemoval = Object.freeze({
         removeInBrowser: async () => ({ blob, tier: "test browser fallback" }),
       });
     }, [...fixturePng]);
@@ -80,7 +80,7 @@ async function startServer() {
     await page.waitForFunction(() => document.querySelector("#imageState")?.dataset.state === "original");
     await page.evaluate((bytes) => {
       const blob = new Blob([new Uint8Array(bytes)], { type: "image/png" });
-      window.GlamourBackgroundRemoval = Object.freeze({
+      window.TuyeongSetMaker2BackgroundRemoval = Object.freeze({
         removeInBrowser: async () => ({ blob, tier: "test empty result" }),
       });
     }, [...emptyPng]);

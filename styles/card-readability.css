@@ -140,21 +140,22 @@ body.canvas-focus-mode .canvas-board[data-ratio="portrait"] {
 
 .canvas-board[data-cast="2"] .board-gear-rail {
   position: absolute;
-  top: 23%;
-  bottom: 4%;
+  top: var(--two-info-rail-top, 22.2222%);
+  bottom: auto;
   display: grid;
-  width: 22%;
+  width: var(--two-info-rail-width, 19%);
+  height: var(--two-info-rail-height, 64.2963%);
   grid-template-rows: minmax(0, 1fr);
-  gap: 5px;
+  gap: var(--two-info-rail-gap, .5cqw);
   pointer-events: auto;
 }
 
 .canvas-board[data-cast="2"] .board-gear-rail--left {
-  left: 2.5%;
+  left: var(--two-info-rail-left, 6%);
 }
 
 .canvas-board[data-cast="2"] .board-gear-rail--right {
-  right: 2.5%;
+  right: var(--two-info-rail-right, 6%);
 }
 
 .canvas-board[data-cast="2"] .board-gear-rail-items {
@@ -182,6 +183,16 @@ body.canvas-focus-mode .canvas-board[data-ratio="portrait"] {
 
 .canvas-board[data-cast="2"] .board-gear-rail .gear-tile-copy {
   padding: 8% 9%;
+}
+
+.canvas-board[data-cast="2"] .board-gear-rail--left .gear-tile-copy {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.canvas-board[data-cast="2"] .board-gear-rail--right .gear-tile-copy {
+  align-items: flex-end;
+  text-align: right;
 }
 
 .canvas-board[data-cast="2"] .board-gear-rail .gear-slot-label {
@@ -306,43 +317,27 @@ body.image-placement-mode .character-image-actions {
 
 .character-empty-placeholder {
   position: relative;
-  overflow: hidden;
   display: grid;
-  width: min(68%, 250px);
-  min-height: 170px;
+  width: max-content;
+  max-width: 100%;
+  min-height: 0;
   align-content: center;
   justify-items: center;
   gap: 7px;
-  padding: 22px;
-  border: 1px solid color-mix(in oklch, var(--recipe-ink, var(--foreground)) 22%, transparent);
-  border-radius: var(--radius);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
   color: var(--recipe-ink, var(--foreground));
-  background:
-    linear-gradient(135deg, color-mix(in oklch, var(--recipe-panel, var(--card)) 92%, transparent), transparent 72%),
-    color-mix(in oklch, var(--recipe-panel, var(--card)) 76%, transparent);
-  box-shadow: 0 10px 26px color-mix(in oklch, var(--recipe-shadow, rgb(0 0 0 / .1)) 70%, transparent);
+  background: transparent;
+  box-shadow: none;
   text-align: center;
-  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  transition: color 160ms ease, transform 160ms ease;
 }
 
-.character-empty-placeholder::before {
-  position: absolute;
-  inset: 10px;
-  border: 1px dashed color-mix(in oklch, var(--recipe-ink, var(--foreground)) 22%, transparent);
-  border-radius: calc(var(--radius) - 4px);
-  content: "";
-  pointer-events: none;
-}
-
+.character-empty-placeholder::before,
 .character-empty-placeholder::after {
-  position: absolute;
-  top: 12px;
-  right: 14px;
-  width: 22px;
-  height: 1px;
-  color: color-mix(in oklch, var(--recipe-ink, var(--foreground)) 42%, transparent);
-  background: color-mix(in oklch, var(--recipe-ink, var(--foreground)) 30%, transparent);
-  content: "";
+  display: none;
+  content: none;
 }
 
 .character-empty-mark {
@@ -379,16 +374,13 @@ body.image-placement-mode .character-image-actions {
 }
 
 .character-figure.is-empty {
+  align-items: center !important;
   cursor: pointer;
 }
 
 .character-figure.is-empty:hover .character-empty-placeholder,
 .character-figure.is-empty:focus-visible .character-empty-placeholder {
-  border-color: color-mix(in oklch, var(--recipe-ink, var(--foreground)) 48%, transparent);
-  background:
-    linear-gradient(135deg, color-mix(in oklch, var(--recipe-panel, var(--card)) 100%, transparent), transparent 72%),
-    color-mix(in oklch, var(--recipe-panel, var(--card)) 86%, transparent);
-  box-shadow: 0 14px 30px color-mix(in oklch, var(--recipe-shadow, rgb(0 0 0 / .1)) 92%, transparent);
+  color: color-mix(in oklch, var(--recipe-ink, var(--foreground)) 78%, var(--primary));
   transform: translateY(-2px);
 }
 
@@ -402,9 +394,7 @@ body.image-placement-mode .character-image-actions {
   .canvas-board[data-cast="3"] .character-empty-placeholder,
   .canvas-board[data-cast="4"] .character-empty-placeholder,
   .canvas-board[data-cast="5"] .character-empty-placeholder {
-    min-height: 124px;
     gap: 5px;
-    padding: 14px 5px;
   }
 
   .canvas-board[data-cast="3"] .character-empty-placeholder > small:not(.character-empty-kicker),
@@ -724,33 +714,78 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
   }
 }
 
-/* Copy alignment and subtitle color are card-owned state. Keeping them on
-   the title block means the preview and the export capture the same glyph
-   geometry instead of maintaining a second text layout recipe. */
+/* Copy controls belong to the rendered card layer, not the textareas. The
+   title owns alignment and color; the optional subtitle keeps its quiet,
+   theme-derived treatment and never borrows either title control. */
 .canvas-board .board-editorial-header .board-title-block {
+  width: 100%;
+  text-align: left;
+}
+
+.canvas-board .board-editorial-header .board-title-block > strong {
+  color: var(--card-title-color, var(--recipe-ink, currentColor)) !important;
   text-align: var(--card-title-align, left);
 }
 
 .canvas-board .board-editorial-header .caption-description {
-  color: var(--card-subtitle-color, var(--recipe-ink, currentColor)) !important;
-  opacity: var(--card-subtitle-opacity, .68);
-  text-align: var(--card-title-align, left) !important;
+  color: var(--recipe-ink, currentColor) !important;
+  opacity: .68;
+  text-align: left !important;
 }
 
-/* Alignment belongs to the rendered card layer, not the textarea. Give the
-   title block a real local width so left/center/right changes are visible
-   even when the current title is short. Both preview and PNG use this layer. */
+/* Give the title block a real local width so left/center/right changes are
+   visible even when the current title is short. Both preview and PNG use
+   this same layer. */
 .canvas-board .board-editorial-header .board-title-block {
   align-items: stretch;
-  text-align: var(--card-title-align, left);
 }
 
-.canvas-board .board-editorial-header .board-title-block > strong,
-.canvas-board .board-editorial-header .caption-description {
+.canvas-board .board-editorial-header .board-title-block > strong {
   display: block;
   width: 100%;
   max-width: 100%;
-  text-align: inherit;
+}
+
+/* An empty optional subtitle should not leave either placeholder copy or a
+   phantom second row in the card. During direct editing it becomes visible
+   again so the user can intentionally start typing into it. */
+.canvas-board .board-editorial-header .board-title-block:has(> .caption-description[data-empty="true"]) {
+  grid-template-rows: var(--card-title-line-slot);
+  row-gap: 0;
+  height: var(--card-title-line-slot);
+}
+
+.canvas-board .board-editorial-header .caption-description[data-empty="true"] {
+  display: block !important;
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  pointer-events: none;
+}
+
+.canvas-board .board-editorial-header .board-title-block:has(> .caption-description[data-empty="true"]:focus) {
+  grid-template-rows: auto;
+  height: auto;
+}
+
+.canvas-board .board-editorial-header .board-title-block:has(> .caption-description[data-empty="true"]:focus) .caption-description {
+  display: block !important;
+  position: static !important;
+  width: 100% !important;
+  height: auto !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  clip: auto !important;
+  clip-path: none !important;
+  white-space: normal !important;
+  pointer-events: auto;
 }
 
 /* In a solo portrait, a removed-background subject is the hero and may

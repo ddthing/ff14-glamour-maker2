@@ -224,7 +224,7 @@
   }
 
   const api = createBackgroundRemoval();
-  if (global) global.GlamourBackgroundRemoval = api;
+  if (global) global.TuyeongSetMaker2BackgroundRemoval = api;
   if (typeof module !== "undefined" && module.exports) {
     module.exports = { create: createBackgroundRemoval };
   }

@@ -35,7 +35,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     const applied = await page.evaluate(() => ({
       stroke: getComputedStyle(document.querySelector("#boardTitle")).webkitTextStroke,
       value: document.querySelector("#titleOutlineValue").textContent,
-      saved: JSON.parse(localStorage.getItem("glamour-atelier-draft-v3"))?.titleOutline,
+      saved: JSON.parse(localStorage.getItem("tuyeong-set-maker2-draft-v3"))?.titleOutline,
     }));
     assert.match(applied.stroke, /3px/, `title outline width did not reach the preview: ${applied.stroke}`);
     assert.equal(applied.value, "3 px");

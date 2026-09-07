@@ -202,12 +202,13 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       while (shortened.length > 1 && context.measureText(shortened + "…").width > maxWidth) shortened = shortened.slice(0, -1);
       return shortened + "…";
     };
-    const drawGearTile = (item, x, y, width, height) => {
+    const drawGearTile = (item, x, y, width, height, { textAlign = "left" } = {}) => {
       const padding = Math.max(10, Math.round(width * 0.045));
       const secondaryName = item.secondaryName;
       const slotSize = Math.max(9, Math.min(13, Math.round(height * 0.13)));
       const primarySize = Math.max(11, Math.min(17, Math.round(height * 0.18)));
       const secondarySize = Math.max(8, Math.min(11, Math.round(height * 0.11)));
+      const textX = textAlign === "right" ? x + width - padding : x + padding;
       context.save();
       roundRect(x, y, width, height, exportTheme.radius);
       context.fillStyle = exportTheme.panel;
@@ -216,17 +217,23 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       context.lineWidth = 2;
       context.stroke();
       context.fillStyle = exportTheme.muted;
-      context.fillRect(x + padding, y + Math.round(height * 0.22), Math.max(14, Math.round(width * 0.08)), 2);
       context.font = `600 ${slotSize}px "Pretendard Variable", sans-serif`;
-      context.fillText(item.slotName, x + padding, y + Math.round(height * 0.38));
+      const slotWidth = context.measureText(item.slotName).width;
+      const slotLineWidth = Math.max(14, Math.round(width * 0.08));
+      const slotLineX = textAlign === "right"
+        ? textX - slotWidth - Math.max(4, Math.round(slotSize * 0.55)) - slotLineWidth
+        : textX;
+      context.fillRect(slotLineX, y + Math.round(height * 0.22), slotLineWidth, 2);
+      context.textAlign = textAlign;
+      context.fillText(item.slotName, textX, y + Math.round(height * 0.38));
       context.fillStyle = exportTheme.text;
       context.font = `700 ${primarySize}px "Pretendard Variable", sans-serif`;
       const primaryY = y + Math.round(height * (secondaryName ? 0.64 : 0.72));
-      context.fillText(fitText(item.name, width - padding * 2), x + padding, primaryY);
+      context.fillText(fitText(item.name, width - padding * 2), textX, primaryY);
       if (secondaryName) {
         context.fillStyle = exportTheme.muted;
         context.font = `500 ${secondarySize}px "Pretendard Variable", sans-serif`;
-        context.fillText(fitText(secondaryName, width - padding * 2), x + padding, y + Math.round(height * 0.84));
+        context.fillText(fitText(secondaryName, width - padding * 2), textX, y + Math.round(height * 0.84));
       }
       context.restore();
     };
@@ -249,16 +256,19 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       if (item) drawGearTile(item, ...position);
     });
     const drawTwoPersonGear = () => {
-      const railX = [24, 930];
-      const railWidth = 246;
-      const itemTop = 150;
-      const itemHeight = 82;
-      const itemGap = 6;
+      const rails = CardLayout.infoRails({ characterCount: state.characterCount });
       activeCharacters.slice(0, 2).forEach((character, characterIndex) => {
+        const rail = rails[characterIndex];
         const items = gear[characterIndex] || [];
-        const x = railX[characterIndex];
         items.forEach((item, itemIndex) => {
-          drawGearTile(item, x, itemTop + itemIndex * (itemHeight + itemGap), railWidth, itemHeight);
+          drawGearTile(
+            item,
+            rail.x,
+            rail.y + itemIndex * (rail.itemHeight + rail.gap),
+            rail.width,
+            rail.itemHeight,
+            { textAlign: rail.textAlign },
+          );
         });
       });
     };
@@ -276,7 +286,8 @@ async function render({ state, dimensions, exportTheme, background, patternStars
     // wrapped copy and the outline's scale, instead of a second title recipe.
     for (const copy of copyLayout) {
       context.save(); context.globalAlpha = Number.isFinite(copy.opacity) ? copy.opacity : 1;
-      context.textAlign = "left"; context.textBaseline = "alphabetic";
+      context.textAlign = ["left", "center", "right"].includes(copy.textAlign) ? copy.textAlign : "left";
+      context.textBaseline = "alphabetic";
       context.font = copy.font; context.fillStyle = copy.color;
       context.letterSpacing = `${copy.letterSpacing}px`;
       context.lineJoin = "round"; context.lineWidth = copy.stroke; context.strokeStyle = copy.strokeColor;

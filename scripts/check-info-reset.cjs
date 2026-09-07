@@ -9,7 +9,7 @@ const fixturePng = Buffer.from(
 
 async function indexedAssetCount(page) {
   return page.evaluate(() => new Promise((resolve) => {
-    const request = indexedDB.open("glamour-atelier-assets-v1", 1);
+    const request = indexedDB.open("tuyeong-set-maker2-assets-v1", 1);
     request.onerror = () => resolve(-1);
     request.onsuccess = () => {
       const database = request.result;
@@ -120,15 +120,19 @@ async function indexedAssetCount(page) {
     assert.equal(await page.locator('#itemSearch').inputValue(), '');
     assert.equal(await page.locator('#lookSearch').inputValue(), '');
     const storage = await page.evaluate(() => Object.fromEntries([
-      "glamour-atelier-draft-v3",
+      "tuyeong-set-maker2-draft-v3",
       "glamour-atelier-draft-v2",
+      "tuyeong-set-maker2-background-presets-v2",
+      "tuyeong-set-maker2-ui-v2",
       "glamour-atelier-background-presets-v2",
       "glamour-atelier-ui-v2",
     ].map((key) => [key, localStorage.getItem(key)])));
-    assert.equal(storage["glamour-atelier-draft-v3"], null, "full reset must not immediately recreate a draft");
+    assert.equal(storage["tuyeong-set-maker2-draft-v3"], null, "full reset must not immediately recreate a draft");
     assert.equal(storage["glamour-atelier-draft-v2"], null, "full reset must remove legacy drafts too");
-    assert.equal(storage["glamour-atelier-background-presets-v2"], null, "full reset must remove saved presets");
-    assert.deepEqual(JSON.parse(storage["glamour-atelier-ui-v2"]), { libraryCollapsed: true });
+    assert.equal(storage["tuyeong-set-maker2-background-presets-v2"], null, "full reset must remove saved presets");
+    assert.equal(storage["glamour-atelier-background-presets-v2"], null, "full reset must remove legacy saved presets too");
+    assert.deepEqual(JSON.parse(storage["tuyeong-set-maker2-ui-v2"]), { libraryCollapsed: true });
+    assert.equal(storage["glamour-atelier-ui-v2"], null, "full reset must remove legacy UI preferences too");
     assert.equal(await indexedAssetCount(page), 0, "full reset must clear the IndexedDB image vault");
 
     await page.setViewportSize({ width: 320, height: 900 });

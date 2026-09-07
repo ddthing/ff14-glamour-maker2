@@ -47,7 +47,7 @@ SESSION = create_gpu_session()
 
 
 class CutoutHandler(BaseHTTPRequestHandler):
-    server_version = "GlamourAtelierCutout/1.0"
+    server_version = "TuyeongSetMaker2Cutout/1.0"
 
     def do_GET(self):  # noqa: N802 - BaseHTTPRequestHandler API
         if self.path.split("?", 1)[0] == "/health":
@@ -128,7 +128,7 @@ class CutoutHandler(BaseHTTPRequestHandler):
 
 def main():
     server = ThreadingHTTPServer((HOST, PORT), CutoutHandler)
-    print(f"Glamour Atelier cutout service listening on http://{HOST}:{PORT}")
+    print(f"투영세트메이커2 cutout service listening on http://{HOST}:{PORT}")
     print(f"model={MODEL_NAME} provider=CUDAExecutionProvider")
     server.serve_forever()
 

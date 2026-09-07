@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
 
-const longTitle = "퍼퓸뼈뼈와 함께 걷는 겨울빛 글래머 아틀리에의 긴 룩 제목";
+const longTitle = "퍼퓸뼈뼈와 함께 걷는 겨울빛 투영세트메이커2의 긴 룩 제목";
 
 (async () => {
   const browser = await chromium.launch({ headless: true, channel: "msedge" });

@@ -9,8 +9,9 @@ await page.locator('#imageInput').setInputFiles({name:'export-fixture.png',mimeT
 await page.waitForFunction(()=>document.querySelector('#portraitWrap img')?.naturalWidth>0);
 const title='제목 전체를 빠짐없이 보존하며 줄바꿈과 외곽선까지 확인하는 긴 문장입니다';
 await page.locator('#cardTitleInput').fill(title);await page.locator('#cardTitleInput').blur();
+await page.locator('[data-title-align="center"]').click();
 await page.locator('#titleOutlineRange').fill('3');
-await page.evaluate(()=>{window.drawnCopy=[];const old=CanvasRenderingContext2D.prototype.fillText;CanvasRenderingContext2D.prototype.fillText=function(text,...rest){window.drawnCopy.push(text);return old.call(this,text,...rest)}});
+await page.evaluate(()=>{window.drawnCopy=[];window.drawnCopyDetails=[];const old=CanvasRenderingContext2D.prototype.fillText;CanvasRenderingContext2D.prototype.fillText=function(text,...rest){window.drawnCopy.push(text);window.drawnCopyDetails.push({text,x:rest[0],textAlign:this.textAlign});return old.call(this,text,...rest)}});
 await page.evaluate(() => {
   window.copyCaptures = 0;
   const capture = captureExportCopy;
@@ -25,6 +26,8 @@ const download=await downloadPromise;
 await download.saveAs('artifacts/redesign-export.png');
 const copied=await page.evaluate(()=>window.drawnCopy.join(''));
 assert.ok(copied.includes(title), `Output omitted title text: ${copied}`);
+const centeredCopyCalls=await page.evaluate((expectedTitle)=>window.drawnCopyDetails.filter(({text})=>text.length>5&&expectedTitle.includes(text)),title);
+assert.ok(centeredCopyCalls.length>0&&centeredCopyCalls.every(({textAlign})=>textAlign==='center'),`PNG title copy lost centered alignment: ${JSON.stringify(centeredCopyCalls)}`);
 assert.equal(await page.locator('#exportButton').getAttribute('aria-busy'),null);
 assert.equal(await page.evaluate(() => window.copyCaptures), 1);
 let unexpectedDownload = false;

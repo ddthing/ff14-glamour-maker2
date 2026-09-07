@@ -2,7 +2,7 @@
 
 ## 현재 구조
 
-글래머 아틀리에는 정적 HTML, CSS, JavaScript와 `assets/` 파일만으로 화면을 구성합니다. 따라서 Cloudflare Pages에 정적 파일로 배포할 수 있습니다. 현재의 `server.js`와 `.venv-bg` Python 환경은 로컬 개발용이며 배포 파일에 포함하지 않습니다.
+투영세트메이커2는 정적 HTML, CSS, JavaScript와 `assets/` 파일만으로 화면을 구성합니다. 따라서 Cloudflare Pages에 정적 파일로 배포할 수 있습니다. 현재의 `server.js`와 `.venv-bg` Python 환경은 로컬 개발용이며 배포 파일에 포함하지 않습니다.
 
 아이템 검색은 Pages Function으로 분리했습니다.
 

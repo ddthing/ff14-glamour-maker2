@@ -29,7 +29,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
   await page.waitForTimeout(300);
   await page.screenshot({path:'artifacts/redesign-mobile.png'});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
-  await page.evaluate(()=>{const original=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(key==='glamour-atelier-draft-v3')throw new DOMException('Quota','QuotaExceededError');return original.call(this,key,value)}});
+  await page.evaluate(()=>{const original=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(key==='tuyeong-set-maker2-draft-v3')throw new DOMException('Quota','QuotaExceededError');return original.call(this,key,value)}});
   await page.locator('#cardTitleInput').fill('저장 실패 확인');await page.locator('#cardTitleInput').blur();
   assert.equal(await page.locator('#saveStatus').getAttribute('data-failed'),'true');
   console.log('PASS: independent card images, reset/replace undo, reload, and mobile reflow.');

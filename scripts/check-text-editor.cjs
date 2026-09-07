@@ -20,7 +20,7 @@ const subtitle = "설원에서 포착한 파란빛 겨울 산책입니다. This 
     assert.equal(await page.locator("#boardTitle").textContent(), title);
     assert.equal(await page.locator("#cardTitleCount").textContent(), `${Array.from(title).length} / 64`);
     await page.locator("#cardTitleInput").press("Enter");
-    assert.equal((await page.evaluate(() => JSON.parse(localStorage.getItem("glamour-atelier-draft-v3")).title)), title);
+    assert.equal((await page.evaluate(() => JSON.parse(localStorage.getItem("tuyeong-set-maker2-draft-v3")).title)), title);
     const savedTitleMetrics = await page.locator("#boardTitle").evaluate((element) => {
       const style = getComputedStyle(element);
       return { overflow: style.overflow, whiteSpace: style.whiteSpace, textOverflow: style.textOverflow };

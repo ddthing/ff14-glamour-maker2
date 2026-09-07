@@ -46,6 +46,21 @@ const CardLayout = (() => {
     }));
   }
 
+  function infoRails({ characterCount = 2 } = {}) {
+    if (Number(characterCount) !== 2) return [];
+    const { layoutWidth } = dimensions.landscape;
+    const inset = Math.round(layoutWidth * 0.06);
+    const width = Math.round(layoutWidth * 0.19);
+    const y = 150;
+    const itemHeight = 82;
+    const gap = 6;
+    const height = itemHeight * 5 + gap * 4;
+    return [
+      { x: inset, y, width, height, itemHeight, gap, textAlign: "left" },
+      { x: layoutWidth - inset - width, y, width, height, itemHeight, gap, textAlign: "right" },
+    ];
+  }
+
   function boundsFor(frames) {
     if (!frames.length) return { left: 0, top: 0, right: 0, bottom: 0 };
     return {
@@ -68,7 +83,7 @@ const CardLayout = (() => {
     ].map((value) => `${value}%`).join(" ");
   }
 
-  return { ratioFor, dimensionsFor, characterFrames, boundsFor, cssInsetFor };
+  return { ratioFor, dimensionsFor, characterFrames, infoRails, boundsFor, cssInsetFor };
 })();
 
 if (typeof module !== "undefined") module.exports = CardLayout;

@@ -158,7 +158,7 @@ async function loadKoreanItemIndex() {
     return koreanItemIndexPromise;
   }
   koreanItemIndexPromise = fetchWithTimeout(koreanItemCsvUrl, {
-    headers: { "User-Agent": "glamour-atelier-item-search" },
+    headers: { "User-Agent": "tuyeong-set-maker2-item-search" },
   }, 15000).then(async (result) => {
     if (!result.ok) throw new Error(`한국어 장비 데이터 응답 오류 (${result.status})`);
     return parseKoreanItemIndex(await result.text());
@@ -249,7 +249,7 @@ async function fetchXivItem(id, language) {
   const url = new URL(`${xivApiBaseUrl}/sheet/Item/${encodeURIComponent(id)}`);
   url.searchParams.set("fields", "Name,Icon,LevelItem,EquipSlotCategory");
   url.searchParams.set("language", language);
-  const result = await fetchWithTimeout(url, { headers: { "User-Agent": "glamour-atelier-item-search" } });
+  const result = await fetchWithTimeout(url, { headers: { "User-Agent": "tuyeong-set-maker2-item-search" } });
   if (!result.ok) throw new Error(`XIVAPI 아이템 조회 오류 (${result.status})`);
   return normaliseXivItem(await result.json(), language);
 }
@@ -266,7 +266,7 @@ async function searchXivItems(query, language, slot) {
   url.searchParams.set("query", `Name~"${safeQuery}"`);
   url.searchParams.set("language", language);
   url.searchParams.set("limit", "24");
-  const result = await fetchWithTimeout(url, { headers: { "User-Agent": "glamour-atelier-item-search" } });
+  const result = await fetchWithTimeout(url, { headers: { "User-Agent": "tuyeong-set-maker2-item-search" } });
   if (!result.ok) throw new Error(`XIVAPI 검색 오류 (${result.status})`);
   const payload = await result.json();
   return (payload.results || [])
@@ -744,5 +744,5 @@ const server = http.createServer(async (request, response) => {
 });
 
 server.listen(port, process.env.HOST || "127.0.0.1", () => {
-  console.log(`Glamour Atelier running at http://localhost:${port}`);
+  console.log(`투영세트메이커2 running at http://localhost:${port}`);
 });

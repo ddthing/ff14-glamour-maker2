@@ -22,7 +22,7 @@ const remoteFontPattern = "**/pretendardvariable-dynamic-subset.min.css";
       window.__draftWriteCount = 0;
       const originalSetItem = Storage.prototype.setItem;
       Storage.prototype.setItem = function measuredDraftWrite(key, value) {
-        if (key === "glamour-atelier-draft-v3") window.__draftWriteCount += 1;
+        if (key === "tuyeong-set-maker2-draft-v3") window.__draftWriteCount += 1;
         return originalSetItem.call(this, key, value);
       };
       const input = document.querySelector("#shadowRange");
@@ -34,7 +34,7 @@ const remoteFontPattern = "**/pretendardvariable-dynamic-subset.min.css";
     await page.waitForTimeout(350);
     const draftWrites = await page.evaluate(() => ({
       count: window.__draftWriteCount,
-      shadowStrength: JSON.parse(localStorage.getItem("glamour-atelier-draft-v3"))?.shadow?.strength,
+      shadowStrength: JSON.parse(localStorage.getItem("tuyeong-set-maker2-draft-v3"))?.shadow?.strength,
     }));
     assert.ok(draftWrites.count <= 2, `rapid style input wrote ${draftWrites.count} drafts instead of batching`);
     assert.equal(draftWrites.shadowStrength, 60, "batched draft should contain the final input value");

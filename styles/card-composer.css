@@ -216,12 +216,6 @@
   white-space: normal;
 }
 
-.board-editorial-header .caption-description[data-empty="true"]::before {
-  color: currentColor;
-  content: "룩 설명을 입력하세요";
-  opacity: .58;
-}
-
 .canvas-board[data-cast="3"] .caption-description,
 .canvas-board[data-cast="4"] .caption-description,
 .canvas-board[data-cast="5"] .caption-description {
