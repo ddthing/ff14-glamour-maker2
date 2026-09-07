@@ -40,6 +40,23 @@ const ItemSearch = require('../models/item-search.js');
   await cached.search(args('stale'), event => collect.push(event));
   assert.equal(calls, 7, 'Stale results were treated as fresh cache');
   assert.equal(collect.at(-1).source, 'stale');
+
+  let transientCalls = 0;
+  const transientEvents = [];
+  const transient = ItemSearch.create({
+    fetch: async () => {
+      transientCalls++;
+      if (transientCalls === 1) {
+        return { ok: false, status: 503, json: async () => ({ error: 'temporary' }) };
+      }
+      return { ok: true, status: 200, json: async () => ({ results: [{ id: '38238' }], source: 'live' }) };
+    },
+  });
+  await transient.search(args('뚱냥이 두건'), event => transientEvents.push(event));
+  assert.equal(transientCalls, 2, 'Transient search failures were not retried');
+  assert.equal(transientEvents.at(-1).kind, 'results', 'A transient 503 remained visible as a search error');
+  assert.equal(transientEvents.at(-1).results[0].id, '38238');
+
   const invalid = ItemSearch.create({ fetch: async () => ({ ok: true, json: async () => ({ results: {} }) }) });
   await invalid.search(args('invalid'), event => collect.push(event));
   assert.equal(collect.at(-1).kind, 'error');

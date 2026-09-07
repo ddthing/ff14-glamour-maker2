@@ -10,6 +10,8 @@ import {
 const koreanIndexPath = "/assets/data/items-ko.json";
 const cacheTtlSeconds = 300;
 const staleTtlMs = 24 * 60 * 60 * 1000;
+const assetRetryDelays = [50, 200];
+const retryableAssetStatuses = new Set([502, 503, 504]);
 const memoryCache = new Map();
 const inflight = new Map();
 let koreanIndexPromise = null;
@@ -113,16 +115,36 @@ async function loadKoreanIndex(context) {
   if (koreanIndexPromise) return koreanIndexPromise;
   if (!context.env.ASSETS?.fetch) throw new Error("한국어 아이템 인덱스 바인딩이 없습니다.");
   const assetUrl = new URL(koreanIndexPath, context.request.url);
-  koreanIndexPromise = context.env.ASSETS.fetch(assetUrl).then(async (response) => {
-    if (!response.ok) throw new Error(`한국어 아이템 인덱스 응답 오류 (${response.status})`);
-    const index = await response.json();
-    if (!Array.isArray(index) || !index.length) throw new Error("한국어 아이템 인덱스가 비어 있습니다.");
-    return index;
-  }).catch((error) => {
+  koreanIndexPromise = fetchKoreanIndexAsset(context.env.ASSETS, assetUrl).catch((error) => {
     koreanIndexPromise = null;
     throw error;
   });
   return koreanIndexPromise;
+}
+
+async function fetchKoreanIndexAsset(assets, assetUrl) {
+  for (let attempt = 0; ; attempt++) {
+    let response;
+    try {
+      response = await assets.fetch(assetUrl);
+    } catch (error) {
+      if (attempt >= assetRetryDelays.length) throw error;
+      await delay(assetRetryDelays[attempt]);
+      continue;
+    }
+    if (retryableAssetStatuses.has(response.status) && attempt < assetRetryDelays.length) {
+      await delay(assetRetryDelays[attempt]);
+      continue;
+    }
+    if (!response.ok) throw new Error(`한국어 아이템 인덱스 응답 오류 (${response.status})`);
+    const index = await response.json();
+    if (!Array.isArray(index) || !index.length) throw new Error("한국어 아이템 인덱스가 비어 있습니다.");
+    return index;
+  }
+}
+
+function delay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function getEdgeCache() {

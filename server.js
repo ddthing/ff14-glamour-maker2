@@ -82,6 +82,7 @@ function normaliseItemSearchText(value) {
   return String(value || "")
     .normalize("NFKC")
     .toLocaleLowerCase("ko-KR")
+    .replace(/자켓/gu, "재킷")
     .replace(/[\s\p{P}\p{S}]+/gu, "");
 }
 
