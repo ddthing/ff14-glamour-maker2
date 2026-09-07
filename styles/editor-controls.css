@@ -27,6 +27,10 @@
   background: var(--background);
 }
 
+.portrait-source-card.is-empty {
+  background: color-mix(in oklch, var(--background) 72%, var(--muted));
+}
+
 .source-thumb {
   position: relative;
   width: 64px;
@@ -561,6 +565,12 @@
   border-color: var(--line-strong);
   box-shadow: 0 5px 16px rgb(20 24 28 / .06);
   transform: translateY(-1px);
+}
+
+.portrait-source-card.is-empty:hover {
+  border-color: var(--border);
+  box-shadow: none;
+  transform: none;
 }
 
 .source-thumb {
@@ -1565,16 +1575,18 @@
 .image-placement-launch {
   min-height: var(--image-control-height);
   padding: 0 10px;
-  border: 1px solid var(--primary);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  color: var(--primary-foreground);
-  background: var(--primary);
+  color: var(--foreground);
+  background: var(--background);
   font-size: 10px;
   font-weight: 750;
 }
 
 .image-placement-launch:hover {
-  box-shadow: 0 4px 12px color-mix(in oklch, var(--primary) 16%, transparent);
+  border-color: var(--primary);
+  background: var(--muted);
+  box-shadow: 0 4px 12px color-mix(in oklch, var(--primary) 12%, transparent);
   transform: translateY(-1px);
 }
 
@@ -2076,9 +2088,10 @@
 
 .source-thumb.is-empty::after {
   color: var(--muted-foreground);
-  content: "＋";
-  font-size: 20px;
-  font-weight: 400;
+  content: "미리보기";
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .04em;
 }
 
 .source-thumb.is-empty img {
@@ -2133,6 +2146,47 @@
 .editor-section-nav button[aria-pressed="true"] { color: var(--primary-foreground); background: var(--primary); }
 .editor-section-nav button:hover:not([aria-pressed="true"]) { color: var(--foreground); background: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .editor-section-nav button { transition: none; } }
+
+/* Shared disclosure grammar: collapsed style controls and precise placement
+   controls should expose the same 36px row, divider, and state affordance. */
+.style-advanced-toggle,
+.image-editor-modebar .image-editor-precision summary {
+  min-height: 36px;
+  padding: 0 4px;
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted-foreground);
+  font: 700 11px/1.4 var(--sans);
+}
+
+.style-advanced-toggle:hover,
+.style-advanced-toggle[aria-expanded="true"],
+.image-editor-modebar .image-editor-precision summary:hover,
+.image-editor-modebar .image-editor-precision[open] summary {
+  border-top-color: var(--primary);
+  color: var(--foreground);
+  background: color-mix(in oklch, var(--primary) 5%, var(--background));
+}
+
+.image-editor-modebar .image-editor-precision summary::-webkit-details-marker {
+  display: none;
+}
+
+.image-editor-modebar .image-editor-precision summary::after {
+  color: var(--foreground);
+  font-size: 15px;
+  line-height: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .style-advanced-toggle,
+  .image-editor-modebar .image-editor-precision summary { transition: none; }
+}
+
+@media (min-width: 681px) {
+  .image-editor-modebar .image-editor-dialog-shell { padding-block: 7px; }
+}
+
 .outfit-icon { display: block; width: 24px; height: 24px; }
 .equipment-section .equipment-icon, .catalog-section .catalog-result-icon {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -2141,6 +2195,15 @@
 .equipment-section .equipment-row { grid-template-columns: 52px minmax(0, 1fr) auto; }
 .catalog-section .catalog-result { grid-template-columns: 52px minmax(0, 1fr) 32px; }
 @media (max-width: 920px) and (min-height: 600px) {
-  .editor-section-nav { top: var(--preview-height, 300px); z-index: 9; }
-  .inspector .inspector-section { scroll-margin-top: calc(var(--preview-height, 300px) + 70px); }
+  /* The inspector header and section nav form one command stack. Keeping the
+     nav at the preview height leaves a large, contextless gap between them
+     while the user scrolls through a long panel. */
+  .editor-section-nav {
+    top: calc(var(--mobile-inspector-header-height, 69px) + 1px);
+    z-index: 9;
+  }
+
+  .inspector .inspector-section {
+    scroll-margin-top: calc(var(--mobile-inspector-header-height, 69px) + 77px);
+  }
 }

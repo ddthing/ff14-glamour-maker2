@@ -7,6 +7,10 @@ const fixturePng = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=",
   "base64",
 );
+const emptyPng = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg==",
+  "base64",
+);
 const port = 4198;
 const baseUrl = `http://127.0.0.1:${port}`;
 
@@ -52,6 +56,19 @@ async function startServer() {
     await page.waitForFunction(() => document.querySelector("#imageState")?.dataset.state === "cutout");
     assert.match(await page.locator("#imageState").textContent(), /배경 제거됨/);
     assert.match(await page.locator("[role=status]").last().textContent(), /test browser fallback/);
+
+    await page.locator("#cutoutButton").click();
+    await page.waitForFunction(() => document.querySelector("#imageState")?.dataset.state === "original");
+    await page.evaluate((bytes) => {
+      const blob = new Blob([new Uint8Array(bytes)], { type: "image/png" });
+      window.GlamourBackgroundRemoval = Object.freeze({
+        removeInBrowser: async () => ({ blob, tier: "test empty result" }),
+      });
+    }, [...emptyPng]);
+    await page.locator("#cutoutButton").click();
+    await page.waitForFunction(() => !document.querySelector("#cutoutButton").disabled);
+    assert.equal(await page.locator("#imageState").getAttribute("data-state"), "original", "an empty result must leave the source image intact");
+    assert.match(await page.locator("[role=status]").last().textContent(), /빈 결과|비어|실패/);
     assert.deepEqual(pageErrors, []);
     console.log("PASS: browser background-removal adapter is served and API-unavailable fallback applies a cutout.");
   } finally {

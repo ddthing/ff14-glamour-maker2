@@ -4295,6 +4295,11 @@ body.image-placement-mode .canvas-board[data-ratio="portrait"] {
     box-shadow: 0 1px 0 color-mix(in oklch, var(--border) 80%, transparent), 0 8px 18px rgb(0 0 0 / .06);
   }
 
+  .inspector-panel {
+    position: relative;
+    z-index: 10;
+  }
+
   .inspector-title-row {
     align-items: center;
   }
@@ -4380,6 +4385,7 @@ body.image-placement-mode .canvas-board[data-ratio="portrait"] {
   }
 
   .inspector {
+    --mobile-inspector-header-height: 69px;
     padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
 }

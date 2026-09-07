@@ -14,6 +14,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.equal(await page.locator("#castSelectionSummary").getAttribute("aria-live"), "polite");
 
     const order = await page.locator("#imageSection > *").evaluateAll((children) => children.map((element) => {
+      if (element.id === "portraitSourceCard") return "source";
       if (element.id) return element.id;
       if (element.classList.contains("portrait-source-card")) return "source";
       if (element.classList.contains("image-fit-row")) return "fit";

@@ -457,8 +457,8 @@ const state = {
   imageFit: "contain",
   imageSrc: "",
   originalSrc: "",
-  fileName: "이미지를 추가하세요",
-  fileMeta: "PNG, JPG 또는 WebP · 아직 선택하지 않음",
+  fileName: "사진 미선택",
+  fileMeta: "PNG · JPG · WebP · 여러 장 선택 가능",
   history: [],
   redo: [],
 };
@@ -1285,8 +1285,8 @@ function renderCast() {
   replaceCharacterButtons(elements.portraitWrap, "data-character-index", state.characters.slice(0, state.characterCount).map((character, index) => {
     const source = resolveCharacterAsset(character, "hero");
     return `
-    <button class="character-figure${index === state.selectedCharacter ? " is-selected" : ""}${source ? "" : " is-empty"}" type="button" data-character-index="${index}" data-cutout="${Boolean(character.cutout)}" data-empty="${!source}" aria-pressed="${index === state.selectedCharacter}" aria-label="캐릭터 ${index + 1} ${source ? "선택" : "이미지 추가"}">
-      ${source ? `<img src="${escapeHtml(source)}" alt="룩북 캐릭터 ${index + 1}" draggable="false" />` : `<span class="character-empty-placeholder" aria-hidden="true"><strong>이미지 추가</strong><small>이 캐릭터 슬롯</small></span>`}
+    <button class="character-figure${index === state.selectedCharacter ? " is-selected" : ""}${source ? "" : " is-empty"}" type="button" data-character-index="${index}" data-cutout="${Boolean(character.cutout)}" data-empty="${!source}" aria-pressed="${index === state.selectedCharacter}" aria-label="캐릭터 ${index + 1} ${source ? "선택" : "사진 선택"}">
+      ${source ? `<img src="${escapeHtml(source)}" alt="룩북 캐릭터 ${index + 1}" draggable="false" />` : `<span class="character-empty-placeholder" aria-hidden="true"><small class="character-empty-kicker">캐릭터 ${String(index + 1).padStart(2, "0")}</small><span class="character-empty-mark">＋</span><strong>이미지 슬롯</strong><small>사진을 배치할 영역</small></span>`}
     </button>
   `;
   }).join(""));
@@ -1316,6 +1316,11 @@ function renderCast() {
       event.preventDefault();
       return;
     }
+    if (button.dataset.empty === "true") {
+      selectCharacter(characterIndex);
+      elements.imageInput?.click();
+      return;
+    }
     selectCharacter(characterIndex);
   }));
   $$('[data-character-select]').forEach((button) => button.addEventListener("click", () => selectCharacter(Number(button.dataset.characterSelect))));
@@ -1328,11 +1333,12 @@ function renderSourcePanel() {
     elements.sourceThumb.alt = "현재 이미지 미리보기";
   } else {
     elements.sourceThumb.removeAttribute("src");
-    elements.sourceThumb.alt = "이미지를 추가하세요";
+    elements.sourceThumb.alt = "사진 미선택";
   }
   elements.sourceThumbFrame?.classList.toggle("is-empty", !hasImage);
-  elements.sourceFileName.textContent = hasImage ? state.fileName : "이미지를 추가하세요";
-  if (elements.sourceFileMeta) elements.sourceFileMeta.textContent = hasImage ? (state.fileMeta || "원본 이미지") : "PNG, JPG 또는 WebP · 아직 선택하지 않음";
+  elements.sourceThumbFrame?.closest(".portrait-source-card")?.classList.toggle("is-empty", !hasImage);
+  elements.sourceFileName.textContent = hasImage ? state.fileName : "사진 미선택";
+  if (elements.sourceFileMeta) elements.sourceFileMeta.textContent = hasImage ? (state.fileMeta || "원본 이미지") : "PNG · JPG · WebP · 여러 장 선택 가능";
   if (elements.imageState) {
     elements.imageState.textContent = !hasImage ? "이미지 없음" : state.cutout ? "배경 제거됨" : "원본";
     elements.imageState.dataset.state = !hasImage ? "empty" : state.cutout ? "cutout" : "original";
@@ -2108,6 +2114,7 @@ async function quickCutout() {
     let image;
     try {
       image = await loadCanvasImage(resultUrl);
+      assertVisibleCutoutImage(image);
     } catch (error) {
       URL.revokeObjectURL(resultUrl);
       throw error;
@@ -2150,6 +2157,21 @@ function loadCanvasImage(src) {
     image.onerror = reject;
     image.src = src;
   });
+}
+
+function assertVisibleCutoutImage(image) {
+  const width = Math.max(1, Math.min(256, image.naturalWidth || image.width || 1));
+  const height = Math.max(1, Math.min(256, image.naturalHeight || image.height || 1));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error("배경 제거 결과를 확인할 수 없습니다.");
+  context.drawImage(image, 0, 0, width, height);
+  const pixels = context.getImageData(0, 0, width, height).data;
+  let maxAlpha = 0;
+  for (let index = 3; index < pixels.length; index += 4) maxAlpha = Math.max(maxAlpha, pixels[index]);
+  if (maxAlpha <= 8) throw new Error("배경 제거 모델이 빈 결과를 반환했습니다.");
 }
 
 let exportInProgress = false;
@@ -2384,8 +2406,8 @@ async function resetWorkspace() {
     imageFit: "contain",
     imageSrc: "",
     originalSrc: "",
-    fileName: "이미지를 추가하세요",
-    fileMeta: "PNG, JPG 또는 WebP · 아직 선택하지 않음",
+    fileName: "사진 미선택",
+    fileMeta: "PNG · JPG · WebP · 여러 장 선택 가능",
     history: [],
     redo: [],
   });
@@ -2562,6 +2584,7 @@ function initialiseInteractions() {
       event.stopPropagation();
       return;
     }
+    if (figure?.dataset.empty === "true") return;
     if (Number.isInteger(targetIndex) && targetIndex !== state.selectedCharacter) selectCharacter(targetIndex);
     dragState = { startX: event.clientX, startY: event.clientY, panX: state.panX, panY: state.panY, moved: false, editorMode: imageEditorOpen };
     elements.portraitWrap.setPointerCapture(event.pointerId);

@@ -11,18 +11,20 @@
   const TRANSFORMERS_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/+esm";
   const HIGH_MODEL = "jiabins0303/birefnet-lite-1024-webgpu";
   const FALLBACK_MODEL = "studioludens/birefnet-lite-512";
+  const HIGH_WEBGPU_MIN_STORAGE_BUFFERS = 65;
+  const FALLBACK_WEBGPU_MIN_STORAGE_BUFFERS = 65;
 
   let transformersPromise;
   let pipelinePromise;
   let pipelineTier = "";
 
-  async function getWebGPUAdapter() {
+  async function getWebGPUAdapter(minStorageBuffersPerShaderStage) {
     const gpu = typeof navigator !== "undefined" ? navigator.gpu : null;
     if (!gpu?.requestAdapter) return null;
     try {
       const adapter = await gpu.requestAdapter({ powerPreference: "high-performance" });
       const maxStorageBuffers = adapter?.limits?.maxStorageBuffersPerShaderStage;
-      if (maxStorageBuffers != null && maxStorageBuffers < 8) return null;
+      if (!Number.isFinite(maxStorageBuffers) || maxStorageBuffers < minStorageBuffersPerShaderStage) return null;
       return adapter;
     } catch {
       return null;
@@ -77,12 +79,17 @@
   async function loadBestPipeline(onProgress) {
     if (pipelinePromise) return pipelinePromise;
     pipelinePromise = (async () => {
-      if (await getWebGPUAdapter()) {
+      // The 1024px graph contains a large Concat op. Devices with the default
+      // eight storage-buffer limit can create a pipeline that returns an empty
+      // image, so skip that tier before invoking ONNX Runtime.
+      if (await getWebGPUAdapter(HIGH_WEBGPU_MIN_STORAGE_BUFFERS)) {
         try {
           return await loadPipelineTier("high-webgpu", onProgress);
         } catch (error) {
           console.warn("BiRefNet 1024 WebGPU를 사용할 수 없어 512px 모델로 전환합니다.", error);
         }
+      }
+      if (await getWebGPUAdapter(FALLBACK_WEBGPU_MIN_STORAGE_BUFFERS)) {
         try {
           return await loadPipelineTier("fallback-webgpu", onProgress);
         } catch (error) {
@@ -95,6 +102,26 @@
       throw error;
     });
     return pipelinePromise;
+  }
+
+  function assertUsableResult(rawImage) {
+    if (!rawImage || rawImage.channels !== 4 || !rawImage.data?.length) {
+      throw new Error("배경 제거 결과가 올바르지 않습니다.");
+    }
+    let maxAlpha = 0;
+    for (let index = 3; index < rawImage.data.length; index += rawImage.channels) {
+      maxAlpha = Math.max(maxAlpha, Number(rawImage.data[index]) || 0);
+    }
+    const alphaThreshold = maxAlpha <= 1 ? 0.01 : 8;
+    if (maxAlpha <= alphaThreshold) {
+      throw new Error("배경 제거 모델이 빈 결과를 반환했습니다.");
+    }
+  }
+
+  async function runSegmenter(segmenter, image) {
+    const [result] = await segmenter(image);
+    assertUsableResult(result);
+    return result;
   }
 
   async function toPngBlob(rawImage) {
@@ -119,25 +146,24 @@
     const segmenter = await loadBestPipeline(onProgress);
     let result;
     try {
-      [result] = await segmenter(image);
+      result = await runSegmenter(segmenter, image);
     } catch (error) {
       if (pipelineTier === "BiRefNet 1024 WebGPU" || pipelineTier === "BiRefNet 512 WebGPU") {
         const fallbackTier = pipelineTier === "BiRefNet 1024 WebGPU" ? "fallback-webgpu" : "fallback-wasm";
         pipelinePromise = null;
         pipelineTier = "";
         try {
-          [result] = await loadPipelineTier(fallbackTier, onProgress).then((fallback) => fallback(image));
+          result = await loadPipelineTier(fallbackTier, onProgress).then((fallback) => runSegmenter(fallback, image));
         } catch (fallbackError) {
           if (fallbackTier !== "fallback-webgpu") throw fallbackError;
           pipelinePromise = null;
           pipelineTier = "";
-          [result] = await loadPipelineTier("fallback-wasm", onProgress).then((fallback) => fallback(image));
+          result = await loadPipelineTier("fallback-wasm", onProgress).then((fallback) => runSegmenter(fallback, image));
         }
       } else {
         throw error;
       }
     }
-    if (!result || result.channels !== 4) throw new Error("배경 제거 결과가 올바르지 않습니다.");
     return { blob: await toPngBlob(result), tier: pipelineTier };
   }
 
