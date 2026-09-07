@@ -1533,7 +1533,7 @@ function renderCast() {
     ${(() => {
       const source = resolveCharacterAsset(character, "hero");
       return `<button class="${index === state.selectedCharacter ? "is-selected" : ""}${source ? "" : " is-empty"}" type="button" data-character-select="${index}" aria-pressed="${index === state.selectedCharacter}" aria-label="캐릭터 ${index + 1} 편집">
-      <span class="cast-slot-visual" aria-hidden="true">${source ? `<img src="${escapeHtml(source)}" alt="" />` : `<span class="cast-empty-thumb">＋</span>`}</span><span class="cast-slot-index">${String(index + 1).padStart(2, "0")}</span>
+      <span class="cast-slot-visual${source ? "" : " is-empty"}" aria-hidden="true">${source ? `<img src="${escapeHtml(source)}" alt="" />` : `<span class="cast-empty-thumb">＋</span>`}</span><span class="cast-slot-index">${String(index + 1).padStart(2, "0")}</span>
     </button>`;
     })()}
   `).join(""));
@@ -3430,11 +3430,6 @@ async function bootstrap() {
   Object.assign(state, selectedLook.editor);
   syncSelectedCharacter();
   initialiseInteractions();
-  document.querySelectorAll("[data-editor-section]").forEach(button => button.addEventListener("click", () => {
-    document.querySelectorAll("[data-editor-section]").forEach(item => item.setAttribute("aria-pressed", String(item === button)));
-    const section = document.getElementById(button.dataset.editorSection);
-    section?.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
-  }));
   const preview = document.querySelector(".canvas-column");
   new ResizeObserver(() => document.documentElement.style.setProperty("--preview-height", `${preview.getBoundingClientRect().height}px`)).observe(preview);
   renderAll();

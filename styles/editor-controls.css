@@ -2048,77 +2048,18 @@
   .cast-count-control button, .image-placement-launch, .cutout-action) { font-size: 13px; line-height: 1.5; }
 .inspector :is(.compact-segments button, .cast-count-control button) { min-height: 36px; }
 .inspector :is(.copy-editor-field textarea, .title-font-control select) { font-size: 14px; line-height: 1.6; }
-.editor-section-nav {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  min-width: 0;
-  background: color-mix(in oklch, var(--card) 96%, transparent);
-  padding: 11px 0 10px;
-  border-bottom: 1px solid var(--border);
-  backdrop-filter: blur(10px);
+.editor-category-section {
+  border-top: 1px solid var(--border);
 }
-.editor-flow-label {
-  flex: 0 0 auto;
-  color: var(--muted-foreground);
-  font: 600 11px/1.4 var(--sans);
-  white-space: nowrap;
-}
-.editor-flow-steps {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-.editor-section-nav button {
-  position: relative;
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: baseline;
-  gap: 5px;
+.editor-category-section .panel-section-head {
   min-height: 32px;
-  padding: 5px 8px 7px;
-  border: 0;
-  border-radius: 0;
-  color: var(--muted-foreground);
-  background: transparent;
-  font: 650 13px/1.35 var(--sans);
-  white-space: nowrap;
-  transition: color 160ms ease;
 }
-.editor-section-nav button + button::before {
-  position: absolute;
-  left: -3px;
-  color: var(--border);
-  content: "→";
-  font-size: 11px;
-  pointer-events: none;
+.editor-category-section .panel-section-head h2 {
+  color: var(--foreground);
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: -.02em;
 }
-.editor-section-index {
-  color: var(--muted-foreground);
-  font: 700 10px/1 var(--mono);
-  letter-spacing: .04em;
-}
-.editor-section-nav button[aria-pressed="true"] { color: var(--foreground); }
-.editor-section-nav button[aria-pressed="true"]::after {
-  position: absolute;
-  right: 8px;
-  bottom: 1px;
-  left: 8px;
-  height: 2px;
-  border-radius: 999px;
-  background: var(--primary);
-  content: "";
-}
-.editor-section-nav button:hover,
-.editor-section-nav button:focus-visible { color: var(--foreground); }
-.editor-section-nav button:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: -2px;
-}
-@media (prefers-reduced-motion: reduce) { .editor-section-nav button { transition: none; } }
 
 /* Empty cast slots are actions, not miniature portrait cards. Keep the
    target compact and let the circular affordance carry the empty state. */
@@ -2153,20 +2094,11 @@
   outline-offset: 2px;
 }
 .cast-selector button.is-selected {
-  border-color: color-mix(in oklch, var(--primary) 42%, var(--border));
-  background: color-mix(in oklch, var(--primary) 6%, var(--background));
+  border-color: transparent;
+  background: transparent;
   box-shadow: none;
 }
-.cast-selector button.is-selected::after {
-  position: absolute;
-  right: 10px;
-  bottom: 3px;
-  left: 10px;
-  height: 2px;
-  border-radius: 999px;
-  background: var(--primary);
-  content: "";
-}
+.cast-selector button::after { display: none; content: none; }
 .cast-selector .cast-slot-visual {
   display: grid;
   width: 40px;
@@ -2184,6 +2116,13 @@
   font-size: inherit;
   font-weight: inherit;
 }
+.cast-selector .cast-slot-visual:not(.is-empty) {
+  border-radius: 8px;
+}
+.cast-selector button.is-selected .cast-slot-visual {
+  border-color: var(--foreground);
+  box-shadow: 0 0 0 1px var(--foreground);
+}
 .cast-selector img {
   width: 100%;
   height: 100%;
@@ -2194,18 +2133,18 @@
 .cast-selector button.is-selected img { opacity: 1; }
 .cast-selector .cast-empty-thumb {
   display: grid;
-  width: 30px;
-  height: 30px;
+  width: 100%;
+  height: 100%;
   place-items: center;
-  border: 1px solid var(--muted-foreground);
-  border-radius: 50%;
-  color: var(--muted-foreground);
-  background: transparent;
-  font: 500 18px/1 var(--sans);
-}
-.cast-selector button.is-selected .cast-empty-thumb {
-  border-color: var(--primary);
+  position: static;
+  top: auto;
+  left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
   color: var(--foreground);
+  background: transparent;
+  font: 500 21px/1 var(--sans);
 }
 .cast-selector .cast-slot-index {
   position: static;
@@ -2398,16 +2337,8 @@
 }
 
 @media (max-width: 920px) and (min-height: 600px) {
-  /* The inspector header and section nav form one command stack. Keeping the
-     nav at the preview height leaves a large, contextless gap between them
-     while the user scrolls through a long panel. */
-  .editor-section-nav {
-    top: calc(var(--mobile-inspector-header-height, 69px) + 1px);
-    z-index: 9;
-  }
-
   .inspector .inspector-section {
-    scroll-margin-top: calc(var(--mobile-inspector-header-height, 69px) + 77px);
+    scroll-margin-top: calc(var(--mobile-inspector-header-height, 69px) + 8px);
   }
 }
 

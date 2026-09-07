@@ -27,7 +27,7 @@
     </noscript>
     <link rel="stylesheet" href="styles.css?v=20260907-parity-1" />
     <link rel="stylesheet" href="styles/card-composer.css?v=20260907-title-controls-1" />
-    <link rel="stylesheet" href="styles/editor-controls.css?v=20260907-inspector-flow-3" />
+    <link rel="stylesheet" href="styles/editor-controls.css?v=20260907-inspector-categories-2" />
     <link rel="stylesheet" href="styles/card-readability.css?v=20260907-two-person-rails-empty-state-1" />
   </head>
   <body>
@@ -149,14 +149,6 @@
             </div>
 
             <div class="inspector-panel" id="stylePanel" role="tabpanel" aria-labelledby="styleTab">
-              <nav class="editor-section-nav" aria-label="꾸미기 편집 흐름">
-                <span class="editor-flow-label">순서대로 편집</span>
-                <div class="editor-flow-steps">
-                  <button type="button" data-editor-section="imageSection" aria-pressed="true"><span class="editor-section-index">01</span><span>이미지</span></button>
-                  <button type="button" data-editor-section="copyEditorSection" aria-pressed="false"><span class="editor-section-index">02</span><span>문구</span></button>
-                  <button type="button" data-editor-section="cardStyleSection" aria-pressed="false"><span class="editor-section-index">03</span><span>배경</span></button>
-                </div>
-              </nav>
               <section class="inspector-section cast-section">
                 <div class="panel-section-head">
                   <div class="panel-section-head-copy"><span class="panel-eyebrow">선택 대상</span><h2>캐릭터 구성</h2></div>
@@ -180,7 +172,7 @@
                 <p class="compact-control-hint" id="infoModeHint">실루엣은 모든 캐릭터의 배경 제거가 끝나면 사용할 수 있어요.</p>
               </section>
 
-              <section class="inspector-section portrait-section" id="imageSection">
+              <section class="inspector-section portrait-section editor-category-section" id="imageSection">
                 <div class="panel-section-head"><h2>이미지</h2><span class="image-state" id="imageState" aria-live="polite">이미지 없음</span></div>
                 <div class="image-workflow-group image-import-group" aria-labelledby="imageImportGroupTitle">
                   <div class="image-workflow-head"><span id="imageImportGroupTitle">사진 가져오기</span><small>원본은 브라우저에 안전하게 보관합니다</small></div>
@@ -212,8 +204,8 @@
                 </div>
               </section>
 
-              <section class="inspector-section copy-editor-section" id="copyEditorSection" aria-labelledby="copyEditorTitle">
-                <div class="panel-section-head"><h2 id="copyEditorTitle">카드 문구</h2><span class="panel-state">입력 즉시 반영</span></div>
+              <section class="inspector-section copy-editor-section editor-category-section" id="copyEditorSection" aria-labelledby="copyEditorTitle">
+                <div class="panel-section-head"><h2 id="copyEditorTitle">문구</h2><span class="panel-state">입력 즉시 반영</span></div>
                 <div class="copy-editor-fields">
                   <label class="copy-editor-field" for="cardTitleInput">
                     <span>제목</span>
@@ -262,8 +254,8 @@
                 </div>
               </section>
 
-              <section class="inspector-section card-compose-section card-style-section" id="cardStyleSection">
-                <div class="panel-section-head"><h2>카드 설정</h2><span class="style-current-label" id="backgroundCurrentLabel" aria-live="polite">종이 · 패턴 없음 · 질감 없음</span></div>
+              <section class="inspector-section card-compose-section card-style-section editor-category-section" id="cardStyleSection">
+                <div class="panel-section-head"><h2>배경</h2><span class="style-current-label" id="backgroundCurrentLabel" aria-live="polite">종이 · 패턴 없음 · 질감 없음</span></div>
                 <div class="card-display-control" id="cardDisplaySetting">
                   <div class="card-display-copy"><span>장비 정보</span><small>3인 이상 카드에 아이템 이름을 모두 표시합니다.</small></div>
                   <label class="compact-switch card-display-switch"><input id="multiInfoToggle" type="checkbox" checked aria-label="카드에 장비 정보 표시" /><span></span><b>표시</b></label>

@@ -13,25 +13,27 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.equal(initialSummary, "캐릭터 01 · 1인", "inspector should identify the initial target");
     assert.equal(await page.locator("#castSelectionSummary").getAttribute("aria-live"), "polite");
 
-    const editorFlow = await page.locator(".editor-section-nav").evaluate((nav) => ({
-      label: nav.querySelector(".editor-flow-label")?.textContent.trim(),
-      steps: [...nav.querySelectorAll("[data-editor-section]")].map((button) => ({
-        target: button.dataset.editorSection,
-        index: button.querySelector(".editor-section-index")?.textContent.trim(),
-      })),
-      sectionStates: ["imageSection", "copyEditorSection", "cardStyleSection"].map((id) => {
+    const editorCategories = await page.evaluate(() => ({
+      navCount: document.querySelectorAll(".editor-section-nav").length,
+      sections: [["imageSection", "이미지"], ["copyEditorSection", "문구"], ["cardStyleSection", "배경"]].map(([id, label]) => {
         const section = document.getElementById(id);
         const style = section ? getComputedStyle(section) : null;
-        return { id, hidden: section?.hidden ?? true, display: style?.display ?? "none" };
+        return {
+          id,
+          label: section?.querySelector(".panel-section-head h2")?.textContent.trim(),
+          expectedLabel: label,
+          hidden: section?.hidden ?? true,
+          display: style?.display ?? "none",
+        };
       }),
     }));
-    assert.equal(editorFlow.label, "순서대로 편집", "editor navigation should explain the sequential flow");
-    assert.deepEqual(editorFlow.steps.map(({ target, index }) => [target, index]), [
-      ["imageSection", "01"],
-      ["copyEditorSection", "02"],
-      ["cardStyleSection", "03"],
-    ], "editor flow should use numbered section jumps");
-    assert.ok(editorFlow.sectionStates.every(({ hidden, display }) => !hidden && display !== "none"), `editor sections should stay in one flow: ${JSON.stringify(editorFlow.sectionStates)}`);
+    assert.equal(editorCategories.navCount, 0, "editor categories should not be presented as an extra tab bar");
+    assert.deepEqual(editorCategories.sections.map(({ id, label, expectedLabel }) => [id, label, expectedLabel]), [
+      ["imageSection", "이미지", "이미지"],
+      ["copyEditorSection", "문구", "문구"],
+      ["cardStyleSection", "배경", "배경"],
+    ], "editor categories should use direct, unambiguous section headings");
+    assert.ok(editorCategories.sections.every(({ hidden, display }) => !hidden && display !== "none"), `editor sections should stay in one flow: ${JSON.stringify(editorCategories.sections)}`);
 
     const order = await page.locator("#imageSection > *").evaluateAll((children) => children.map((element) => {
       if (element.id) return element.id;
@@ -64,17 +66,24 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
       const rect = button.getBoundingClientRect();
       const visual = button.querySelector(".cast-slot-visual")?.getBoundingClientRect();
       const empty = button.querySelector(".cast-empty-thumb");
+      const visualStyle = button.querySelector(".cast-slot-visual") ? getComputedStyle(button.querySelector(".cast-slot-visual")) : null;
       return {
         height: Math.round(rect.height),
         visualWidth: Math.round(visual?.width ?? 0),
         visualHeight: Math.round(visual?.height ?? 0),
+        visualRadius: visualStyle?.borderRadius || "",
+        visualBackground: visualStyle?.backgroundColor || "",
         emptyRadius: empty ? getComputedStyle(empty).borderRadius : "",
+        selectionBar: getComputedStyle(button, "::after").display,
       };
     }));
     assert.equal(compactCastSlots.length, 5, "five-person selection should expose five compact slots");
     assert.ok(compactCastSlots.every(({ height }) => height <= 80), `empty cast slots should not be portrait cards: ${JSON.stringify(compactCastSlots)}`);
     assert.ok(compactCastSlots.every(({ visualWidth, visualHeight }) => visualWidth >= 32 && visualHeight >= 32), `cast slots should keep a visible circular affordance: ${JSON.stringify(compactCastSlots)}`);
+    assert.ok(compactCastSlots.every(({ visualRadius }) => visualRadius === "50%"), `empty cast affordance should use one circle: ${JSON.stringify(compactCastSlots)}`);
+    assert.ok(compactCastSlots.every(({ visualBackground }) => visualBackground !== "rgba(0, 0, 0, 0)"), `empty cast affordance should have a white surface: ${JSON.stringify(compactCastSlots)}`);
     assert.ok(compactCastSlots.every(({ emptyRadius }) => !emptyRadius || emptyRadius === "50%"), `empty cast affordance should be circular: ${JSON.stringify(compactCastSlots)}`);
+    assert.ok(compactCastSlots.every(({ selectionBar }) => selectionBar === "none"), `selected cast slots should not render a bottom bar: ${JSON.stringify(compactCastSlots)}`);
 
     await page.locator('[data-cast-count="3"]').click();
     await page.locator('#castSelector button[data-character-select="2"]').click();

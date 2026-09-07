@@ -111,11 +111,9 @@ async function mobileLayout(page) {
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     const persistentReset = await page.evaluate(() => {
       const header = document.querySelector(".inspector-header");
-      const sectionNav = document.querySelector(".editor-section-nav");
       const reset = document.querySelector("#resetButton");
       const rail = document.querySelector(".rail");
       const headerRect = header?.getBoundingClientRect();
-      const sectionNavRect = sectionNav?.getBoundingClientRect();
       const resetRect = reset?.getBoundingClientRect();
       const railRect = rail?.getBoundingClientRect();
       const resetStyle = reset ? getComputedStyle(reset) : null;
@@ -123,9 +121,9 @@ async function mobileLayout(page) {
         headerPosition: header ? getComputedStyle(header).position : "",
         headerTop: headerRect?.top ?? -1,
         headerBottom: headerRect?.bottom ?? -1,
-        sectionNavPosition: sectionNav ? getComputedStyle(sectionNav).position : "",
-        sectionNavTop: sectionNavRect?.top ?? -1,
-        sectionNavBottom: sectionNavRect?.bottom ?? -1,
+        editorTabCount: document.querySelectorAll(".editor-section-nav").length,
+        categoryHeadings: ["#imageSection", "#copyEditorSection", "#cardStyleSection"]
+          .map((selector) => document.querySelector(`${selector} .panel-section-head h2`)?.textContent.trim()),
         resetTop: resetRect?.top ?? -1,
         resetBottom: resetRect?.bottom ?? -1,
         resetHeight: resetRect?.height ?? 0,
@@ -135,24 +133,11 @@ async function mobileLayout(page) {
     });
     assert.equal(persistentReset.headerPosition, "sticky", `mobile inspector header should stay available while scrolling: ${JSON.stringify(persistentReset)}`);
     assert.ok(persistentReset.headerTop >= 0 && persistentReset.resetTop >= 0, `reset action left the mobile viewport: ${JSON.stringify(persistentReset)}`);
-    assert.equal(persistentReset.sectionNavPosition, "sticky", `mobile section navigation should stay in the inspector command stack: ${JSON.stringify(persistentReset)}`);
-    assert.ok(persistentReset.sectionNavTop >= persistentReset.headerBottom - 1 && persistentReset.sectionNavTop <= persistentReset.headerBottom + 4, `mobile section navigation drifted away from the sticky header: ${JSON.stringify(persistentReset)}`);
+    assert.equal(persistentReset.editorTabCount, 0, `mobile editor should not add a separate tab bar: ${JSON.stringify(persistentReset)}`);
+    assert.deepEqual(persistentReset.categoryHeadings, ["이미지", "문구", "배경"], `mobile editor categories should remain explicit: ${JSON.stringify(persistentReset)}`);
     assert.ok(persistentReset.resetBottom <= persistentReset.railTop - 8, `reset action is covered by the mobile rail: ${JSON.stringify(persistentReset)}`);
     assert.ok(persistentReset.resetHeight >= 40, `reset action target is too small: ${JSON.stringify(persistentReset)}`);
     assert.equal(persistentReset.resetRadius, "6px", `reset action should use the shared mobile control radius: ${JSON.stringify(persistentReset)}`);
-
-    await page.locator('[data-editor-section="cardStyleSection"]').click();
-    const navigatedSection = await page.locator("#cardStyleSection").evaluate((section) => {
-      const sectionRect = section.getBoundingClientRect();
-      const headerRect = document.querySelector(".inspector-header")?.getBoundingClientRect();
-      const sectionNavRect = document.querySelector(".editor-section-nav")?.getBoundingClientRect();
-      return {
-        sectionTop: sectionRect.top,
-        headerBottom: headerRect?.bottom ?? 0,
-        sectionNavBottom: sectionNavRect?.bottom ?? 0,
-      };
-    });
-    assert.ok(navigatedSection.sectionTop >= navigatedSection.sectionNavBottom - 1, `section navigation scrolled content beneath the sticky stack: ${JSON.stringify(navigatedSection)}`);
 
     await page.screenshot({ path: "artifacts/ui-mobile-a11y-flow-after.png", fullPage: false });
     console.log("PASS: mobile search, panel switching, lineup controls, rail clearance, and reset focus are keyboard and touch discoverable.");
