@@ -30,6 +30,9 @@ const fixturePng = Buffer.from(
     assert.equal(await page.locator("#imageEditorPreview").count(), 0, "placement mode should not render a duplicate preview");
     assert.equal(await page.locator("#canvasBoard").isVisible(), true);
     assert.equal(await page.locator(".inspector").isVisible(), false);
+    assert.equal(await page.locator("#languageSelect").isVisible(), false, "global language action should leave the focused placement mode");
+    assert.equal(await page.locator("#exportButton").isVisible(), false, "export action should leave the focused placement mode");
+    assert.equal(await page.locator("#saveStatus").isVisible(), true, "save status should remain visible during placement");
     assert.equal(await page.locator(".character-figure.is-selected").count(), 1);
     assert.equal(await page.evaluate(() => document.activeElement?.classList.contains("character-figure")), true, "opening should focus the selected card figure");
 

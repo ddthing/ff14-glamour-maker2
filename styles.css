@@ -3847,6 +3847,17 @@ body.image-placement-mode .inspector {
   display: none;
 }
 
+/* Placement is a focused transaction. Keep the persistence status visible,
+   but remove unrelated global actions until the user applies or cancels. */
+body.image-placement-mode .topbar-actions {
+  gap: 0;
+}
+
+body.image-placement-mode .topbar-actions .language-select-control,
+body.image-placement-mode .topbar-actions #exportButton {
+  display: none;
+}
+
 body.image-placement-mode .workspace-grid {
   grid-template-columns: minmax(0, 1fr);
 }
