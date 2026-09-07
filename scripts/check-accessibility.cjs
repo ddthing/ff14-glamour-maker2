@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
-(async()=>{const browser=await chromium.launch({headless:true,channel:"msedge"});const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('http://localhost:4173');await page.waitForSelector('#castSelector button');
+(async()=>{const browser=await chromium.launch({headless:true,channel:"msedge"});const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(process.env.TEST_BASE_URL || 'http://localhost:4173');await page.waitForSelector('#castSelector button');
 await page.keyboard.press('Tab');console.log('skip',await page.locator(':focus').textContent());
 await page.locator('button[data-background="paper"]').focus();await page.keyboard.press('ArrowRight');assert.equal(await page.locator('#backdropGrid [aria-checked="true"]').getAttribute('data-background'),'mist');assert.equal(await page.locator('#backdropGrid [tabindex="0"]').count(),1);console.log('radio navigation OK');
 await page.locator('#titleWeightOptions [aria-checked="true"]').focus();await page.keyboard.press('ArrowLeft');assert.ok(await page.locator(':focus').getAttribute('data-title-weight'));console.log('weight focus preserved');

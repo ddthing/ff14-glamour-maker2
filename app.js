@@ -162,6 +162,10 @@ function getExportTheme() {
   };
 }
 
+function getSilhouetteInfoTheme(background) {
+  return ColorContrast.themeFor(background?.solid);
+}
+
 // One filled five-point star is shared by the live preview and PNG export.
 // Keeping one geometry prevents the preview and downloaded card from drifting.
 const patternStars = [
@@ -1681,12 +1685,16 @@ function renderPattern() {
 
 function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = true } = {}) {
   const background = backgrounds[state.background] || backgrounds.dusk;
+  const silhouetteInfoTheme = getSilhouetteInfoTheme(background);
   if (!titleFonts[state.titleFont]) state.titleFont = defaultTitleFont;
   state.titleWeight = normaliseTitleWeight(state.titleFont, state.titleWeight ?? defaultTitleWeight);
   const backgroundCss = getBackgroundSurfaceCss(background);
   elements.board.style.setProperty("--board-bg", backgroundCss);
   elements.board.style.setProperty("--pattern-ink", background.pattern[0]);
   elements.board.style.setProperty("--pattern-light", background.pattern[1]);
+  elements.board.style.setProperty("--silhouette-info-color", silhouetteInfoTheme.foreground);
+  elements.board.style.setProperty("--silhouette-info-muted", silhouetteInfoTheme.muted);
+  elements.board.style.setProperty("--silhouette-info-halo", silhouetteInfoTheme.halo);
   const patternOpacity = {
     none: 0,
     dots: 0.16,
@@ -2587,9 +2595,13 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
     const copyLayout = captureExportCopy();
     const images = await Promise.all(activeCharacters.map((character) => loadCanvasImage(resolveCharacterAsset(character, "hero"))));
     assertUnchanged();
+    const infoTextTheme = state.multiInfoMode === "silhouette"
+      ? getSilhouetteInfoTheme(backgrounds[state.background])
+      : { foreground: exportTheme.text, muted: exportTheme.muted, halo: exportTheme.infoShadow };
     const outputBlob = await CardPng.render({ state, dimensions, exportTheme,
       background: backgrounds[state.background], patternStars, images, copyLayout, gear,
-      outlineColor: rgba(state.outline.color, 0.8) });
+      outlineColor: rgba(state.outline.color, 0.8), infoTextColor: infoTextTheme.foreground,
+      infoTextMuted: infoTextTheme.muted, infoTextHalo: infoTextTheme.halo });
     assertUnchanged();
     const extension = "png";
     const link = document.createElement("a");

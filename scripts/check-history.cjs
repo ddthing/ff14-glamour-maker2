@@ -4,7 +4,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
   const browser = await chromium.launch({ headless: true, channel: 'msedge' });
   try {
     const page = await browser.newPage();
-    await page.goto('http://localhost:4173');
+    await page.goto(process.env.TEST_BASE_URL || 'http://localhost:4173');
     await page.waitForSelector('#castSelector button');
     const undo = page.locator('#undoButton'), redo = page.locator('#redoButton');
     const draft = () => page.evaluate(() => JSON.parse(localStorage.getItem('tuyeong-set-maker2-draft-v3')));

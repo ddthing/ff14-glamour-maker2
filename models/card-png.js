@@ -121,7 +121,7 @@ function drawExportBackground(context, width, height, background) {
   context.restore();
 }
 
-async function render({ state, dimensions, exportTheme, background, patternStars, images, copyLayout, gear, outlineColor }) {
+async function render({ state, dimensions, exportTheme, background, patternStars, images, copyLayout, gear, outlineColor, infoTextColor = exportTheme.text, infoTextMuted = exportTheme.muted, infoTextHalo = exportTheme.infoShadow }) {
   const activeCharacters = state.characters.slice(0, state.characterCount);
   const isPortrait = dimensions.layoutHeight > dimensions.layoutWidth;
     const characterFrames = CardLayout.characterFrames({
@@ -317,17 +317,17 @@ async function render({ state, dimensions, exportTheme, background, patternStars
         const items = gear[characterIndex] || [];
         const centerX = columnWidth * characterIndex + columnWidth / 2;
         const startY = 242;
-        context.fillStyle = exportTheme.muted;
-        context.shadowColor = exportTheme.infoShadow;
+        context.fillStyle = infoTextMuted;
+        context.shadowColor = infoTextHalo;
         context.shadowBlur = 10;
         let itemY = startY;
         items.forEach((item) => {
           const secondaryName = item.secondaryName;
-          context.fillStyle = exportTheme.text;
+          context.fillStyle = infoTextColor;
           context.font = `650 ${state.characterCount === 5 ? 12 : 14}px \"Pretendard Variable\", sans-serif`;
           context.fillText(fitText(item.name, columnWidth - 24), centerX, itemY);
           if (secondaryName) {
-            context.fillStyle = exportTheme.muted;
+            context.fillStyle = infoTextMuted;
             context.font = `500 ${state.characterCount === 5 ? 8 : 10}px \"Pretendard Variable\", sans-serif`;
             context.fillText(fitText(secondaryName, columnWidth - 24), centerX, itemY + 14);
             itemY += 34;

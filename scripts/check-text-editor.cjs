@@ -9,7 +9,7 @@ const subtitle = "설원에서 포착한 파란빛 겨울 산책입니다. This 
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     await page.addInitScript(() => localStorage.clear());
-    await page.goto("http://localhost:4173/?text-editor-check=1");
+    await page.goto((process.env.TEST_BASE_URL || "http://localhost:4173") + "/?text-editor-check=1");
     await page.waitForSelector("#cardTitleInput");
 
     assert.equal(await page.locator("#cardTitleInput").inputValue(), "새로운 룩");

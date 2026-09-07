@@ -2538,6 +2538,26 @@
   scrollbar-gutter: stable;
 }
 
+/* Direction controls are still compact, but each arrow owns a real touch
+   target and follows the same rounded control language as the inspector. */
+.inspector .direction-pad {
+  grid-template-columns: repeat(3, 24px);
+  grid-template-rows: repeat(3, 24px);
+  gap: 3px;
+}
+
+.inspector .direction-pad button {
+  width: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  border-radius: 8px;
+}
+
+.inspector .direction-center {
+  margin: 7px;
+  border-radius: 50%;
+}
+
 .inspector::-webkit-scrollbar,
 .inspector .catalog-results::-webkit-scrollbar {
   width: 6px;

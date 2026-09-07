@@ -537,6 +537,17 @@ body.image-placement-mode .character-image-actions {
   color: var(--recipe-ink);
 }
 
+/* Silhouette copy follows the card surface: neutral black on light surfaces,
+   white on dark surfaces. The restrained inverse halo keeps either choice
+   readable when the text crosses the dark cutout itself. */
+.canvas-board[data-style][data-info="true"][data-info-mode="silhouette"] .multi-info-column {
+  color: var(--silhouette-info-color, var(--recipe-ink));
+  text-shadow: 0 1px 8px var(--silhouette-info-halo, rgb(255 255 255 / .9));
+}
+.canvas-board[data-style][data-info="true"][data-info-mode="silhouette"] .multi-info-items small {
+  color: var(--silhouette-info-muted, currentColor);
+}
+
 /* Material 3 state treatment, kept in the app's neutral visual language. */
 .compact-segments {
   gap: 2px;
