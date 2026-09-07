@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://ff14-glamour-maker2.pages.dev/sitemap.xml

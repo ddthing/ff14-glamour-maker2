@@ -23,7 +23,7 @@ if (configuredOutput && output !== root && !output.startsWith(`${root}${path.sep
 if (configuredOutput) fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(output, { recursive: true });
 
-for (const entry of ['index.html', 'app.js', 'styles.css', 'styles', 'assets', 'functions', 'models']) {
+for (const entry of ['index.html', 'app.js', 'styles.css', 'styles', 'assets', 'functions', 'models', 'robots.txt', 'sitemap.xml']) {
   fs.cpSync(path.join(root, entry), path.join(output, entry), { recursive: true });
 }
 const html = fs.readFileSync(path.join(output, 'index.html'), 'utf8');
