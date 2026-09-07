@@ -49,7 +49,7 @@ function ensureCharacterImageState(character) {
 function defaultLookEditor() {
   return { characters: createEmptyCharacters(), characterCount: 1, selectedCharacter: 0,
     singleRatio: "portrait", singleLayout: "info-left", multiInfoEnabled: true,
-    multiInfoMode: "fade", infoDensity: "summary", shadow: { strength: 20, x: 8, y: 12, blur: 24 } };
+    multiInfoMode: "clear", shadow: { strength: 20, x: 8, y: 12, blur: 24 } };
 }
 
 function captureLookEditor(state) {
@@ -67,7 +67,7 @@ function normaliseLookEditor(value = {}) {
   const editor = defaultLookEditor();
   editor.characterCount = clamp(value.characterCount, 1, 5, 1) | 0;
   editor.selectedCharacter = clamp(value.selectedCharacter, 0, editor.characterCount - 1, 0) | 0;
-  for (const [key, allowed] of Object.entries({singleRatio:["portrait", "landscape"], singleLayout:["info-left", "info-right"], multiInfoMode:["fade", "silhouette"], infoDensity:["summary", "full"]})) {
+  for (const [key, allowed] of Object.entries({singleRatio:["portrait", "landscape"], singleLayout:["info-left", "info-right"], multiInfoMode:["clear", "fade", "silhouette"]})) {
     if (allowed.includes(value[key])) editor[key] = value[key];
   }
   if (typeof value.multiInfoEnabled === "boolean") editor.multiInfoEnabled = value.multiInfoEnabled;

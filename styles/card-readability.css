@@ -229,6 +229,81 @@ body.canvas-focus-mode .canvas-board[data-ratio="portrait"] {
   touch-action: none;
 }
 
+/* The preview is an editing surface, not just a passive output. Keep the
+   empty state centered and place its photo actions beside the selected
+   figure, while keeping them out of placement-mode drag interactions. */
+.portrait-wrap .character-slot {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  flex: 1 1 0;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.portrait-wrap .character-slot .character-figure {
+  width: 100%;
+  flex: 1 1 auto;
+  align-items: center;
+}
+
+.character-image-actions {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 30;
+  display: flex;
+  gap: 6px;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.character-slot.is-selected .character-image-actions,
+.character-slot:hover .character-image-actions,
+.character-slot:focus-within .character-image-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.character-image-action {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in oklch, var(--recipe-ink, var(--foreground)) 28%, transparent);
+  border-radius: 999px;
+  color: var(--recipe-ink, var(--foreground));
+  background: color-mix(in oklch, var(--recipe-panel, var(--card)) 94%, transparent);
+  box-shadow: 0 8px 18px color-mix(in oklch, var(--recipe-shadow, rgb(0 0 0 / .12)) 90%, transparent);
+  font: 700 10px/1 var(--sans);
+  white-space: nowrap;
+}
+
+.character-image-action:hover {
+  border-color: var(--primary);
+  background: var(--recipe-panel, var(--card));
+  transform: translateY(-1px);
+}
+
+.character-image-action:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+.character-image-action--remove {
+  color: color-mix(in oklch, var(--recipe-ink, var(--foreground)) 82%, #8a3f48);
+}
+
+body.image-placement-mode .character-image-actions {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .character-image-actions,
+  .character-image-action { transition: none; }
+}
+
 .character-empty-placeholder {
   position: relative;
   overflow: hidden;
@@ -660,4 +735,72 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
   color: var(--card-subtitle-color, var(--recipe-ink, currentColor)) !important;
   opacity: var(--card-subtitle-opacity, .68);
   text-align: var(--card-title-align, left) !important;
+}
+
+/* Alignment belongs to the rendered card layer, not the textarea. Give the
+   title block a real local width so left/center/right changes are visible
+   even when the current title is short. Both preview and PNG use this layer. */
+.canvas-board .board-editorial-header .board-title-block {
+  align-items: stretch;
+  text-align: var(--card-title-align, left);
+}
+
+.canvas-board .board-editorial-header .board-title-block > strong,
+.canvas-board .board-editorial-header .caption-description {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  text-align: inherit;
+}
+
+/* In a solo portrait, a removed-background subject is the hero and may
+   overlap an item note. Keep the title above both, the cutout above notes,
+   and the notes above only the ordinary/full-frame image. */
+.canvas-board[data-ratio="portrait"][data-cast="1"][data-cutout="true"] .board-editorial-header {
+  z-index: 16 !important;
+}
+
+.canvas-board[data-ratio="portrait"][data-cast="1"][data-cutout="true"] .portrait-wrap {
+  z-index: 15 !important;
+}
+
+.canvas-board[data-ratio="portrait"][data-cast="1"][data-cutout="true"] .board-gear-list {
+  z-index: 14 !important;
+}
+
+/* Preview/export parity contract. CardLayout supplies the absolute frame
+   inset; these final rules remove legacy flex margins and make each live
+   image use exactly the same frame that CardPng receives. */
+.canvas-board .portrait-wrap {
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.canvas-board .portrait-wrap .character-slot {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+}
+
+.canvas-board .portrait-wrap .character-slot .character-figure {
+  width: 100%;
+  min-width: 0;
+  margin-inline: 0 !important;
+  flex: 1 1 auto;
+  align-items: stretch;
+}
+
+.canvas-board .portrait-wrap .character-slot .character-figure[data-cutout="false"] {
+  overflow: hidden !important;
+}
+
+.canvas-board .portrait-wrap .character-slot .character-figure[data-cutout="true"] {
+  overflow: visible !important;
+}
+
+.canvas-board .portrait-wrap .character-slot .character-figure img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
 }

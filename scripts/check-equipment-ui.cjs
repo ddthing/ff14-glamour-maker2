@@ -1,6 +1,11 @@
 const assert = require("node:assert/strict");
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
 
+const fixturePng = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=",
+  "base64",
+);
+
 (async () => {
   const browser = await chromium.launch({ headless: true, channel: "msedge" });
   try {
@@ -44,6 +49,12 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.equal(initial.rows.filter(({ pressed }) => pressed === "true").length, 1, "slot selection is ambiguous");
     assert.equal(initial.overflow, false, "equipment panel introduces horizontal overflow");
 
+    await page.route("https://xivapi.com/i/**", (route) => route.fulfill({
+      status: 200,
+      contentType: "image/png",
+      body: fixturePng,
+    }));
+
     let releaseSearch;
     const searchPending = new Promise((resolve) => { releaseSearch = resolve; });
     await page.route("**/api/items/search*", async (route) => {
@@ -72,8 +83,17 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.equal(await page.locator(".catalog-progress").evaluate((element) => getComputedStyle(element).animationName), "none", "catalog motion ignores reduced-motion");
     releaseSearch();
     await page.waitForSelector('.catalog-result[data-item-id="9000001"]');
-    const catalogImage = await page.locator('.catalog-result[data-item-id="9000001"] .item-image').getAttribute("src");
-    assert.equal(catalogImage, "https://xivapi.com/i/9000/9000001.png", "catalog results should use the item image when one is available");
+    await page.waitForFunction(() => document.querySelector('.catalog-result[data-item-id="9000001"] .item-image')?.naturalWidth > 0);
+    const catalogImage = await page.locator('.catalog-result[data-item-id="9000001"] .item-image').evaluate((image) => ({
+      src: image.getAttribute("src"),
+      loading: image.getAttribute("loading"),
+      naturalWidth: image.naturalWidth,
+      fallback: image.closest(".catalog-result-icon")?.classList.contains("is-image-fallback"),
+    }));
+    assert.equal(catalogImage.src, "https://xivapi.com/i/9000/9000001.png", "catalog results should use the item image when one is available");
+    assert.equal(catalogImage.loading, "eager", "visible catalog item images must not be deferred behind the scroll container");
+    assert.ok(catalogImage.naturalWidth > 0, `catalog item image did not load: ${JSON.stringify(catalogImage)}`);
+    assert.equal(catalogImage.fallback, false, "a loaded item image must not expose the slot glyph fallback");
     await page.unroute("**/api/items/search*");
 
     await page.locator('.catalog-result[data-item-id="9000001"]').click();
@@ -83,16 +103,22 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     });
     assert.equal(savedCatalogSize, 1, "localStorage should retain only catalog records referenced by outfits");
 
+    await page.waitForFunction(() => document.querySelector('.equipment-row[data-slot="head"] .item-image')?.naturalWidth > 0);
     const linked = await page.evaluate(() => {
       const row = document.querySelector('.equipment-row[data-slot="head"]');
+      const image = row?.querySelector(".item-image");
       return {
-        image: row?.querySelector(".item-image")?.getAttribute("src") || "",
+        image: image?.getAttribute("src") || "",
+        naturalWidth: image?.naturalWidth || 0,
+        fallback: row?.querySelector(".equipment-icon")?.classList.contains("is-image-fallback") || false,
         removeCount: document.querySelectorAll('.equipment-remove[data-remove-slot="head"]').length,
         removeLabel: document.querySelector('.equipment-remove[data-remove-slot="head"]')?.getAttribute("aria-label") || "",
         cardItemImages: document.querySelectorAll('#canvasBoard img[src*="xivapi.com"]').length,
       };
     });
     assert.equal(linked.image, "https://xivapi.com/i/9000/9000001.png", "assigned equipment should show the item image");
+    assert.ok(linked.naturalWidth > 0, `assigned equipment image did not load: ${JSON.stringify(linked)}`);
+    assert.equal(linked.fallback, false, "assigned equipment should not show the slot glyph when its image loaded");
     assert.equal(linked.removeCount, 1, "assigned equipment should expose a remove button");
     assert.match(linked.removeLabel, /제거/, "remove button should describe the destructive action");
     assert.equal(linked.cardItemImages, 0, "item images must stay out of the composition card");

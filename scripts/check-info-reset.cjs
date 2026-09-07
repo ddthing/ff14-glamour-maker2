@@ -40,18 +40,26 @@ async function indexedAssetCount(page) {
     await page.locator('[data-cast-count="3"]').click();
     await page.waitForSelector("#multiCardControls:not([hidden])");
     assert.equal(await page.locator("#castSelectionSummary").textContent(), "캐릭터 01 · 3인");
+    assert.equal(await page.locator("#canvasBoard").getAttribute("data-info-mode"), "clear");
+    assert.equal(await page.locator("#multiCardControls #multiInfoToggle").count(), 0, "card information visibility should not be mixed into lineup expression");
+    assert.equal(await page.locator("#cardStyleSection #multiInfoToggle").count(), 1, "card information visibility should live in card settings");
+    assert.equal(await page.locator("[data-info-density]").count(), 0, "summary/full information density control should be removed");
     assert.equal(await page.locator("button[data-info-mode=silhouette]").isDisabled(), true);
     assert.match(await page.locator("#infoModeHint").textContent(), /모든 캐릭터.*배경 제거/);
+
+    await page.locator("#cardStyleSection .card-display-switch").click();
+    assert.equal(await page.locator("#canvasBoard").getAttribute("data-info"), "false");
+    await page.locator("#cardStyleSection .card-display-switch").click();
+    assert.equal(await page.locator("#canvasBoard").getAttribute("data-info"), "true");
 
     await page.locator("#cardTitleInput").fill("사용자 제목");
     await page.locator("#cardSubtitleInput").fill("사용자 설명");
     await page.locator("[data-pattern=stars]").click();
-    await page.locator("[data-info-density=full]").click();
     await page.locator("#resetButton").click();
     assert.equal(await page.locator("#resetButton").getAttribute("aria-expanded"), "true");
     await page.locator("#resetStylesButton").click();
     assert.equal(await page.locator("#canvasBoard").getAttribute("data-background-pattern"), "none");
-    assert.equal(await page.locator("[data-info-density=summary]").getAttribute("aria-pressed"), "true");
+    assert.equal(await page.locator("#canvasBoard").getAttribute("data-info-mode"), "clear");
     assert.equal(await page.locator("#boardTitle").textContent(), "사용자 제목");
     assert.equal(await page.locator("#boardSubtitle").textContent(), "사용자 설명");
     assert.equal(await page.locator("#resetButton").evaluate((element) => document.activeElement === element), true);
@@ -77,15 +85,13 @@ async function indexedAssetCount(page) {
     await page.locator("#cardSubtitleInput").fill("초기화 전 설명");
     await page.locator('[data-cast-count="5"]').click();
     await page.locator("[data-pattern=stars]").click();
-    await page.locator("[data-info-density=full]").click();
     await page.locator("#resetButton").click();
     await page.locator("#resetCardButton").click();
     assert.equal(await page.locator("#canvasBoard").getAttribute("data-cast"), "1");
     assert.equal(await page.locator("#boardTitle").textContent(), "새로운 룩");
     assert.equal(await page.locator("#boardSubtitle").textContent(), "");
     assert.equal(await page.locator("#canvasBoard").getAttribute("data-background-pattern"), "none");
-    assert.equal(await page.locator("[data-info-density=summary]").getAttribute("aria-pressed"), "true");
-    assert.equal(await page.locator("#canvasBoard").getAttribute("data-info-mode"), "fade");
+    assert.equal(await page.locator("#canvasBoard").getAttribute("data-info-mode"), "clear");
     assert.equal(await page.locator("#imageState").getAttribute("data-state"), "empty");
     assert.ok(await indexedAssetCount(page) >= 3, "undo must retain referenced images until the history is released");
     assert.equal(await page.locator("#undoButton").getAttribute("aria-disabled"), "false");

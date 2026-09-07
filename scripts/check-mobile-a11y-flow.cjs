@@ -44,7 +44,7 @@ async function mobileLayout(page) {
       page.locator(".character-figure.is-empty").click(),
     ]);
     assert.equal(emptySlotChooser.isMultiple(), true, "empty canvas slot should open the multi-image picker");
-    assert.equal(await page.locator(".character-empty-placeholder strong").textContent(), "이미지 슬롯", "empty canvas slot should use a quiet preview label");
+    assert.equal(await page.locator(".character-empty-placeholder strong").textContent(), "사진 추가", "empty canvas slot should expose a direct photo action");
 
     // LOOK BOOK is intentionally collapsed on first visit. Open the rail
     // surface before checking its touch search affordance.
@@ -97,7 +97,9 @@ async function mobileLayout(page) {
     await page.locator('[data-cast-count="3"]').click();
     await page.locator("#multiCardControls").scrollIntoViewIfNeeded();
     assert.equal(await page.locator("#multiCardControls").isVisible(), true, "lineup controls are visible on mobile");
-    assert.equal(await page.locator('button[data-info-mode="fade"]').getAttribute("aria-pressed"), "true");
+    assert.equal(await page.locator('button[data-info-mode="clear"]').getAttribute("aria-pressed"), "true");
+    assert.equal(await page.locator("#multiCardControls #multiInfoToggle").count(), 0, "card information visibility should stay out of lineup expression");
+    assert.equal(await page.locator("#cardStyleSection #multiInfoToggle").count(), 1, "card information visibility should be discoverable in card settings");
     assert.equal(await page.locator('button[data-info-mode="silhouette"]').isDisabled(), true, "silhouette stays disabled before cutouts");
     assert.match(await page.locator("#infoModeHint").textContent(), /모든 캐릭터의 배경 제거/);
 

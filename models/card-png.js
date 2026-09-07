@@ -124,6 +124,12 @@ function drawExportBackground(context, width, height, background) {
 async function render({ state, dimensions, exportTheme, background, patternStars, images, copyLayout, gear, outlineColor }) {
   const activeCharacters = state.characters.slice(0, state.characterCount);
   const isPortrait = dimensions.layoutHeight > dimensions.layoutWidth;
+    const characterFrames = CardLayout.characterFrames({
+      characterCount: state.characterCount,
+      singleRatio: isPortrait ? "portrait" : "landscape",
+      singleLayout: state.singleLayout,
+      characters: activeCharacters,
+    });
     const { layoutWidth, layoutHeight, exportWidth, exportHeight } = dimensions;
     const outputScale = 2;
     const canvas = document.createElement("canvas");
@@ -147,17 +153,17 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       const imageWidth = image.naturalWidth * scale;
       const imageHeight = image.naturalHeight * scale;
       const imageX = x + (width - imageWidth) / 2 + placement.panX * 2;
-      const imageY = placement.imageFit === "cover"
-        ? y + (height - imageHeight) / 2 + placement.panY * 2
-        : y + height - imageHeight + placement.panY * 2;
+      const imageY = y + (height - imageHeight) / 2 + placement.panY * 2;
       context.drawImage(image, imageX, imageY, imageWidth, imageHeight);
     };
     const drawCharacter = (image, character, x, y, width, height) => {
       context.save();
       const informationMode = state.characterCount >= 3 && state.multiInfoEnabled;
-      if (informationMode) {
-        context.globalAlpha = state.multiInfoMode === "silhouette" && character.cutout ? 0.72 : 0.48;
-        context.filter = state.multiInfoMode === "silhouette" && character.cutout
+      const silhouetteMode = informationMode && state.multiInfoMode === "silhouette" && character.cutout;
+      const fadeMode = informationMode && state.multiInfoMode === "fade";
+      if (silhouetteMode || fadeMode) {
+        context.globalAlpha = silhouetteMode ? 0.72 : 0.48;
+        context.filter = silhouetteMode
           ? "brightness(0)"
           : "grayscale(82%) saturate(35%) contrast(86%) brightness(108%)";
       }
@@ -181,9 +187,11 @@ async function render({ state, dimensions, exportTheme, background, patternStars
         ? y + (height - imageH) / 2 + placement.panY * 2
         : y + height - imageH + placement.panY * 2;
       const outline = state.outline.width * 2;
-      const characterTreatment = informationMode
-        ? state.multiInfoMode === "silhouette" ? "brightness(0)" : "grayscale(82%) saturate(35%) contrast(86%) brightness(108%)"
-        : "";
+      const characterTreatment = silhouetteMode
+        ? "brightness(0)"
+        : fadeMode
+          ? "grayscale(82%) saturate(35%) contrast(86%) brightness(108%)"
+          : "";
       context.filter = `${outline ? `drop-shadow(${outline}px 0 0 ${outlineColor}) drop-shadow(-${outline}px 0 0 ${outlineColor})` : ""} drop-shadow(${state.shadow.x * 2}px ${state.shadow.y * 2}px ${state.shadow.blur * 2}px rgba(10,11,18,${state.shadow.strength / 100})) ${characterTreatment}`.trim();
       context.drawImage(image, imageX, imageY, imageW, imageH);
       context.restore();
@@ -255,26 +263,9 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       });
     };
 
-    const isLineup = state.characterCount >= 3;
-    const hasFullFrameSource = activeCharacters.some((character) => !character.cutout);
-    const figureTop = isLineup && hasFullFrameSource ? 0 : 142;
-    const figureBottom = isLineup
-      ? hasFullFrameSource ? layoutHeight : layoutHeight - 14
-      : 640;
-    if (state.characterCount === 1) {
-      if (isPortrait) {
-        drawCharacter(images[0], activeCharacters[0], 95, 150, 890, 1180);
-      } else {
-        const characterX = state.singleLayout === "info-right" ? 18 : 362;
-        drawCharacter(images[0], activeCharacters[0], characterX, 108, 820, 532);
-      }
-    } else if (state.characterCount === 2) {
-      drawCharacter(images[0], activeCharacters[0], 210, figureTop, 390, figureBottom - figureTop);
-      drawCharacter(images[1], activeCharacters[1], 600, figureTop, 390, figureBottom - figureTop);
-    } else {
-      const lineupWidth = layoutWidth / state.characterCount;
-      images.forEach((image, index) => drawCharacter(image, activeCharacters[index], lineupWidth * index, figureTop, lineupWidth, figureBottom - figureTop));
-    }
+    characterFrames.forEach((frame, index) => {
+      drawCharacter(images[index], activeCharacters[index], frame.x, frame.y, frame.width, frame.height);
+    });
 
     context.fillStyle = "rgba(255,255,255,.2)";
     for (let index = 0; index < layoutWidth; index += 27) {
@@ -313,14 +304,13 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       context.textAlign = "center";
       activeCharacters.forEach((character, characterIndex) => {
         const items = gear[characterIndex] || [];
-        const shownItems = state.infoDensity === "summary" ? items.slice(0, 3) : items;
         const centerX = columnWidth * characterIndex + columnWidth / 2;
-        const startY = state.infoDensity === "summary" ? 274 : 242;
+        const startY = 242;
         context.fillStyle = exportTheme.muted;
         context.shadowColor = exportTheme.infoShadow;
         context.shadowBlur = 10;
         let itemY = startY;
-        shownItems.forEach((item) => {
+        items.forEach((item) => {
           const secondaryName = item.secondaryName;
           context.fillStyle = exportTheme.text;
           context.font = `650 ${state.characterCount === 5 ? 12 : 14}px \"Pretendard Variable\", sans-serif`;
@@ -334,11 +324,6 @@ async function render({ state, dimensions, exportTheme, background, patternStars
             itemY += 23;
           }
         });
-        if (state.infoDensity === "summary" && items.length > 3) {
-          context.fillStyle = exportTheme.muted;
-          context.font = "600 10px Consolas, monospace";
-          context.fillText(`+${items.length - 3} ITEMS`, centerX, itemY + 3);
-        }
       });
       context.shadowColor = "transparent";
       context.shadowBlur = 0;

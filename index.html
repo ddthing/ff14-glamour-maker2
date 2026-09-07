@@ -25,10 +25,10 @@
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
       />
     </noscript>
-    <link rel="stylesheet" href="styles.css?v=20260906-lookbook-1" />
-    <link rel="stylesheet" href="styles/card-composer.css?v=20260906-lookbook-1" />
-    <link rel="stylesheet" href="styles/editor-controls.css?v=20260906-lookbook-1" />
-    <link rel="stylesheet" href="styles/card-readability.css?v=20260906-lookbook-1" />
+    <link rel="stylesheet" href="styles.css?v=20260907-parity-1" />
+    <link rel="stylesheet" href="styles/card-composer.css?v=20260907-parity-1" />
+    <link rel="stylesheet" href="styles/editor-controls.css?v=20260907-parity-1" />
+    <link rel="stylesheet" href="styles/card-readability.css?v=20260907-parity-1" />
   </head>
   <body>
     <a class="skip-link" href="#canvas">편집 영역으로 건너뛰기</a>
@@ -171,12 +171,10 @@
 
               <section class="inspector-section card-compose-section multi-info-section" id="multiCardControls" aria-labelledby="multiCardControlsTitle">
                 <div class="panel-section-head">
-                  <div class="panel-section-head-copy"><span class="panel-eyebrow">라인업</span><h2 id="multiCardControlsTitle">3~5인 정보</h2></div>
-                  <label class="compact-switch"><input id="multiInfoToggle" type="checkbox" checked /><span></span><b>정보 표시</b></label>
+                  <div class="panel-section-head-copy"><span class="panel-eyebrow">라인업</span><h2 id="multiCardControlsTitle">3~5인 이미지</h2></div>
                 </div>
-                <div class="compact-option-row"><span>표현</span><div class="compact-segments" id="infoModeControls" role="group" aria-label="정보 카드 표현" aria-describedby="infoModeHint"><button class="is-selected" data-info-mode="fade" type="button">흐림</button><button data-info-mode="silhouette" type="button">실루엣</button></div></div>
+                <div class="compact-option-row"><span>표현</span><div class="compact-segments" id="infoModeControls" role="group" aria-label="라인업 이미지 표현" aria-describedby="infoModeHint"><button class="is-selected" data-info-mode="clear" type="button">선명</button><button data-info-mode="fade" type="button">흐림</button><button data-info-mode="silhouette" type="button">실루엣</button></div></div>
                 <p class="compact-control-hint" id="infoModeHint">실루엣은 모든 캐릭터의 배경 제거가 끝나면 사용할 수 있어요.</p>
-                <div class="compact-option-row"><span>정보량</span><div class="compact-segments" role="group" aria-label="아이템 정보량"><button class="is-selected" data-info-density="summary" type="button">요약</button><button data-info-density="full" type="button">전체</button></div></div>
               </section>
 
               <section class="inspector-section portrait-section" id="imageSection">
@@ -187,7 +185,6 @@
                     <div class="source-thumb is-empty" id="sourceThumbFrame"><img id="sourceThumb" alt="사진 미선택" /></div>
                     <div class="source-copy"><strong id="sourceFileName" aria-live="polite">사진 미선택</strong><span id="sourceFileMeta" aria-live="polite">PNG · JPG · WebP · 여러 장 선택 가능</span></div>
                   </div>
-                  <button class="image-drop-zone" id="imageDropZone" type="button" aria-controls="imageInput"><span class="image-drop-icon" aria-hidden="true">＋</span><span><strong>사진 선택 또는 여기로 끌어오기</strong><small>PNG · JPG · WebP · 여러 장을 한 번에 추가할 수 있어요</small></span></button>
                 </div>
                 <div class="image-workflow-group image-placement-group" aria-labelledby="imagePlacementGroupTitle">
                   <div class="image-workflow-head"><span id="imagePlacementGroupTitle">프레임과 배치</span><small>카드에서 보이는 이미지 영역을 조정합니다</small></div>
@@ -226,26 +223,26 @@
                     <small class="copy-editor-count" id="cardSubtitleCount" aria-live="polite">0 / 160</small>
                   </label>
                 </div>
-                <p class="copy-editor-hint" id="copyEditorHint">캔버스의 문구를 클릭해도 편집할 수 있어요. 긴 문장은 여기에서 전체 내용을 확인하세요.</p>
+                <p class="copy-editor-hint" id="copyEditorHint">카드에서 문구를 직접 눌러도 편집할 수 있어요.</p>
                 <div class="copy-editor-style-grid">
                   <div class="copy-editor-style-field">
-                    <div class="copy-editor-typography-head"><span>제목 정렬</span><small>왼쪽 · 가운데 · 오른쪽</small></div>
-                    <div class="compact-segments title-alignment-controls" id="titleAlignmentControls" role="radiogroup" aria-label="제목 정렬">
+                    <div class="copy-editor-typography-head"><span>카드 제목 정렬</span><small>미리보기 · PNG</small></div>
+                    <div class="compact-segments title-alignment-controls" id="titleAlignmentControls" role="radiogroup" aria-label="카드 제목 정렬">
                       <button data-title-align="left" type="button" role="radio" aria-checked="false">왼쪽</button>
                       <button data-title-align="center" type="button" role="radio" aria-checked="false">가운데</button>
                       <button data-title-align="right" type="button" role="radio" aria-checked="false">오른쪽</button>
                     </div>
                   </div>
                   <div class="copy-editor-style-field">
-                    <div class="copy-editor-typography-head"><span>설명 색상</span><small>자동 또는 직접 선택</small></div>
+                    <div class="copy-editor-typography-head"><span>설명 색상</span><small>자동 · 직접 선택</small></div>
                     <div class="copy-editor-color-row">
-                      <input id="subtitleColorInput" type="color" value="#263238" aria-label="설명 텍스트 색상" />
+                      <label class="inspector-color-picker copy-editor-color-picker" for="subtitleColorInput"><input id="subtitleColorInput" type="color" value="#263238" aria-label="설명 텍스트 색상" /><span>직접 선택</span></label>
                       <button class="copy-editor-color-reset" id="subtitleColorAutoButton" type="button">자동</button>
                     </div>
                   </div>
                 </div>
                 <div class="copy-editor-typography title-font-option-row" aria-labelledby="copyTypographyTitle">
-                  <div class="copy-editor-typography-head"><span id="copyTypographyTitle">제목 서체</span><small>제목에만 적용</small></div>
+                  <div class="copy-editor-typography-head"><span id="copyTypographyTitle">제목 서체</span><small>카드 제목만</small></div>
                   <div class="title-font-control"><select id="titleFontSelect" aria-label="카드 제목 글꼴"></select><div class="title-weight-row" id="titleWeightRow"><span class="title-weight-label">굵기</span><div class="title-weight-options" id="titleWeightOptions" role="radiogroup" aria-label="제목 굵기"></div></div></div>
                 </div>
                 <div class="copy-editor-title-outline" aria-labelledby="titleOutlineTitle">
@@ -256,14 +253,18 @@
                       <button class="title-outline-swatch" data-title-outline-color="#263238" style="--swatch:#263238" type="button" role="radio" aria-checked="false" aria-label="먹색"></button>
                       <button class="title-outline-swatch" data-title-outline-color="#b9d4d5" style="--swatch:#b9d4d5" type="button" role="radio" aria-checked="false" aria-label="미스트 블루"></button>
                     </div>
-                    <label class="title-outline-color-picker" for="titleOutlineColorInput"><span>직접 선택</span><input id="titleOutlineColorInput" type="color" value="#ffffff" aria-label="제목 외곽선 직접 선택" /></label>
-                    <label class="title-outline-range" for="titleOutlineRange"><span class="sr-only">제목 외곽선 두께</span><input id="titleOutlineRange" type="range" min="0" max="6" value="0" step="1" aria-label="제목 외곽선 두께" /></label>
+                    <label class="inspector-color-picker title-outline-color-picker" for="titleOutlineColorInput"><input id="titleOutlineColorInput" type="color" value="#ffffff" aria-label="제목 외곽선 직접 선택" /><span>직접 선택</span></label>
+                    <label class="title-outline-range" for="titleOutlineRange"><span>두께</span><input id="titleOutlineRange" type="range" min="0" max="6" value="0" step="1" aria-label="제목 외곽선 두께" /></label>
                   </div>
                 </div>
               </section>
 
               <section class="inspector-section card-compose-section card-style-section" id="cardStyleSection">
                 <div class="panel-section-head"><h2>카드 설정</h2><span class="style-current-label" id="backgroundCurrentLabel" aria-live="polite">종이 · 패턴 없음 · 질감 없음</span></div>
+                <div class="card-display-control" id="cardDisplaySetting">
+                  <div class="card-display-copy"><span>장비 정보</span><small>3인 이상 카드에 아이템 이름을 모두 표시합니다.</small></div>
+                  <label class="compact-switch card-display-switch"><input id="multiInfoToggle" type="checkbox" checked aria-label="카드에 장비 정보 표시" /><span></span><b>표시</b></label>
+                </div>
                 <div class="compact-option-row" id="singleRatioRow"><span>1인 비율</span><div class="compact-segments" role="group" aria-label="1인 카드 비율"><button class="is-selected" data-single-ratio="portrait" type="button">세로 4:5</button><button data-single-ratio="landscape" type="button">가로 16:9</button></div></div>
                 <div class="compact-option-row" id="singleLayoutRow"><span>1인 배치</span><div class="compact-segments" role="group" aria-label="1인 카드 배치"><button class="is-selected" data-single-layout="info-left" type="button">정보 왼쪽</button><button data-single-layout="info-right" type="button">정보 오른쪽</button></div></div>
                 <div class="background-art-panel" id="backgroundArtPanel">
@@ -400,11 +401,12 @@
     <script src="models/look-book.js?v=20260906-management-1"></script>
     <script src="models/image-assets.js?v=20260906-storage-1"></script>
     <script src="models/item-search.js?v=20260906-search-1"></script>
-    <script src="models/card-png.js?v=20260906-export-1"></script>
+    <script src="models/card-layout.js?v=20260907-parity-1"></script>
+    <script src="models/card-png.js?v=20260907-parity-1"></script>
     <script src="models/editor-navigation.js?v=20260906-navigation-1"></script>
     <script src="models/background-presets.js?v=20260907-background-presets-1"></script>
     <script src="models/title-typography.js?v=20260907-typography-1"></script>
     <script src="models/background-removal.js?v=20260907-browser-birefnet-3"></script>
-    <script src="app.js?v=20260906-redesign-1"></script>
+    <script src="app.js?v=20260907-parity-1"></script>
   </body>
 </html>

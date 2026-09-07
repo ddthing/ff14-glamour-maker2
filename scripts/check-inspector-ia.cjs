@@ -29,7 +29,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
       group.querySelector("#shadowAdvancedSection")?.id,
     ].filter(Boolean)));
     assert.deepEqual(imageWorkflow, [
-      ["portraitSourceCard", "imageDropZone"],
+      ["portraitSourceCard"],
       ["contain", "cover", "image-transform-row image-placement-launch-row"],
       ["cutoutButton", "styleAdvancedToggle", "outlineAdvancedSection", "shadowAdvancedSection"],
     ], "image workflow controls should stay local to their task group");
@@ -42,20 +42,24 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     const desktop = await page.evaluate(() => {
       const inspector = document.querySelector(".inspector").getBoundingClientRect();
       const summary = document.querySelector("#castSelectionSummary").getBoundingClientRect();
-      const dropZone = document.querySelector("#imageDropZone").getBoundingClientRect();
+      const previewAction = document.querySelector("#portraitWrap .character-figure.is-empty").getBoundingClientRect();
       const controls = [...document.querySelectorAll("#imageSection button")]
         .filter((button) => !button.closest("[hidden]") && getComputedStyle(button).display !== "none")
         .map((button) => Math.round(button.getBoundingClientRect().height));
       return {
         inspectorWidth: Math.round(inspector.width),
         summaryWidth: Math.round(summary.width),
-        dropZoneHeight: Math.round(dropZone.height),
+        previewActionWidth: Math.round(previewAction.width),
+        previewActionHeight: Math.round(previewAction.height),
+        bottomUploadTargetPresent: Boolean(document.querySelector("#imageDropZone")),
         controls,
         overflow: document.documentElement.scrollWidth > innerWidth + 1,
       };
     });
     assert.ok(desktop.summaryWidth >= 80, `selection summary is too narrow: ${desktop.summaryWidth}`);
-    assert.ok(desktop.dropZoneHeight >= 52, `image add target is too short: ${desktop.dropZoneHeight}`);
+    assert.ok(desktop.previewActionWidth >= 160, `preview image add target is too narrow: ${desktop.previewActionWidth}`);
+    assert.ok(desktop.previewActionHeight >= 52, `preview image add target is too short: ${desktop.previewActionHeight}`);
+    assert.equal(desktop.bottomUploadTargetPresent, false, "photo import should live on the preview, not a duplicate bottom target");
     assert.ok(desktop.controls.every((height) => height >= 32), `image control below 32px: ${desktop.controls}`);
     assert.equal(desktop.overflow, false, "inspector should not introduce horizontal overflow");
     await page.screenshot({ path: "artifacts/ui-inspector-ia-after.png", fullPage: false });

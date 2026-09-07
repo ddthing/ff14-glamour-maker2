@@ -724,7 +724,7 @@ const server = http.createServer(async (request, response) => {
   try { requestPath = decodeURIComponent((request.url || "/").split("?")[0]); }
   catch { sendJson(response, 400, { error: "올바르지 않은 요청 주소입니다." }); return; }
   const relativePath = requestPath === "/" ? "index.html" : requestPath.replace(/^\/+/, "");
-  const publicFile = ["index.html", "app.js", "styles.css", "models/look-editor.js", "models/look-book.js", "models/image-assets.js", "models/item-search.js", "models/card-png.js", "models/editor-navigation.js", "models/background-presets.js", "models/title-typography.js", "models/background-removal.js"].includes(relativePath)
+  const publicFile = ["index.html", "app.js", "styles.css", "models/look-editor.js", "models/look-book.js", "models/image-assets.js", "models/item-search.js", "models/card-layout.js", "models/card-png.js", "models/editor-navigation.js", "models/background-presets.js", "models/title-typography.js", "models/background-removal.js"].includes(relativePath)
     || /^(styles\/[^/]+\.css|assets\/(data|fonts|icons)\/[^/]+\.(json|ttf|woff2?|svg))$/.test(relativePath);
   const filePath = path.resolve(root, relativePath);
   const isInsideRoot = filePath === root || filePath.startsWith(`${root}${path.sep}`);

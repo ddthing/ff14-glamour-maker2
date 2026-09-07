@@ -480,8 +480,7 @@ const state = {
   characters: createEmptyCharacters(),
   background: "paper",
   multiInfoEnabled: true,
-  multiInfoMode: "fade",
-  infoDensity: "summary",
+  multiInfoMode: "clear",
   titleFont: defaultTitleFont,
   titleWeight: defaultTitleWeight,
   titleAlign: "auto",
@@ -777,7 +776,7 @@ function getItemImageUrl(item) {
   if (!value) return "";
   try {
     const url = new URL(value, window.location.origin);
-    if (url.protocol !== "https:" || !["xivapi.com", "www.xivapi.com"].includes(url.hostname)) return "";
+    if (url.protocol !== "https:" || !["xivapi.com", "www.xivapi.com", "v2.xivapi.com"].includes(url.hostname)) return "";
     return url.href;
   } catch {
     return "";
@@ -787,13 +786,17 @@ function getItemImageUrl(item) {
 function renderItemImage(item, fallbackSlot = item?.slot) {
   const imageUrl = getItemImageUrl(item);
   if (!imageUrl) return renderEquipmentIcon(fallbackSlot);
-  return `<img class="item-image" src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async"><span class="item-image-fallback" aria-hidden="true">${renderEquipmentIcon(fallbackSlot)}</span>`;
+  return `<img class="item-image" src="${escapeHtml(imageUrl)}" alt="" loading="eager" decoding="async" referrerpolicy="no-referrer"><span class="item-image-fallback" aria-hidden="true">${renderEquipmentIcon(fallbackSlot)}</span>`;
 }
 
 function bindItemImageFallbacks(container) {
-  container.querySelectorAll("img.item-image").forEach((image) => image.addEventListener("error", () => {
-    image.closest(".equipment-icon, .catalog-result-icon")?.classList.add("is-image-fallback");
-  }, { once: true }));
+  container.querySelectorAll("img.item-image").forEach((image) => {
+    const markFallback = () => image.closest(".equipment-icon, .catalog-result-icon")?.classList.add("is-image-fallback");
+    image.addEventListener("error", markFallback, { once: true });
+    // A cached failure can complete before the listener is attached after a
+    // catalog re-render. Only then expose the slot glyph as a real fallback.
+    if (image.complete && image.naturalWidth === 0) markFallback();
+  });
 }
 
 function renderCatalogIcon(item) {
@@ -818,7 +821,7 @@ function resolveCharacterAsset(character, role = "hero") {
 }
 
 function getCanvasRatio() {
-  return state.characterCount === 1 && state.singleRatio === "portrait" ? "portrait" : "landscape";
+  return CardLayout.ratioFor(state.characterCount, state.singleRatio);
 }
 
 function getBackgroundSurfaceCss(background) {
@@ -845,9 +848,7 @@ function restoreBackgroundStyle(pattern, legacyMotif = "none", texture = "none")
 }
 
 function getExportDimensions() {
-  return getCanvasRatio() === "portrait"
-    ? { layoutWidth: 1080, layoutHeight: 1350, exportWidth: 2160, exportHeight: 2700 }
-    : { layoutWidth: 1200, layoutHeight: 675, exportWidth: 2400, exportHeight: 1350 };
+  return CardLayout.dimensionsFor(state.characterCount, state.singleRatio);
 }
 
 function rgba(hex, alpha) {
@@ -1147,7 +1148,6 @@ function saveState() {
     catalogItems: getPersistedItemRecords(),
     multiInfoEnabled: state.multiInfoEnabled,
     multiInfoMode: state.multiInfoMode,
-    infoDensity: state.infoDensity,
     titleFont: state.titleFont,
     titleWeight: state.titleWeight,
     titleAlign: normaliseTitleAlign(state.titleAlign),
@@ -1206,7 +1206,6 @@ function createSnapshot() {
     outfits: cloneOutfits(getLookOutfits(look)),
     multiInfoEnabled: state.multiInfoEnabled,
     multiInfoMode: state.multiInfoMode,
-    infoDensity: state.infoDensity,
     titleFont: state.titleFont,
     titleWeight: state.titleWeight,
     titleAlign: normaliseTitleAlign(state.titleAlign),
@@ -1243,8 +1242,7 @@ function restoreSnapshot(snapshot) {
   if (Number.isInteger(snapshot.selectedCharacter)) state.selectedCharacter = Math.min(state.characterCount - 1, Math.max(0, snapshot.selectedCharacter));
   if (snapshot.activeSlot) state.activeSlot = snapshot.activeSlot;
   if (typeof snapshot.multiInfoEnabled === "boolean") state.multiInfoEnabled = snapshot.multiInfoEnabled;
-  if (snapshot.multiInfoMode) state.multiInfoMode = snapshot.multiInfoMode;
-  if (snapshot.infoDensity) state.infoDensity = snapshot.infoDensity;
+  if (["clear", "fade", "silhouette"].includes(snapshot.multiInfoMode)) state.multiInfoMode = snapshot.multiInfoMode;
   if (snapshot.titleFont && titleFonts[snapshot.titleFont]) state.titleFont = snapshot.titleFont;
   if (Number.isFinite(snapshot.titleWeight)) state.titleWeight = normaliseTitleWeight(state.titleFont, snapshot.titleWeight);
   state.titleAlign = normaliseTitleAlign(snapshot.titleAlign);
@@ -1419,6 +1417,9 @@ function syncCharacterSelectionUI() {
     button.classList.toggle("is-selected", selected);
     button.setAttribute("aria-pressed", String(selected));
   });
+  $$(".character-slot").forEach((slot) => {
+    slot.classList.toggle("is-selected", Number(slot.dataset.characterSlot) === state.selectedCharacter);
+  });
   $$('[data-character-select], [data-item-character]').forEach((button) => {
     const index = Number(button.dataset.characterSelect ?? button.dataset.itemCharacter);
     const selected = index === state.selectedCharacter;
@@ -1439,6 +1440,28 @@ function selectCharacter(index) {
   renderSourcePanel();
   renderEquipment();
   renderCatalog();
+}
+
+function openCharacterImagePicker(index) {
+  if (imageEditorOpen) return;
+  selectCharacter(index);
+  elements.imageInput?.click();
+}
+
+function removeCharacterImage(index = state.selectedCharacter) {
+  if (imageEditorOpen) return;
+  const targetIndex = Math.min(state.characterCount - 1, Math.max(0, Number(index) || 0));
+  const character = state.characters[targetIndex];
+  if (!resolveCharacterAsset(character, "source")) return;
+  selectCharacter(targetIndex);
+  recordHistory();
+  // Keep the previous asset in history so undo remains reversible. The normal
+  // cleanup pass can prune it once it is no longer reachable.
+  state.characters[targetIndex] = LookEditor.emptyCharacter();
+  syncSelectedCharacter();
+  renderAll();
+  saveState();
+  showToast(`캐릭터 ${String(targetIndex + 1).padStart(2, "0")} 사진을 제거했습니다. 되돌리기로 복원할 수 있어요.`);
 }
 
 // Replacing a selector must preserve the user's keyboard position, not focus body.
@@ -1473,9 +1496,12 @@ function renderCast() {
   replaceCharacterButtons(elements.portraitWrap, "data-character-index", state.characters.slice(0, state.characterCount).map((character, index) => {
     const source = resolveCharacterAsset(character, "hero");
     return `
-    <button class="character-figure${index === state.selectedCharacter ? " is-selected" : ""}${source ? "" : " is-empty"}" type="button" data-character-index="${index}" data-cutout="${Boolean(character.cutout)}" data-empty="${!source}" aria-pressed="${index === state.selectedCharacter}" aria-label="캐릭터 ${index + 1} ${source ? "선택" : "사진 선택"}">
-      ${source ? `<img src="${escapeHtml(source)}" alt="룩북 캐릭터 ${index + 1}" draggable="false" />` : `<span class="character-empty-placeholder" aria-hidden="true"><small class="character-empty-kicker">캐릭터 ${String(index + 1).padStart(2, "0")}</small><span class="character-empty-mark">＋</span><strong>이미지 슬롯</strong><small>사진을 배치할 영역</small></span>`}
-    </button>
+    <div class="character-slot${index === state.selectedCharacter ? " is-selected" : ""}${source ? "" : " is-empty"}" data-character-slot="${index}">
+      <button class="character-figure${index === state.selectedCharacter ? " is-selected" : ""}${source ? "" : " is-empty"}" type="button" data-character-index="${index}" data-cutout="${Boolean(character.cutout)}" data-empty="${!source}" aria-pressed="${index === state.selectedCharacter}" aria-label="캐릭터 ${index + 1} ${source ? "선택" : "사진 추가"}">
+        ${source ? `<img src="${escapeHtml(source)}" alt="룩북 캐릭터 ${index + 1}" draggable="false" />` : `<span class="character-empty-placeholder" aria-hidden="true"><small class="character-empty-kicker">캐릭터 ${String(index + 1).padStart(2, "0")}</small><span class="character-empty-mark">＋</span><strong>사진 추가</strong><small>카드에서 바로 선택</small></span>`}
+      </button>
+      ${source ? `<div class="character-image-actions" aria-label="캐릭터 ${index + 1} 사진 작업"><button class="character-image-action" data-character-image-action="change" data-character-image-action-index="${index}" type="button" aria-label="캐릭터 ${index + 1} 사진 변경">변경</button><button class="character-image-action character-image-action--remove" data-character-image-action="remove" data-character-image-action-index="${index}" type="button" aria-label="캐릭터 ${index + 1} 사진 제거">제거</button></div>` : ""}
+    </div>
   `;
   }).join(""));
   replaceCharacterButtons($("#castSelector"), "data-character-select", state.characters.slice(0, state.characterCount).map((character, index) => `
@@ -1497,6 +1523,12 @@ function renderCast() {
     button.setAttribute("aria-checked", String(selected));
     button.tabIndex = selected ? 0 : -1;
   });
+
+  $$('[data-character-image-action]').forEach((button) => button.addEventListener("click", () => {
+    const index = Number(button.dataset.characterImageActionIndex);
+    if (button.dataset.characterImageAction === "remove") removeCharacterImage(index);
+    else openCharacterImagePicker(index);
+  }));
 
   $$(".character-figure").forEach((button) => button.addEventListener("click", (event) => {
     const characterIndex = Number(button.dataset.characterIndex);
@@ -1595,14 +1627,13 @@ function renderMultiInfo() {
   elements.multiInfoLayer.hidden = !visible;
   elements.multiInfoLayer.innerHTML = visible ? state.characters.slice(0, state.characterCount).map((character, index) => {
     const items = getCharacterItemIds(index).map(getItem).filter(Boolean);
-    const shownItems = state.infoDensity === "summary" ? items.slice(0, 3) : items;
     const itemNames = items.map((item) => getItemName(item)).filter(Boolean);
     const accessibleItems = itemNames.length ? `: ${itemNames.join(", ")}` : "";
     return `<button class="multi-info-column${index === state.selectedCharacter ? " is-selected" : ""}" type="button" data-info-character="${index}" aria-label="${escapeHtml(`캐릭터 ${index + 1} 장비 편집${accessibleItems}`)}">
-      <span class="multi-info-items">${shownItems.map((item) => {
+      <span class="multi-info-items">${items.map((item) => {
         const secondaryName = getSecondaryItemName(item);
         return `<span class="multi-info-item"><span>${escapeHtml(getItemName(item))}</span>${secondaryName ? `<small>${escapeHtml(secondaryName)}</small>` : ""}</span>`;
-      }).join("")}${state.infoDensity === "summary" && items.length > 3 ? `<small class="multi-info-more">+${items.length - 3} ITEMS</small>` : ""}</span>
+      }).join("")}</span>
     </button>`;
   }).join("") : "";
   $$('[data-info-character]').forEach((button) => button.addEventListener("click", () => {
@@ -1649,7 +1680,8 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
   const cutoutCount = activeCharacters.filter((character) => character.cutout).length;
   const sourceMode = allCutout ? "cutout" : cutoutCount === 0 ? "original" : "mixed";
   const silhouetteReady = activeCharacters.length > 0 && allCutout;
-  if (!silhouetteReady && state.multiInfoMode === "silhouette") state.multiInfoMode = "fade";
+  if (!["clear", "fade", "silhouette"].includes(state.multiInfoMode)) state.multiInfoMode = "clear";
+  if (!silhouetteReady && state.multiInfoMode === "silhouette") state.multiInfoMode = "clear";
   const infoModeHint = $("#infoModeHint");
   if (infoModeHint) {
     infoModeHint.textContent = silhouetteReady
@@ -1667,6 +1699,17 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
   elements.board.dataset.style = "custom";
   elements.board.dataset.ratio = getCanvasRatio();
   elements.board.dataset.singleLayout = state.singleLayout;
+  const characterFrames = CardLayout.characterFrames({
+    characterCount: state.characterCount,
+    singleRatio: state.singleRatio,
+    singleLayout: state.singleLayout,
+    characters: activeCharacters,
+  });
+  elements.portraitWrap.style.setProperty(
+    "inset",
+    CardLayout.cssInsetFor(characterFrames, state.characterCount, state.singleRatio),
+    "important",
+  );
   const titleFontConfig = getTitleFontConfig(state.titleFont);
   elements.board.style.setProperty("--card-title-font", titleFontConfig.family);
   elements.board.style.setProperty("--card-title-weight", String(state.titleWeight));
@@ -1697,10 +1740,15 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
     const character = getCharacterImageState(activeCharacters[index]);
     const cutout = image.closest(".character-figure")?.dataset.cutout === "true";
     const baseFilter = cutout ? `${outlineShadows} ${shadow}`.trim() : "";
-    const infoTreatment = state.characterCount >= 3 && state.multiInfoEnabled
-      ? state.multiInfoMode === "silhouette" && cutout ? "brightness(0) opacity(.68)" : "grayscale(.82) saturate(.35) contrast(.86) brightness(1.08)"
-      : "";
+    const informationMode = state.characterCount >= 3 && state.multiInfoEnabled;
+    const infoTreatment = informationMode && state.multiInfoMode === "silhouette" && cutout
+      ? "brightness(0) opacity(.68)"
+      : informationMode && state.multiInfoMode === "fade"
+        ? "grayscale(.82) saturate(.35) contrast(.86) brightness(1.08)"
+        : "";
     image.style.objectFit = character.imageFit;
+    image.style.objectPosition = character.cutout && character.imageFit !== "cover" ? "center bottom" : "center center";
+    image.style.transformOrigin = character.cutout && character.imageFit !== "cover" ? "center bottom" : "center center";
     image.style.transform = `translate(${character.panX}px, ${character.panY}px) scale(${character.zoom / 100})`;
     image.style.filter = `${baseFilter} ${infoTreatment}`.trim() || "none";
   });
@@ -1782,11 +1830,6 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
     button.classList.toggle("is-selected", selected);
     button.setAttribute("aria-pressed", String(selected));
   });
-  $$('button[data-info-density]').forEach((button) => {
-    const selected = button.dataset.infoDensity === state.infoDensity;
-    button.classList.toggle("is-selected", selected);
-    button.setAttribute("aria-pressed", String(selected));
-  });
   $$('button[data-pattern]').forEach((button) => {
     const selected = button.dataset.pattern === state.backgroundPattern;
     button.classList.toggle("is-selected", selected);
@@ -1807,6 +1850,7 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
   });
   renderBackgroundPresets();
   $("#multiCardControls").hidden = state.characterCount < 3;
+  $("#cardDisplaySetting").hidden = state.characterCount < 3;
   const dimensions = getExportDimensions();
   const exportReady = activeCharacters.length > 0 && activeCharacters.every((character) => Boolean(resolveCharacterAsset(character, "hero")));
   const exportButton = $("#exportButton");
@@ -2033,8 +2077,7 @@ function loadDraft() {
     }
     if (["ko", "en", "ja"].includes(saved.language)) state.language = saved.language;
     if (typeof saved.multiInfoEnabled === "boolean") state.multiInfoEnabled = saved.multiInfoEnabled;
-    if (["fade", "silhouette"].includes(saved.multiInfoMode)) state.multiInfoMode = saved.multiInfoMode;
-    if (["summary", "full"].includes(saved.infoDensity)) state.infoDensity = saved.infoDensity;
+    if (["clear", "fade", "silhouette"].includes(saved.multiInfoMode)) state.multiInfoMode = saved.multiInfoMode;
     if (titleFonts[saved.titleFont]) state.titleFont = saved.titleFont;
     else if (titleFonts[look.titleFont]) state.titleFont = look.titleFont;
     if (Number.isFinite(saved.titleWeight)) state.titleWeight = normaliseTitleWeight(state.titleFont, saved.titleWeight);
@@ -2539,8 +2582,7 @@ function resetStyles() {
   character.panY = 0;
   character.imageFit = "contain";
   state.multiInfoEnabled = true;
-  state.multiInfoMode = "fade";
-  state.infoDensity = "summary";
+  state.multiInfoMode = "clear";
   state.titleFont = defaultTitleFont;
   state.titleWeight = defaultTitleWeight;
   state.titleAlign = "auto";
@@ -2575,8 +2617,7 @@ function resetCardData() {
   state.background = defaults.background;
   restoreBackgroundStyle(defaults.backgroundPattern, undefined, defaults.backgroundTexture);
   state.multiInfoEnabled = true;
-  state.multiInfoMode = "fade";
-  state.infoDensity = "summary";
+  state.multiInfoMode = "clear";
   state.titleFont = defaultTitleFont;
   state.titleWeight = defaultTitleWeight;
   state.titleAlign = normaliseTitleAlign(defaults.titleAlign);
@@ -2649,8 +2690,7 @@ async function resetWorkspace() {
     characters: createEmptyCharacters(),
     background: "paper",
     multiInfoEnabled: true,
-    multiInfoMode: "fade",
-    infoDensity: "summary",
+    multiInfoMode: "clear",
     titleFont: defaultTitleFont,
     titleWeight: defaultTitleWeight,
     titleAlign: "auto",
@@ -2776,7 +2816,6 @@ function initialiseInteractions() {
     renderStyles();
     saveState();
   }));
-  $$('button[data-info-density]').forEach((button) => button.addEventListener("click", () => { recordHistory(); state.infoDensity = button.dataset.infoDensity; renderStyles(); saveState(); }));
   $("#styleAdvancedToggle").addEventListener("click", () => {
     styleAdvancedOpen = !styleAdvancedOpen;
     renderStyles();
@@ -2837,18 +2876,10 @@ function initialiseInteractions() {
   $("#canvasBoard").addEventListener("dragover", (event) => { event.preventDefault(); elements.board.classList.add("is-drop-target"); });
   $("#canvasBoard").addEventListener("dragleave", () => elements.board.classList.remove("is-drop-target"));
   $("#canvasBoard").addEventListener("drop", (event) => { event.preventDefault(); elements.board.classList.remove("is-drop-target"); void handleImageFiles(event.dataTransfer.files); });
-  const imageDropZone = $("#imageDropZone");
-  imageDropZone.addEventListener("click", () => elements.imageInput.click());
-  imageDropZone.addEventListener("dragover", (event) => { event.preventDefault(); imageDropZone.classList.add("is-drop-target"); });
-  imageDropZone.addEventListener("dragleave", () => imageDropZone.classList.remove("is-drop-target"));
-  imageDropZone.addEventListener("drop", (event) => {
-    event.preventDefault();
-    imageDropZone.classList.remove("is-drop-target");
-    void handleImageFiles(event.dataTransfer.files);
-  });
   let dragState = null;
   elements.portraitWrap.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
+    if (event.target.closest(".character-image-actions")) return;
     const figure = event.target.closest(".character-figure");
     const targetIndex = Number(figure?.dataset.characterIndex);
     if (imageEditorOpen && Number.isInteger(targetIndex) && targetIndex !== state.selectedCharacter) {

@@ -34,7 +34,7 @@ $cardSource = @(
   Get-Content -Raw -LiteralPath (Join-Path $projectRoot "styles/card-composer.css")
   Get-Content -Raw -LiteralPath (Join-Path $projectRoot "styles/card-readability.css")
 ) -join "`n"
-$editorOnlySelectors = @(".inspector", ".topbar", ".library-sidebar", ".image-drop-zone", ".title-weight-option", ".portrait-section")
+$editorOnlySelectors = @(".inspector", ".topbar", ".library-sidebar", ".title-weight-option", ".portrait-section")
 foreach ($selector in $editorOnlySelectors) {
   if ($cardSource.Contains($selector)) {
     throw "Card styles crossed into the editor seam: $selector"

@@ -17,6 +17,8 @@ const editor = LookEditor.normalize({
   }],
 });
 
+const defaults = LookEditor.create();
+
 assert.equal(editor.characterCount, 5);
 assert.equal(editor.selectedCharacter, 4);
 assert.deepEqual(editor.shadow, { strength: 70, x: -24, y: 12, blur: 0 });
@@ -28,4 +30,7 @@ assert.equal(editor.characters[0].imageFit, "contain");
 assert.equal(editor.characters[0].zoom, 180);
 assert.equal(editor.characters[0].panX, -260);
 assert.equal(editor.characters[0].panY, 260);
+assert.equal(defaults.multiInfoMode, "clear");
+assert.equal(Object.hasOwn(defaults, "infoDensity"), false);
+assert.equal(Object.hasOwn(editor, "infoDensity"), false);
 console.log("PASS: persisted editor values are bounded and type-safe.");

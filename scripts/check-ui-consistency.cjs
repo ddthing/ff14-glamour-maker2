@@ -45,7 +45,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
         transformRow: rect(".image-transform-row"),
         positionRow: rect(".image-position-row"),
         cutout: rect("#cutoutButton"),
-        dropZone: rect("#imageDropZone"),
+        previewEmpty: rect("#portraitWrap .character-figure.is-empty"),
         buttons,
         processingAnimation,
         processingPseudo,
@@ -60,7 +60,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.ok(snapshot.sourceCard.width > 240 && snapshot.sourceCard.height >= 80, "source card collapsed below its readable working size");
     for (const row of ["fitRow", "transformRow", "positionRow"]) assert.ok(snapshot[row].height >= 36, `${row} lost the shared control rhythm`);
     assert.ok(snapshot.cutout.height >= 40, "cutout action lost its primary working height");
-    assert.ok(snapshot.dropZone.height >= 56, "drop zone lost its drop target height");
+    assert.ok(snapshot.previewEmpty.width >= 160 && snapshot.previewEmpty.height >= 56, "preview image add target lost its working size");
     assert.ok(snapshot.buttons.every(({ height }) => height >= 32), `image control below 32px: ${JSON.stringify(snapshot.buttons)}`);
     assert.equal(snapshot.processingAnimation, "cutout-progress", `processing state has no progress motion: ${JSON.stringify({ ...snapshot.processingPseudo, reducedMotion: snapshot.reducedMotion, processingClass: snapshot.processingClass, progressClassMatch: snapshot.progressClassMatch })}`);
     assert.equal(snapshot.overflow, false, "image panel introduces horizontal overflow");

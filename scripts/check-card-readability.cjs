@@ -13,6 +13,22 @@ const castCounts = [1, 2, 3, 5];
     await page.waitForSelector("#canvasBoard");
     await page.waitForSelector("#castCountControl [data-cast-count]");
 
+    const soloLayerOrder = await page.evaluate(() => {
+      const board = document.querySelector("#canvasBoard");
+      const originalCutout = board.dataset.cutout;
+      board.dataset.cast = "1";
+      board.dataset.ratio = "portrait";
+      board.dataset.cutout = "true";
+      const layers = {
+        title: getComputedStyle(board.querySelector(".board-editorial-header")).zIndex,
+        portrait: getComputedStyle(board.querySelector(".portrait-wrap")).zIndex,
+        gear: getComputedStyle(board.querySelector(".board-gear-list")).zIndex,
+      };
+      board.dataset.cutout = originalCutout;
+      return layers;
+    });
+    assert.deepEqual(soloLayerOrder, { title: "16", portrait: "15", gear: "14" }, `solo cutout layer order is not explicit: ${JSON.stringify(soloLayerOrder)}`);
+
     const chooseCount = async (count) => {
       await page.locator(`[data-cast-count="${count}"]`).click();
       await page.waitForFunction((value) => document.querySelector("#canvasBoard")?.dataset.cast === String(value), count);
