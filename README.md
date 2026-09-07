@@ -21,7 +21,7 @@ node server.js
 
 검사 환경은 Node 20 이상과 설치된 Microsoft Edge를 사용합니다. `npm ci`로 잠금 파일의 개발 의존성을 설치한 뒤, 서버가 실행된 상태에서 `npm test`를 실행합니다. 결과는 `artifacts/check-results.json`에 기록됩니다. 기존 환경의 Playwright를 사용할 때는 `PLAYWRIGHT_MODULE`을 지정할 수 있습니다.
 
-`npm run build`는 공개 파일만 담은 새 `.runtime/site-*` 디렉터리를 만들고 참조 파일을 확인합니다. 출력 경로가 배포 대상이며 개발 서버·테스트·모델 가중치는 포함하지 않습니다. `models/`는 카드 상태·룩 복제·브라우저 이미지 저장·아이템 검색·PNG 그리기·키보드 내비게이션·배경 프리셋·제목 서체 규칙 모듈이며 머신러닝 모델이 아닙니다.
+`npm run build`는 공개 파일만 담은 새 `.runtime/site-*` 디렉터리를 만들고 참조 파일을 확인합니다. 출력 경로가 배포 대상이며 개발 서버·테스트·모델 가중치는 포함하지 않습니다. `models/`에는 카드 상태·룩 복제·브라우저 이미지 저장·아이템 검색·PNG 그리기·키보드 내비게이션·배경 프리셋·제목 서체 규칙과 브라우저 배경제거 어댑터가 들어가며, 실제 가중치는 첫 사용 때 외부 모델 저장소에서 내려받습니다.
 
 ## 포함된 상호작용
 
@@ -52,15 +52,17 @@ node scripts/build_item_index.mjs
 
 이미지 픽셀만으로 장비 아이템을 확정하는 기능은 포함하지 않습니다. 사용자가 검색 결과를 선택하거나 itemId를 제공하면 슬롯, 다국어 이름, 카드 정보가 자동으로 채워지는 흐름을 기준으로 합니다.
 
-배경 제거 모델(약 973MB)은 처음 사용할 때 내려받고 한 번 로드한 뒤 이후 요청에서 재사용됩니다. 원본은 별도로 유지되므로 같은 버튼으로 언제든 복원할 수 있습니다. 배경 제거 후보 비교는 저장소에 사용자 이미지를 포함하지 않도록 외부 입력 경로를 받는 벤치마크 도구로만 수행합니다.
+로컬 서버의 배경 제거 모델(약 973MB)은 처음 사용할 때 내려받고 한 번 로드한 뒤 이후 요청에서 재사용됩니다. 원본은 별도로 유지되므로 같은 버튼으로 언제든 복원할 수 있습니다. 배경 제거 후보 비교는 저장소에 사용자 이미지를 포함하지 않도록 외부 입력 경로를 받는 벤치마크 도구로만 수행합니다.
 
 ## Cloudflare 배포 메모
 
 현재 `server.js`는 정적 파일, 아이템 검색 프록시, Python BiRefNet 워커를 한 프로세스로 실행하는 로컬 구성입니다. Cloudflare Pages에서는 `functions/api/items/search.js`가 같은 `/api/items/search` 계약을 담당하고, `assets/data/items-ko.json`을 정적 한국어 인덱스로 사용합니다. `XIVAPI_VERSION` 환경 변수를 설정하면 글로벌 데이터 버전을 고정할 수 있습니다.
 
-Cloudflare Pages 정적 배포만으로는 Python BiRefNet 워커를 실행할 수 없습니다. 배경 제거는 별도 Python/GPU 실행 환경을 `/api/background-removal` 계약 뒤에 연결하거나, 공개 배포에서 해당 기능을 비활성화해야 합니다. 이 분리를 마치기 전에는 Cloudflare 배포를 완료된 것으로 간주하지 않습니다.
+Cloudflare Pages 정적 배포에서는 Python BiRefNet 워커를 실행할 수 없으므로, 공개 사이트는 브라우저 추론을 기본 경로로 사용합니다. `models/background-removal.js`가 Transformers.js와 `jiabins0303/birefnet-lite-1024-webgpu`를 불러와 WebGPU에서 가장 높은 품질의 1024px BiRefNet을 실행합니다. WebGPU를 사용할 수 없거나 모델 로드가 실패하면 512px WebGPU, 마지막으로 512px WASM으로 자동 전환합니다.
 
-공개 배포에서는 `functions/api/background-removal.js`가 별도 GPU 추론 서버로 이미지를 전달합니다. Pages 환경의 `CUTOUT_SERVICE_URL`에는 HTTPS GPU 엔드포인트를, 인증을 사용할 때는 `CUTOUT_SERVICE_TOKEN`을 Secret으로 설정합니다. GPU 서버가 연결되지 않으면 임의 결과를 만들지 않고 사용자에게 재시도를 안내합니다. 자세한 계약은 [Cloudflare 배포 메모](docs/cloudflare-deployment.md)를 확인하세요.
+`functions/api/background-removal.js`는 선택적인 빠른 경로입니다. Pages 환경의 `CUTOUT_SERVICE_URL`에 HTTPS GPU 엔드포인트를, 인증을 사용할 때 `CUTOUT_SERVICE_TOKEN`을 Secret으로 설정하면 서버 결과를 먼저 사용하고, 설정하지 않거나 연결할 수 없으면 브라우저 모델로 계속 처리합니다. 따라서 무료 Pages 배포에는 GPU 서버가 필요하지 않습니다. 자세한 계약은 [Cloudflare 배포 메모](docs/cloudflare-deployment.md)를 확인하세요.
+
+브라우저 경로는 Hugging Face CDN에서 모델 가중치를 첫 사용 때 내려받으므로 기기와 선택된 폴백에 따라 100MB 이상을 준비할 수 있습니다. 이미지 바이트는 GPU 서버를 설정하지 않은 경우 브라우저 밖으로 전송하지 않습니다. 자동 검사는 모듈 공개 경로와 서버 장애 시 폴백 연결을 확인하며, 실제 모델 추론 품질·지연 시간은 사용하는 브라우저와 FF14 이미지 골든셋에서 별도로 확인해야 합니다.
 
 `scripts/background_service.py`는 해당 계약을 검증할 수 있는 최소 GPU 서비스입니다. `onnxruntime-gpu`의 CUDA provider가 활성화되지 않으면 시작을 거부하므로 CPU로 조용히 폴백하지 않습니다. 실제 운영에서는 이 서비스를 GPU 공급자의 관리형 HTTPS 런타임에 배포합니다.
 

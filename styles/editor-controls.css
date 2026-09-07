@@ -161,8 +161,11 @@
 
 .cutout-action small {
   color: var(--muted-foreground);
-  font-size: 9px;
+  max-width: 62%;
+  font-size: 12px;
   font-weight: 500;
+  line-height: 1.35;
+  text-align: end;
 }
 
 .image-drop-zone {

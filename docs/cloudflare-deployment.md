@@ -46,16 +46,22 @@ node scripts/test-cloudflare-functions.mjs
 
 빌드 도구가 없는 프로토타입이므로 Build command는 비워두고, 위 파일이 들어 있는 폴더를 출력 디렉터리로 사용합니다. Cloudflare Pages는 정적 HTML 사이트를 지원합니다.
 
-## 배경 제거의 배포 제약
+## 배경 제거 실행 경로
 
-로컬 Node 서버의 `POST /api/background-removal`은 Python BiRefNet 프로세스를 호출합니다. Cloudflare Pages에서는 같은 경로의 `functions/api/background-removal.js`가 별도 GPU 추론 서버로 요청을 전달합니다. Cloudflare Pages 정적 배포만으로는 Python BiRefNet 프로세스를 실행할 수 없습니다.
+로컬 Node 서버의 `POST /api/background-removal`은 Python BiRefNet 프로세스를 호출합니다. Cloudflare Pages에서는 Python 프로세스를 실행할 수 없으므로 `app.js`가 같은 API를 먼저 시도한 뒤, GPU 서버가 설정되지 않았거나 사용할 수 없으면 브라우저 추론으로 자동 전환합니다.
 
-따라서 배포 단계에서는 다음 구조를 사용합니다.
+브라우저 경로는 `models/background-removal.js`에 포함되어 있습니다.
 
-1. 별도의 GPU 추론 런타임에 배경 제거 어댑터를 배포합니다.
-2. Pages Function 환경 변수에 `CUTOUT_SERVICE_URL`을 저장하고, 인증을 쓰면 `CUTOUT_SERVICE_TOKEN`을 Secret으로 저장합니다.
-3. GPU 서버는 요청을 메모리 또는 임시 작업 디렉터리에서 처리한 뒤 원본과 결과를 즉시 삭제합니다.
-4. GPU 서버 장애·대기·시간 초과 시 Pages Function은 오류를 전달하고, 프런트엔드는 재시도 가능한 상태를 표시합니다.
+1. WebGPU가 있으면 `jiabins0303/birefnet-lite-1024-webgpu`를 사용합니다. 1024px 입력 모델을 우선하므로 인물 가장자리와 헤어 디테일을 보존하는 기본 경로입니다.
+2. 1024px 모델을 로드하거나 실행할 수 없으면 `studioludens/birefnet-lite-512`를 WebGPU로 시도합니다.
+3. WebGPU가 없는 브라우저에서는 같은 512px 모델을 WASM으로 실행합니다.
+4. 모델 가중치는 첫 사용 때 브라우저 캐시에 저장되고, 실제 모델 추론은 브라우저에서 수행됩니다. GPU 서버를 설정하지 않은 현재 Function은 이미지를 저장하지 않고 즉시 브라우저 fallback 응답을 냅니다. 첫 실행은 모델 가중치 다운로드로 100MB 이상 걸릴 수 있으며, 자동 QA는 모델 다운로드 자체를 수행하지 않습니다.
+
+따라서 무료 Pages 배포에는 GPU 서버가 필요하지 않습니다. 별도 GPU 서버를 연결하면 API 결과를 먼저 사용해 대기 시간을 줄일 수 있지만, 서버가 없거나 장애가 나도 브라우저 fallback이 기능을 유지합니다.
+
+## 선택적 GPU 서버 계약
+
+GPU 서버를 연결하는 경우 Pages Function 환경 변수에 `CUTOUT_SERVICE_URL`을 저장하고, 인증을 쓰면 `CUTOUT_SERVICE_TOKEN`을 Secret으로 저장합니다. GPU 서버 장애·대기·시간 초과는 브라우저 fallback으로 이어집니다.
 
 ### GPU 서버 계약
 

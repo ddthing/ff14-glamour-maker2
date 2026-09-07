@@ -178,7 +178,7 @@
                 <button class="image-drop-zone" id="imageDropZone" type="button" aria-controls="imageInput"><span class="image-drop-icon" aria-hidden="true">＋</span><span><strong>이미지 추가</strong><small>PNG, JPG, WebP · 여러 장을 한 번에 불러올 수 있습니다</small></span></button>
                 <div class="compact-option-row image-fit-row"><span>프레임</span><div class="compact-segments" role="group" aria-label="이미지 프레임 표시"><button class="is-selected" data-image-fit="contain" type="button">전체 보기</button><button data-image-fit="cover" type="button">채우기</button></div></div>
                 <div class="image-transform-row image-placement-launch-row"><span>배치</span><div class="image-placement-summary"><output id="imagePlacementSummary" aria-live="polite">100% · 기본 위치</output><button class="image-placement-launch" id="openImageEditorButton" type="button" aria-controls="canvasBoard" aria-expanded="false">크기·위치 편집</button></div></div>
-                <button class="secondary-button cutout-action" id="cutoutButton" type="button"><span>배경 제거</span><small>원본은 보존됩니다</small><span class="cutout-progress" aria-hidden="true"></span></button>
+                <button class="secondary-button cutout-action" id="cutoutButton" type="button"><span>배경 제거</span><small>원본 보존 · 첫 실행은 준비 필요</small><span class="cutout-progress" aria-hidden="true"></span></button>
                 <div class="image-position-row image-placement-tip-row"><span>안내</span><div class="image-editor-hint"><span class="image-editor-hint-key">카드에서 직접</span><span>편집을 열면 카드 위에서 드래그해 위치를 맞춥니다.</span></div></div>
               </section>
 
@@ -369,6 +369,7 @@
     <script src="models/editor-navigation.js?v=20260906-navigation-1"></script>
     <script src="models/background-presets.js?v=20260907-background-presets-1"></script>
     <script src="models/title-typography.js?v=20260907-typography-1"></script>
+    <script src="models/background-removal.js?v=20260907-browser-birefnet-1"></script>
     <script src="app.js?v=20260906-redesign-1"></script>
   </body>
 </html>

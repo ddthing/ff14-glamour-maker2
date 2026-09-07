@@ -2061,16 +2061,49 @@ async function quickCutout() {
     const sourceResponse = await fetch(sourceUrl);
     if (!sourceResponse.ok) throw new Error("원본 이미지를 읽지 못했습니다.");
     const sourceBlob = await sourceResponse.blob();
-    const resultResponse = await fetch("/api/background-removal", {
-      method: "POST",
-      headers: { "Content-Type": sourceBlob.type || "image/png" },
-      body: sourceBlob,
-    });
-    if (!resultResponse.ok) {
-      const detail = await resultResponse.json().catch(() => ({}));
-      throw new Error(detail.error || "배경 제거에 실패했습니다.");
+    let resultBlob;
+    let processingTier = "";
+    let serverError = null;
+    try {
+      const serverResponse = await fetch("/api/background-removal", {
+        method: "POST",
+        headers: { "Content-Type": sourceBlob.type || "image/png" },
+        body: sourceBlob,
+      });
+      if (serverResponse.ok) {
+        resultBlob = await serverResponse.blob();
+        processingTier = "GPU 서버";
+      } else {
+        const detail = await serverResponse.json().catch(() => ({}));
+        const canUseBrowserFallback = serverResponse.status >= 500
+          || [
+            "cutout_service_not_configured",
+            "cutout_service_unavailable",
+            "cutout_service_timeout",
+            "cutout_service_error",
+            "cutout_invalid_response",
+          ].includes(detail.code);
+        if (!canUseBrowserFallback) {
+          serverError = new Error(detail.error || "배경 제거 서버가 이미지를 처리하지 못했습니다.");
+        }
+      }
+    } catch {
+      // Continue to the browser model when the optional API is unavailable.
     }
-    const resultBlob = await resultResponse.blob();
+    if (!resultBlob && serverError) throw serverError;
+    if (!resultBlob) {
+      if (!globalThis.GlamourBackgroundRemoval?.removeInBrowser) throw new Error("브라우저 배경 제거 모듈을 불러오지 못했습니다.");
+      label.textContent = "브라우저 모델 준비 중 · 첫 실행은 다운로드가 필요합니다";
+      const browserResult = await globalThis.GlamourBackgroundRemoval.removeInBrowser(sourceBlob, {
+        onProgress: (progress) => {
+          if (progress.status === "progress" && Number.isFinite(progress.progress)) {
+            label.textContent = `브라우저 모델 준비 중 · ${Math.round(progress.progress)}%`;
+          }
+        },
+      });
+      resultBlob = browserResult.blob;
+      processingTier = browserResult.tier;
+    }
     const resultUrl = createAssetUrl(resultBlob);
     let image;
     try {
@@ -2102,7 +2135,7 @@ async function quickCutout() {
       showToast("배경제거는 완료됐지만 브라우저 저장에 실패했습니다.");
       return;
     }
-    showToast(`배경 제거 완료 · ${image.naturalWidth} × ${image.naturalHeight} 원본 해상도`);
+    showToast(`배경 제거 완료 · ${image.naturalWidth} × ${image.naturalHeight} 원본 해상도${processingTier ? ` · ${processingTier}` : ""}`);
   } catch (error) {
     showToast(error.message || "이미지를 처리하지 못했습니다.");
   } finally {
