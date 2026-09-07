@@ -121,7 +121,7 @@ function drawExportBackground(context, width, height, background) {
   context.restore();
 }
 
-async function render({ state, dimensions, exportTheme, background, patternStars, images, copyLayout, gear, outlineColor, infoTextColor = exportTheme.text, infoTextMuted = exportTheme.muted, infoTextHalo = exportTheme.infoShadow }) {
+async function render({ state, dimensions, exportTheme, background, patternStars, images, copyLayout, gear, outlineColor, placementScale = 1, infoTextColor = exportTheme.text, infoTextMuted = exportTheme.muted, infoTextHalo = exportTheme.infoShadow }) {
   const activeCharacters = state.characters.slice(0, state.characterCount);
   const isPortrait = dimensions.layoutHeight > dimensions.layoutWidth;
     const characterFrames = CardLayout.characterFrames({
@@ -131,7 +131,8 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       characters: activeCharacters,
     });
     const { layoutWidth, layoutHeight, exportWidth, exportHeight } = dimensions;
-    const outputScale = 2;
+    const outputScale = CardCopy.outputScale;
+    const resolvedPlacementScale = Number.isFinite(placementScale) && placementScale > 0 ? placementScale : 1;
     const canvas = document.createElement("canvas");
     canvas.width = exportWidth;
     canvas.height = exportHeight;
@@ -152,8 +153,8 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       const scale = fitScale * (placement.zoom / 100);
       const imageWidth = image.naturalWidth * scale;
       const imageHeight = image.naturalHeight * scale;
-      const imageX = x + (width - imageWidth) / 2 + placement.panX * 2;
-      const imageY = y + (height - imageHeight) / 2 + placement.panY * 2;
+      const imageX = x + (width - imageWidth) / 2 + placement.panX * resolvedPlacementScale;
+      const imageY = y + (height - imageHeight) / 2 + placement.panY * resolvedPlacementScale;
       context.drawImage(image, imageX, imageY, imageWidth, imageHeight);
     };
     const drawCharacter = (image, character, x, y, width, height) => {
@@ -182,10 +183,10 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       const imageScale = fitScale * (placement.zoom / 100);
       const imageW = image.naturalWidth * imageScale;
       const imageH = image.naturalHeight * imageScale;
-      const imageX = x + (width - imageW) / 2 + placement.panX * 2;
+      const imageX = x + (width - imageW) / 2 + placement.panX * resolvedPlacementScale;
       const imageY = placement.imageFit === "cover"
-        ? y + (height - imageH) / 2 + placement.panY * 2
-        : y + height - imageH + placement.panY * 2;
+        ? y + (height - imageH) / 2 + placement.panY * resolvedPlacementScale
+        : y + height - imageH + placement.panY * resolvedPlacementScale;
       const outline = state.outline.width * 2;
       const characterTreatment = silhouetteMode
         ? "brightness(0)"
@@ -282,23 +283,10 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       context.fillRect((index * 47) % layoutWidth, (index * 83) % layoutHeight, 1, 1);
     }
 
-    // Paint the same line geometry captured from the visible card, including
-    // wrapped copy and the outline's scale, instead of a second title recipe.
-    for (const copy of copyLayout) {
-      context.save(); context.globalAlpha = Number.isFinite(copy.opacity) ? copy.opacity : 1;
-      context.textAlign = ["left", "center", "right"].includes(copy.textAlign) ? copy.textAlign : "left";
-      context.textBaseline = "alphabetic";
-      context.font = copy.font; context.fillStyle = copy.color;
-      context.letterSpacing = `${copy.letterSpacing}px`;
-      context.lineJoin = "round"; context.lineWidth = copy.stroke; context.strokeStyle = copy.strokeColor;
-      for (const line of copy.lines) {
-        const metrics = context.measureText(line.text);
-        const baseline = line.y + line.height - (metrics.fontBoundingBoxDescent || 0);
-        if (copy.stroke) context.strokeText(line.text, line.x, baseline);
-        context.fillText(line.text, line.x, baseline);
-      }
-      context.restore();
-    }
+    // The preview renders this same high-resolution copy layer. Keeping the
+    // text implementation behind one small interface prevents DOM and PNG
+    // glyphs from drifting apart again.
+    CardCopy.draw(context, copyLayout);
 
     if (state.characterCount === 1) {
       if (isPortrait) {

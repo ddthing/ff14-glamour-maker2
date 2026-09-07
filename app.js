@@ -528,6 +528,7 @@ const elements = {
   portraitWrap: $("#portraitWrap"),
   scenePattern: $("#scenePattern"),
   multiInfoLayer: $("#multiInfoLayer"),
+  boardCopyCanvas: $("#boardCopyCanvas"),
   sourceThumb: $("#sourceThumb"),
   sourceThumbFrame: $("#sourceThumbFrame"),
   sourceFileName: $("#sourceFileName"),
@@ -580,6 +581,7 @@ let imageEditorSnapshot = null;
 let imageEditorDirty = false;
 let imageEditorReturnFocus = null;
 let boardTitleResizeObserver = null;
+let cardCopyRenderFrame = 0;
 
 const panelLabels = {
   stylePanel: "꾸미기",
@@ -966,6 +968,7 @@ function normaliseTitleAlign(value) {
 
 function resolveTitleAlign() {
   if (state.titleAlign !== "auto") return state.titleAlign;
+  if (state.characterCount === 1 && state.singleRatio === "portrait") return "center";
   if (state.characterCount >= 3) return "center";
   if (state.characterCount === 1 && state.singleLayout === "info-right") return "right";
   return "left";
@@ -1397,6 +1400,7 @@ function renderLook() {
   elements.boardSubtitle.textContent = look.subtitle || "";
   elements.boardSubtitle.dataset.empty = String(!look.subtitle);
   fitBoardTitle();
+  scheduleCardCopyPreview();
   syncCopyEditorFields();
   document.title = `${projectName} | ${look.title}`;
   $$(".look-list-item").forEach((button) => {
@@ -1906,6 +1910,7 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
   if (refreshPattern) renderPattern();
   if (refreshInfo) renderMultiInfo();
   if (fitTitle) fitBoardTitle();
+  scheduleCardCopyPreview();
 }
 
 function shadowDirection() {
@@ -2556,6 +2561,36 @@ function captureExportCopy() {
       strokeColor: state.titleOutline.color, letterSpacing: (parseFloat(style.letterSpacing) || 0) * scale };
   });
 }
+
+function renderCardCopyPreview(copyLayout = null) {
+  const canvas = elements.boardCopyCanvas;
+  if (!(canvas instanceof HTMLCanvasElement) || typeof CardCopy === "undefined" || typeof CardCopy.draw !== "function") return null;
+  const board = elements.board.getBoundingClientRect();
+  if (!board.width || !board.height) return null;
+  const dimensions = getExportDimensions();
+  const layout = copyLayout || captureExportCopy();
+  if (canvas.width !== dimensions.exportWidth || canvas.height !== dimensions.exportHeight) {
+    canvas.width = dimensions.exportWidth;
+    canvas.height = dimensions.exportHeight;
+  }
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+  context.setTransform(1, 0, 0, 1, 0, 0);
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.scale(CardCopy.outputScale, CardCopy.outputScale);
+  CardCopy.draw(context, layout);
+  elements.board.dataset.copyRendered = "true";
+  return layout;
+}
+
+function scheduleCardCopyPreview() {
+  if (!(elements.boardCopyCanvas instanceof HTMLCanvasElement) || cardCopyRenderFrame) return;
+  cardCopyRenderFrame = window.requestAnimationFrame(() => {
+    cardCopyRenderFrame = 0;
+    renderCardCopyPreview();
+  });
+}
+
 async function downloadComposition(event, snapshot = { ...state, characters: state.characters.map(character => ({ ...character })), titleOutline: { ...state.titleOutline }, outline: { ...state.outline }, shadow: { ...state.shadow } }) {
   if (exportInProgress) return;
   const state = snapshot;
@@ -2593,14 +2628,17 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
     assertUnchanged();
     fitBoardTitle();
     const copyLayout = captureExportCopy();
+    renderCardCopyPreview(copyLayout);
     const images = await Promise.all(activeCharacters.map((character) => loadCanvasImage(resolveCharacterAsset(character, "hero"))));
     assertUnchanged();
     const infoTextTheme = state.multiInfoMode === "silhouette"
       ? getSilhouetteInfoTheme(backgrounds[state.background])
       : { foreground: exportTheme.text, muted: exportTheme.muted, halo: exportTheme.infoShadow };
+    const board = elements.board.getBoundingClientRect();
+    const placementScale = board.width > 0 ? dimensions.layoutWidth / board.width : 1;
     const outputBlob = await CardPng.render({ state, dimensions, exportTheme,
       background: backgrounds[state.background], patternStars, images, copyLayout, gear,
-      outlineColor: rgba(state.outline.color, 0.8), infoTextColor: infoTextTheme.foreground,
+      placementScale, outlineColor: rgba(state.outline.color, 0.8), infoTextColor: infoTextTheme.foreground,
       infoTextMuted: infoTextTheme.muted, infoTextHalo: infoTextTheme.halo });
     assertUnchanged();
     const extension = "png";
@@ -3182,12 +3220,14 @@ function initialiseInteractions() {
       editSnapshot = createSnapshot();
       element.dataset.editStart = getSelectedLook()[field] || "";
       element.dataset.editing = "true";
+      elements.board.dataset.copyEditing = "true";
     });
     element.addEventListener("input", () => {
       const look = getSelectedLook();
       const value = normaliseInlineText(element.textContent || "");
       look[field] = value || fallback;
       if (field === "title") fitBoardTitle();
+      scheduleCardCopyPreview();
       if (field === "title") {
         document.title = `${projectName} | ${look.title}`;
         renderLookList();
@@ -3213,6 +3253,7 @@ function initialiseInteractions() {
       if (editSnapshot && look[field] !== editSnapshot[field]) recordHistory(editSnapshot);
       editSnapshot = null;
       element.dataset.editing = "false";
+      elements.board.dataset.copyEditing = "false";
       renderLook();
       saveState();
     });
@@ -3232,6 +3273,7 @@ function initialiseInteractions() {
       elements.boardSubtitle.textContent = look.subtitle || "";
       elements.boardSubtitle.dataset.empty = String(!look.subtitle);
       if (field === "title") fitBoardTitle();
+      scheduleCardCopyPreview();
       if (field === "title") {
         document.title = `${projectName} | ${look.title || "새로운 룩"}`;
         renderLookList();
@@ -3267,14 +3309,23 @@ function initialiseInteractions() {
   const titleBlock = elements.boardTitle?.parentElement;
   if (titleBlock instanceof HTMLElement && "ResizeObserver" in window) {
     boardTitleResizeObserver?.disconnect();
-    boardTitleResizeObserver = new ResizeObserver(() => window.requestAnimationFrame(fitBoardTitle));
+    boardTitleResizeObserver = new ResizeObserver(() => {
+      fitBoardTitle();
+      scheduleCardCopyPreview();
+    });
     boardTitleResizeObserver.observe(titleBlock);
   }
   // ResizeObserver delivery can lag one frame during a mobile viewport
   // change. Fit synchronously on resize as a guard so a stale desktop size
   // never paints an ellipsis while the card is narrowing.
-  window.addEventListener("resize", fitBoardTitle, { passive: true });
-  if (document.fonts?.ready) document.fonts.ready.then(fitBoardTitle);
+  window.addEventListener("resize", () => {
+    fitBoardTitle();
+    scheduleCardCopyPreview();
+  }, { passive: true });
+  if (document.fonts?.ready) document.fonts.ready.then(() => {
+    fitBoardTitle();
+    scheduleCardCopyPreview();
+  });
   document.addEventListener("keydown", (event) => {
     if (document.querySelector("dialog[open]")) return;
     if (imageEditorOpen && event.key === "Escape") {

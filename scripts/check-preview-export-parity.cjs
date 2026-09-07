@@ -198,6 +198,128 @@ function maxRectDelta(previewRect, exportRect) {
     }
 
     await page.evaluate(() => {
+      state.characterCount = 1;
+      state.singleRatio = "portrait";
+      state.singleLayout = "info-left";
+      state.selectedCharacter = 0;
+      state.characters[0].cutout = false;
+      state.characters[0].imageFit = "contain";
+      state.characters[0].zoom = 145;
+      state.characters[0].panX = 48;
+      state.characters[0].panY = -36;
+      syncSelectedCharacter();
+      renderAll();
+    });
+    await page.waitForFunction(() => document.querySelector("#canvasBoard")?.dataset.cast === "1");
+    const placementBeforeExport = await page.evaluate(() => {
+      const board = document.querySelector("#canvasBoard").getBoundingClientRect();
+      const image = document.querySelector("#portraitWrap img");
+      const character = state.characters[0];
+      const frame = CardLayout.characterFrames({
+        characterCount: 1,
+        singleRatio: state.singleRatio,
+        singleLayout: state.singleLayout,
+        characters: [character],
+      })[0];
+      const dimensions = CardLayout.dimensionsFor(1, state.singleRatio);
+      const fitScale = Math.min(frame.width / image.naturalWidth, frame.height / image.naturalHeight);
+      const imageScale = fitScale * (character.zoom / 100);
+      const imageWidth = image.naturalWidth * imageScale;
+      const imageHeight = image.naturalHeight * imageScale;
+      const panScale = dimensions.layoutWidth / board.width;
+      return {
+        expected: {
+          x: frame.x + (frame.width - imageWidth) / 2 + character.panX * panScale,
+          y: frame.y + (frame.height - imageHeight) / 2 + character.panY * panScale,
+          width: imageWidth,
+          height: imageHeight,
+        },
+        panScale,
+      };
+    });
+    const placementStart = await page.evaluate(() => window.__previewExportDrawImageCalls.length);
+    const placementDownloadPromise = page.waitForEvent("download");
+    await page.locator("#exportButton").click();
+    await placementDownloadPromise;
+    await page.waitForFunction(() => !document.querySelector("#exportButton").hasAttribute("aria-busy"));
+    const placementDrawCalls = await page.evaluate((start) => window.__previewExportDrawImageCalls.slice(start), placementStart);
+    assert.equal(placementDrawCalls.length, 1, "placement regression should render one character image");
+    const placementRect = placementDrawCalls[0].args;
+    assert.ok(Math.abs(placementRect[0] - placementBeforeExport.expected.x) <= 0.5, `PNG pan scale changed x: expected ${placementBeforeExport.expected.x}, got ${placementRect[0]} (scale ${placementBeforeExport.panScale})`);
+    assert.ok(Math.abs(placementRect[1] - placementBeforeExport.expected.y) <= 0.5, `PNG pan scale changed y: expected ${placementBeforeExport.expected.y}, got ${placementRect[1]} (scale ${placementBeforeExport.panScale})`);
+
+    const placementCases = [
+      { name: "solo-cover", count: 1, singleRatio: "portrait", cutout: false, imageFit: "cover", zoom: 130, panX: -40, panY: 30 },
+      { name: "lineup-cutout-contain", count: 3, singleRatio: "landscape", cutout: true, imageFit: "contain", zoom: 138, panX: 35, panY: -45 },
+      { name: "lineup-original-cover", count: 3, singleRatio: "landscape", cutout: false, imageFit: "cover", zoom: 125, panX: -32, panY: 28 },
+    ];
+    for (const scenario of placementCases) {
+      await page.evaluate((next) => {
+        state.characterCount = next.count;
+        state.singleRatio = next.singleRatio;
+        state.singleLayout = "info-left";
+        state.selectedCharacter = 0;
+        state.characters.slice(0, next.count).forEach((character) => {
+          character.cutout = next.cutout;
+          character.imageFit = next.imageFit;
+          character.zoom = next.zoom;
+          character.panX = next.panX;
+          character.panY = next.panY;
+        });
+        syncSelectedCharacter();
+        renderAll();
+      }, scenario);
+      await page.waitForFunction((expectedCount) => document.querySelectorAll("#portraitWrap img").length === expectedCount, scenario.count);
+      const expected = await page.evaluate((next) => {
+        const board = document.querySelector("#canvasBoard").getBoundingClientRect();
+        const dimensions = CardLayout.dimensionsFor(next.count, next.singleRatio);
+        const characters = state.characters.slice(0, next.count);
+        const frames = CardLayout.characterFrames({
+          characterCount: next.count,
+          singleRatio: next.singleRatio,
+          singleLayout: state.singleLayout,
+          characters,
+        });
+        const images = [...document.querySelectorAll("#portraitWrap img")];
+        const panScale = dimensions.layoutWidth / board.width;
+        return {
+          panScale,
+          rects: frames.map((frame, index) => {
+            const image = images[index];
+            const character = characters[index];
+            const fitScale = next.imageFit === "cover"
+              ? Math.max(frame.width / image.naturalWidth, frame.height / image.naturalHeight)
+              : Math.min(frame.width / image.naturalWidth, frame.height / image.naturalHeight);
+            const imageScale = fitScale * (next.zoom / 100);
+            const width = image.naturalWidth * imageScale;
+            const height = image.naturalHeight * imageScale;
+            return {
+              x: frame.x + (frame.width - width) / 2 + character.panX * panScale,
+              y: next.cutout && next.imageFit !== "cover"
+                ? frame.y + frame.height - height + character.panY * panScale
+                : frame.y + (frame.height - height) / 2 + character.panY * panScale,
+              width,
+              height,
+            };
+          }),
+        };
+      }, scenario);
+      const start = await page.evaluate(() => window.__previewExportDrawImageCalls.length);
+      const downloadPromise = page.waitForEvent("download");
+      await page.locator("#exportButton").click();
+      await downloadPromise;
+      await page.waitForFunction(() => !document.querySelector("#exportButton").hasAttribute("aria-busy"));
+      const calls = await page.evaluate((offset) => window.__previewExportDrawImageCalls.slice(offset), start);
+      assert.equal(calls.length, scenario.count, `${scenario.name} should draw ${scenario.count} character images`);
+      calls.forEach((call, index) => {
+        assert.ok(Math.abs(call.args[0] - expected.rects[index].x) <= 0.5, `${scenario.name} character ${index + 1} x drifted: expected ${expected.rects[index].x}, got ${call.args[0]} (scale ${expected.panScale})`);
+        assert.ok(Math.abs(call.args[1] - expected.rects[index].y) <= 0.5, `${scenario.name} character ${index + 1} y drifted: expected ${expected.rects[index].y}, got ${call.args[1]} (scale ${expected.panScale})`);
+        assert.ok(Math.abs(call.args[2] - expected.rects[index].width) <= 0.5, `${scenario.name} character ${index + 1} width drifted`);
+        assert.ok(Math.abs(call.args[3] - expected.rects[index].height) <= 0.5, `${scenario.name} character ${index + 1} height drifted`);
+      });
+    }
+
+    await page.evaluate(() => {
       CanvasRenderingContext2D.prototype.drawImage = window.__previewExportOriginalDrawImage;
     });
     console.log(JSON.stringify({ status: "PASS", results }, null, 2));

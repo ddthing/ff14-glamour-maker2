@@ -65,12 +65,13 @@
 .canvas-board[data-ratio="portrait"][data-cast="1"] .board-editorial-header {
   z-index: 11;
   min-height: 0;
+  justify-content: center;
   padding: 6.5% 6% 2%;
   background: transparent;
 }
 
 .canvas-board[data-ratio="portrait"][data-cast="1"] .board-editorial-header .board-title-block {
-  max-width: 76%;
+  max-width: 100%;
 }
 
 .canvas-board[data-ratio="portrait"][data-cast="1"] .board-editorial-header .board-title-block > strong {

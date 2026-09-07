@@ -548,6 +548,35 @@ body.image-placement-mode .character-image-actions {
   color: var(--silhouette-info-muted, currentColor);
 }
 
+/* The card copy is a single high-resolution graphic layer shared with PNG
+   export. Keep the semantic contenteditable nodes in the accessibility tree
+   and preserve their measured color; only their browser-painted glyphs are
+   made transparent while the shared layer is ready. Direct editing reveals
+   the native text temporarily so the caret and draft remain understandable. */
+.canvas-board .board-copy-canvas {
+  position: absolute;
+  z-index: 17;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.canvas-board[data-copy-rendered="true"] .board-title-block > strong,
+.canvas-board[data-copy-rendered="true"] .board-title-block > .caption-description {
+  filter: opacity(0) !important;
+}
+
+.canvas-board[data-copy-editing="true"] .board-copy-canvas {
+  visibility: hidden;
+}
+
+.canvas-board[data-copy-editing="true"] .board-title-block > strong,
+.canvas-board[data-copy-editing="true"] .board-title-block > .caption-description {
+  filter: none !important;
+}
+
 /* Material 3 state treatment, kept in the app's neutral visual language. */
 .compact-segments {
   gap: 2px;
