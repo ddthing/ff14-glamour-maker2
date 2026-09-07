@@ -1032,7 +1032,7 @@ function finishImageEditor(apply) {
   } else if (changed && imageEditorSnapshot) {
     const { zoom, panX, panY, imageFit } = imageEditorSnapshot;
     updateSelectedImageState({ zoom, panX, panY, imageFit });
-    renderStyles({ refreshInfo: false, refreshPattern: false });
+    renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
   }
   imageEditorOpen = false;
   imageEditorDirty = false;
@@ -1099,7 +1099,29 @@ function serializeLook(look) {
   };
 }
 
+const draftSaveDebounceMs = 180;
+let scheduledSaveTimer = 0;
+
+function scheduleSaveState() {
+  window.clearTimeout(scheduledSaveTimer);
+  scheduledSaveTimer = window.setTimeout(() => {
+    scheduledSaveTimer = 0;
+    saveState();
+  }, draftSaveDebounceMs);
+}
+
+function flushScheduledSaveState() {
+  if (!scheduledSaveTimer) return;
+  window.clearTimeout(scheduledSaveTimer);
+  scheduledSaveTimer = 0;
+  saveState();
+}
+
 function saveState() {
+  if (scheduledSaveTimer) {
+    window.clearTimeout(scheduledSaveTimer);
+    scheduledSaveTimer = 0;
+  }
   const look = getSelectedLook();
   syncStateIntoLook(look);
   const snapshot = {
@@ -1601,7 +1623,7 @@ function renderPattern() {
   ).join("");
 }
 
-function renderStyles({ refreshInfo = true, refreshPattern = true } = {}) {
+function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = true } = {}) {
   const background = backgrounds[state.background] || backgrounds.dusk;
   if (!titleFonts[state.titleFont]) state.titleFont = defaultTitleFont;
   state.titleWeight = normaliseTitleWeight(state.titleFont, state.titleWeight ?? defaultTitleWeight);
@@ -1798,7 +1820,7 @@ function renderStyles({ refreshInfo = true, refreshPattern = true } = {}) {
     : "이미지를 모두 추가하면 PNG로 저장할 수 있습니다";
   if (refreshPattern) renderPattern();
   if (refreshInfo) renderMultiInfo();
-  fitBoardTitle();
+  if (fitTitle) fitBoardTitle();
 }
 
 function shadowDirection() {
@@ -2200,7 +2222,7 @@ function resetSelectedImagePlacement({ notify = true } = {}) {
   if (imageEditorOpen) imageEditorDirty = true;
   else recordHistory();
   updateSelectedImageState({ imageFit: "contain", zoom: 100, panX: 0, panY: 0 });
-  renderStyles({ refreshInfo: false, refreshPattern: false });
+  renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
   if (!imageEditorOpen) saveState();
   if (notify && !imageEditorOpen) showToast("선택한 이미지를 프레임에 맞췄습니다.");
 }
@@ -2210,7 +2232,7 @@ function resetSelectedImagePosition({ notify = true } = {}) {
   if (imageEditorOpen) imageEditorDirty = true;
   else recordHistory();
   updateSelectedImageState({ panX: 0, panY: 0 });
-  renderStyles({ refreshInfo: false, refreshPattern: false });
+  renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
   if (!imageEditorOpen) saveState();
   if (notify && !imageEditorOpen) showToast("이미지를 카드 중앙에 맞췄습니다.");
 }
@@ -2226,7 +2248,7 @@ function nudgeSelectedImage(direction) {
   if (imageEditorOpen) imageEditorDirty = true;
   else recordHistory();
   updateSelectedImageState({ panX: state.panX + deltaX, panY: state.panY + deltaY });
-  renderStyles({ refreshInfo: false, refreshPattern: false });
+  renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
   if (!imageEditorOpen) saveState();
 }
 
@@ -2234,7 +2256,7 @@ function changeSelectedImageZoom(delta) {
   if (imageEditorOpen) imageEditorDirty = true;
   else recordHistory();
   updateSelectedImageState({ zoom: clamp(state.zoom + delta, 70, 180) });
-  renderStyles({ refreshInfo: false, refreshPattern: false });
+  renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
   if (!imageEditorOpen) saveState();
 }
 
@@ -2253,7 +2275,7 @@ async function quickCutout() {
     character.cutout = false;
     syncSelectedCharacter();
     renderCast();
-    renderStyles({ refreshInfo: false, refreshPattern: false });
+    renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
     renderSourcePanel();
     saveState();
     showToast("원본 이미지로 복원했습니다.");
@@ -2721,6 +2743,7 @@ function openPanel(panelId) {
 }
 
 function initialiseInteractions() {
+  window.addEventListener("pagehide", flushScheduledSaveState);
   initialiseLookManager();
   $$(".look-list-item").forEach((button) => button.addEventListener("click", () => selectLook(button.dataset.lookId)));
   $("#previousLook").addEventListener("click", () => cycleLook(-1));
@@ -2856,7 +2879,7 @@ function initialiseInteractions() {
       panX: dragState.panX + event.clientX - dragState.startX,
       panY: dragState.panY + event.clientY - dragState.startY,
     });
-    renderStyles({ refreshInfo: false, refreshPattern: false });
+    renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
   });
   const finishDrag = (event) => {
     if (!dragState) return;
@@ -2898,7 +2921,7 @@ function initialiseInteractions() {
     if (imageEditorOpen) imageEditorDirty = true;
     else recordHistory();
     updateSelectedImageState({ imageFit: button.dataset.imageFit });
-    renderStyles({ refreshInfo: false, refreshPattern: false });
+    renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
     if (!imageEditorOpen) saveState();
   }));
   $$('[data-image-nudge]').forEach((button) => button.addEventListener("click", () => nudgeSelectedImage(button.dataset.imageNudge)));
@@ -2911,12 +2934,12 @@ function initialiseInteractions() {
       }
       editing = true;
       update(Number(input.value));
-      renderStyles({ refreshInfo: false, refreshPattern: false });
+      renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
       updateRangeProgress(input);
-      if (!imageEditorOpen) saveState();
+      if (!imageEditorOpen) scheduleSaveState();
     });
-    input.addEventListener("change", () => { editing = false; });
-    input.addEventListener("blur", () => { editing = false; });
+    input.addEventListener("change", () => { editing = false; flushScheduledSaveState(); });
+    input.addEventListener("blur", () => { editing = false; flushScheduledSaveState(); });
   };
   bindHistoryRange(elements.zoomRange, value => { updateSelectedImageState({ zoom: value }); });
   bindHistoryRange(elements.panXRange, value => { updateSelectedImageState({ panX: value }); });
@@ -2933,11 +2956,11 @@ function initialiseInteractions() {
         editing = true;
       }
       update(input.value);
-      renderStyles({ refreshInfo: false, refreshPattern: false });
-      saveState();
+      renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
+      scheduleSaveState();
     });
-    input.addEventListener("change", () => { editing = false; });
-    input.addEventListener("blur", () => { editing = false; });
+    input.addEventListener("change", () => { editing = false; flushScheduledSaveState(); });
+    input.addEventListener("blur", () => { editing = false; flushScheduledSaveState(); });
   };
   bindColorInput($("#titleOutlineColorInput"), (value) => {
     state.titleOutline.color = normaliseHexColor(value, "#ffffff");
@@ -2949,7 +2972,7 @@ function initialiseInteractions() {
     if (!state.subtitleColor) return;
     recordHistory();
     state.subtitleColor = "";
-    renderStyles({ refreshInfo: false, refreshPattern: false });
+    renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
     saveState();
   });
   $$(".color-swatch").forEach((swatch) => swatch.addEventListener("click", () => { recordHistory(); state.outline.color = swatch.dataset.color; renderStyles(); saveState(); }));
@@ -2957,7 +2980,7 @@ function initialiseInteractions() {
     if (swatch.dataset.titleOutlineColor === state.titleOutline.color) return;
     recordHistory();
     state.titleOutline.color = swatch.dataset.titleOutlineColor;
-    renderStyles({ refreshInfo: false, refreshPattern: false });
+    renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
     saveState();
   }));
   $$(".backdrop-swatch").forEach((swatch) => swatch.addEventListener("click", () => { recordHistory(); state.background = swatch.dataset.background; renderStyles(); saveState(); }));

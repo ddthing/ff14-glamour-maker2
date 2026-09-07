@@ -10,11 +10,21 @@
     />
     <title>글래머 아틀리에 | LOOK BOOK</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <!-- Optional enhancement: the local fallback stack keeps the editor usable while the font downloads. -->
     <link
-      rel="stylesheet"
+      rel="preload"
+      as="style"
       crossorigin
       href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+      onload="this.onload=null;this.rel='stylesheet'"
     />
+    <noscript>
+      <link
+        rel="stylesheet"
+        crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+      />
+    </noscript>
     <link rel="stylesheet" href="styles.css?v=20260906-lookbook-1" />
     <link rel="stylesheet" href="styles/card-composer.css?v=20260906-lookbook-1" />
     <link rel="stylesheet" href="styles/editor-controls.css?v=20260906-lookbook-1" />
