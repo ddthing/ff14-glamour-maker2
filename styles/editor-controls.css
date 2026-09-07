@@ -1628,451 +1628,50 @@
   }
 }
 
-.image-editor-dialog {
-  width: min(900px, calc(100vw - 32px));
-  max-width: 900px;
-  max-height: calc(100dvh - 32px);
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  color: var(--foreground);
-  background: var(--background);
-  box-shadow: 0 24px 70px rgb(16 24 40 / .22);
-}
-
-.image-editor-dialog::backdrop {
-  background: rgb(15 18 20 / .5);
-  backdrop-filter: blur(4px);
-}
-
-.image-editor-dialog-shell {
-  display: grid;
-  max-height: calc(100dvh - 32px);
-  grid-template-rows: auto minmax(0, 1fr) auto;
-}
-
-.image-editor-dialog-header,
-.image-editor-dialog-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 20px 24px;
-}
-
-.image-editor-dialog-header {
-  border-bottom: 1px solid var(--border);
-}
-
-.image-editor-dialog-header > div {
-  min-width: 0;
-}
-
-.dialog-kicker {
-  color: var(--muted-foreground);
-  font-size: 10px;
-  font-weight: 750;
-}
-
-.image-editor-dialog-header h2 {
-  margin: 5px 0 4px;
-  font-size: 20px;
-  letter-spacing: -.03em;
-}
-
-.image-editor-dialog-header p {
-  max-width: 560px;
-  margin: 0;
-  color: var(--muted-foreground);
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.image-editor-close {
-  display: grid;
-  width: 36px;
-  height: 36px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  color: var(--muted-foreground);
-  background: var(--background);
-  font-size: 22px;
-  line-height: 1;
-}
-
-.image-editor-dialog-body {
-  display: grid;
-  min-height: 0;
-  grid-template-columns: minmax(300px, 1fr) minmax(260px, 340px);
-  gap: 24px;
-  padding: 24px;
-  overflow: auto;
-}
-
-.image-editor-dialog-controls {
-  display: grid;
-  align-content: center;
-  gap: 14px;
-  min-width: 0;
-}
-
-.image-editor-control-group {
-  display: grid;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: color-mix(in oklch, var(--background) 80%, var(--muted));
-}
-
-.image-editor-control-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.image-editor-control-head h3 {
-  margin: 0;
-  font-size: 13px;
-}
-
-.image-editor-dialog .image-zoom-controls {
-  grid-template-columns: 42px 42px minmax(0, 1fr);
-}
-
-.image-editor-dialog .image-zoom-controls button {
-  min-height: 38px;
-}
-
-.image-editor-dialog .image-fit-button {
-  font-size: 10px;
-}
-
-.image-editor-range-label {
-  display: grid;
-  gap: 7px;
-  color: var(--muted-foreground);
-  font-size: 10px;
-}
-
-.image-editor-dialog .image-position-slider {
-  grid-template-columns: 34px minmax(0, 1fr) 58px;
-  font-size: 10px;
-}
-
-.image-editor-dialog .image-nudge-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.image-editor-dialog .image-nudge-grid button {
-  min-height: 38px;
-}
-
-.image-editor-dialog-footer {
-  justify-content: flex-end;
-  border-top: 1px solid var(--border);
-}
-
-.image-editor-dialog-footer button {
-  min-width: 84px;
-  min-height: 40px;
-}
-
-@media (max-width: 720px) {
-  .image-editor-dialog-body {
-    grid-template-columns: 1fr;
-  }
-
-  
-
-  .image-editor-dialog-controls {
-    align-content: start;
-  }
-}
-
-@media (max-width: 560px) {
-  .image-editor-dialog {
-    width: 100%;
-    max-width: none;
-    height: 100dvh;
-    max-height: none;
-    border: 0;
-    border-radius: 0;
-  }
-
-  .image-editor-dialog-shell {
-    max-height: 100dvh;
-  }
-
-  .image-editor-dialog-header,
-  .image-editor-dialog-footer,
-  .image-editor-dialog-body {
-    padding: 16px;
-  }
-
-  .image-editor-dialog-body {
-    gap: 16px;
-  }
-
-  
-
-  
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .image-placement-launch,
-  .image-editor-dialog,
-  .image-editor-close {
-    transition: none;
-  }
-}
-
-/* Placement dialog follows the shared control and surface contract. */
-.image-editor-dialog { --muted-foreground: var(--chart-3); }
-.image-editor-dialog-body { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-
-.image-editor-dialog-controls { gap: 12px; }
-.image-editor-control-group { padding: 0; border: 0; background: transparent; gap: 8px; }
-.image-editor-dialog .image-zoom-controls { display: flex; justify-content: flex-end; }
-.image-editor-dialog #zoomIn, .image-editor-dialog #zoomOut { display: none; }
-.image-editor-dialog .image-zoom-controls #fitImageButton { min-height: 36px; padding-inline: 12px; }
-.image-editor-dialog .image-editor-control-group:first-child { position: relative; }
-.image-editor-dialog .image-editor-control-group:first-child .image-zoom-controls { position: absolute; right: 0; top: -4px; }
-.image-editor-dialog .image-editor-control-head .zoom-readout { margin-right: 120px; font: 600 12px var(--sans); }
-
-.image-editor-dialog .image-editor-control-head h3 { font-size: 12px; }
-.image-editor-dialog .image-editor-dialog-header { padding: 16px 24px; }
-.image-editor-dialog .image-editor-dialog-body { padding: 16px 24px; }
-.image-editor-dialog .image-editor-dialog-footer { padding: 12px 24px; }
-.image-editor-dialog { width: min(680px, calc(100vw - 24px)); }
-@media(max-width:560px) { .image-editor-dialog { width: 100%; } }
-
-.image-editor-dialog .image-editor-control-group:first-child { grid-template-columns: minmax(0,1fr); }
-.image-editor-dialog .image-center-button { min-height: 36px; border-radius: var(--radius-sm); }
-.image-editor-dialog-footer button { width: auto; flex: 0 0 auto; }
-.image-editor-dialog-footer .secondary-button { min-width: 84px; text-align: center; }
-.image-editor-precision summary { cursor: pointer; min-height: 36px; padding: 8px 0; font-size: 12px; }
-.image-editor-precision .image-position-sliders { margin: 8px 0; }
-
-.dark .image-editor-dialog { --muted-foreground: var(--chart-1); }
-@media(max-width:560px) {  .image-editor-dialog-header h2 { font-size: 18px; } }
-
-/* Card placement mode -----------------------------------------------------
-   The card stays visible while this compact bar owns the transaction. A
-   duplicate preview is intentionally not rendered. */
+/* Image placement dock ---------------------------------------------------
+   The card remains the working surface while this dock owns one edit
+   transaction. Keep the layout in one seam so size, position, and commit
+   controls do not drift apart across viewport breakpoints. */
 .image-editor-dialog.image-editor-modebar {
+  --placement-dock-gap: 14px;
+  --muted-foreground: var(--chart-3);
   position: fixed;
   z-index: 80;
+  right: auto;
+  bottom: 14px;
   left: 50%;
-  bottom: 16px;
   display: block;
-  width: min(820px, calc(100vw - 32px));
+  box-sizing: border-box;
+  width: min(1040px, calc(100vw - 32px));
   max-width: none;
   height: auto;
   max-height: none;
   margin: 0;
+  padding: 0;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 14px;
   color: var(--foreground);
-  background: color-mix(in oklch, var(--background) 96%, var(--muted));
-  box-shadow: 0 16px 44px rgb(16 24 40 / .24);
+  background: color-mix(in oklch, var(--background) 97%, var(--muted));
+  box-shadow: 0 18px 48px rgb(16 24 40 / .22), 0 2px 8px rgb(16 24 40 / .08);
   transform: translateX(-50%);
 }
 
 .image-editor-modebar .image-editor-dialog-shell {
-  max-height: none;
-  grid-template-rows: auto auto auto;
-}
-
-.image-editor-modebar .image-editor-dialog-header {
-  align-items: flex-start;
-  padding: 12px 16px;
-}
-
-.image-editor-modebar .image-editor-dialog-header h2 {
-  margin: 3px 0 2px;
-  font-size: 15px;
-}
-
-.image-editor-modebar .image-editor-dialog-header p {
-  font-size: 10px;
-  line-height: 1.4;
-}
-
-.image-editor-modebar .image-editor-close {
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius-sm);
-  font-size: 18px;
-}
-
-.image-editor-modebar .image-editor-dialog-body {
-  display: block;
-  min-height: 0;
-  padding: 12px 16px;
-  overflow: visible;
-}
-
-.image-editor-modebar .image-editor-dialog-controls {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(250px, .92fr);
-  align-items: start;
-  gap: 16px;
-}
-
-.image-editor-modebar .image-editor-control-group {
-  display: grid;
-  min-width: 0;
-  gap: 8px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-}
-
-.image-editor-modebar .image-editor-control-group + .image-editor-control-group {
-  padding-left: 16px;
-  border-left: 1px solid var(--border);
-}
-
-.image-editor-modebar .image-editor-control-group:first-child {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
-.image-editor-modebar .image-editor-control-group:first-child .image-editor-control-head {
-  grid-column: 1;
-}
-
-.image-editor-modebar .image-editor-control-group:first-child .image-zoom-controls {
-  position: static;
-  grid-column: 2;
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.image-editor-modebar .image-editor-control-group:first-child .image-editor-range-label {
-  grid-column: 1 / -1;
-}
-
-.image-editor-modebar #zoomIn,
-.image-editor-modebar #zoomOut {
-  display: none;
-}
-
-.image-editor-modebar .zoom-readout {
-  margin-right: 0;
-  font-size: 11px;
-}
-
-.image-editor-modebar .image-fit-button,
-.image-editor-modebar .image-center-button {
-  min-height: 34px;
-  padding-inline: 10px;
-  border-radius: var(--radius-sm);
-  font-size: 10px;
-}
-
-.image-editor-modebar .image-editor-precision summary {
-  display: flex;
-  min-height: 32px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 0;
-  border-top: 1px solid var(--border);
-  color: var(--muted-foreground);
-  font-size: 10px;
-}
-
-.image-editor-modebar .image-editor-precision summary::after {
-  color: var(--foreground);
-  content: "＋";
-  font-size: 14px;
-}
-
-.image-editor-modebar .image-editor-precision[open] summary::after {
-  content: "－";
-}
-
-.image-editor-modebar .image-editor-dialog-footer {
-  justify-content: flex-end;
-  padding: 10px 16px;
-}
-
-.image-editor-modebar .image-editor-dialog-footer button {
-  min-width: 78px;
-  min-height: 36px;
-}
-
-@media (max-width: 680px) {
-  .image-editor-dialog.image-editor-modebar {
-    right: 8px;
-    bottom: 8px;
-    left: 8px;
-    width: auto;
-    transform: none;
-  }
-
-  .image-editor-modebar .image-editor-dialog-header,
-  .image-editor-modebar .image-editor-dialog-body,
-  .image-editor-modebar .image-editor-dialog-footer {
-    padding-inline: 12px;
-  }
-
-  .image-editor-modebar .image-editor-dialog-body {
-    max-height: 52dvh;
-    overflow: auto;
-  }
-
-  .image-editor-modebar .image-editor-dialog-controls {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
-  .image-editor-modebar .image-editor-control-group + .image-editor-control-group {
-    padding-top: 10px;
-    padding-left: 0;
-    border-top: 1px solid var(--border);
-    border-left: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .image-editor-dialog.image-editor-modebar {
-    transition: none;
-  }
-}
-
-/* Compact placement dock --------------------------------------------------
-   Keep the card visible and make the edit transaction read left-to-right:
-   context, size, position, then commit. The body remains semantic markup but
-   participates in the dock grid so a second panel cannot grow underneath the
-   controls. */
-.image-editor-dialog.image-editor-modebar {
-  --placement-dock-gap: 14px;
-  bottom: 14px;
-  width: min(1040px, calc(100vw - 32px));
-  border-radius: 14px;
-  background: color-mix(in oklch, var(--background) 97%, var(--muted));
-  box-shadow: 0 18px 48px rgb(16 24 40 / .22), 0 2px 8px rgb(16 24 40 / .08);
-}
-
-.image-editor-modebar .image-editor-dialog-shell {
-  display: grid;
+  box-sizing: border-box;
   grid-template-columns: minmax(150px, .78fr) minmax(260px, 1.4fr) minmax(215px, 1fr) auto;
   grid-template-rows: auto;
   grid-template-areas: "head size position footer";
   align-items: center;
   column-gap: var(--placement-dock-gap);
+  max-height: none;
   padding: 12px 14px;
 }
 
 .image-editor-modebar .image-editor-dialog-header {
   grid-area: head;
+  display: flex;
   min-width: 0;
   align-items: center;
   gap: 8px;
@@ -2089,6 +1688,7 @@
   overflow: hidden;
   color: var(--muted-foreground);
   font-size: 9px;
+  font-weight: 750;
   line-height: 1.2;
   letter-spacing: .02em;
   text-overflow: ellipsis;
@@ -2118,11 +1718,17 @@
 }
 
 .image-editor-modebar .image-editor-close {
-  flex: 0 0 auto;
+  display: grid;
   width: 28px;
   height: 28px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+  color: var(--muted-foreground);
+  background: var(--background);
   font-size: 16px;
+  line-height: 1;
 }
 
 .image-editor-modebar .image-editor-dialog-body,
@@ -2136,6 +1742,13 @@
   border: 0;
   border-radius: 0;
   background: transparent;
+}
+
+.image-editor-modebar .image-editor-control-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .image-editor-modebar .image-editor-control-group:first-child {
@@ -2158,8 +1771,8 @@
 .image-editor-modebar .image-editor-control-group:first-child .image-editor-range-label {
   grid-column: 2;
   grid-row: 1;
-  min-width: 0;
   display: block;
+  min-width: 0;
 }
 
 .image-editor-modebar .image-editor-control-group:first-child .image-zoom-controls {
@@ -2171,20 +1784,13 @@
   gap: 0;
 }
 
-.image-editor-modebar .image-editor-control-group:nth-child(2) {
-  grid-area: position;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 5px;
-  padding-left: var(--placement-dock-gap);
-  border-left: 1px solid var(--border);
-}
-
-.image-editor-modebar .image-editor-control-group:nth-child(2) .image-editor-control-head {
-  min-width: 0;
+.image-editor-modebar #zoomIn,
+.image-editor-modebar #zoomOut {
+  display: none;
 }
 
 .image-editor-modebar .image-editor-control-head h3 {
+  margin: 0;
   font-size: 11px;
   letter-spacing: .01em;
 }
@@ -2192,8 +1798,22 @@
 .image-editor-modebar .image-editor-control-head .zoom-readout {
   margin-right: 0;
   color: var(--foreground);
-  font-size: 11px;
+  font: 650 11px/1 var(--sans);
   font-variant-numeric: tabular-nums;
+}
+
+.image-editor-modebar .image-position-slider {
+  grid-template-columns: 34px minmax(0, 1fr) 58px;
+  font-size: 10px;
+}
+
+.image-editor-modebar .image-nudge-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.image-editor-modebar .image-nudge-grid button {
+  min-height: 38px;
 }
 
 .image-editor-modebar .image-fit-button,
@@ -2206,16 +1826,44 @@
   white-space: nowrap;
 }
 
+.image-editor-modebar .image-editor-control-group:nth-child(2) {
+  grid-area: position;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 5px;
+  min-width: 0;
+  padding-left: var(--placement-dock-gap);
+  border-left: 1px solid var(--border);
+}
+
+.image-editor-modebar .image-editor-control-group:nth-child(2) .image-editor-control-head {
+  min-width: 0;
+}
+
 .image-editor-modebar .image-editor-precision {
   min-width: 0;
 }
 
 .image-editor-modebar .image-editor-precision summary {
+  display: flex;
   min-height: 27px;
+  align-items: center;
+  justify-content: space-between;
   padding: 3px 0 0;
   border-top: 1px solid var(--border);
   color: var(--muted-foreground);
+  cursor: pointer;
   font-size: 10px;
+}
+
+.image-editor-modebar .image-editor-precision summary::after {
+  color: var(--foreground);
+  content: "＋";
+  font-size: 14px;
+}
+
+.image-editor-modebar .image-editor-precision[open] summary::after {
+  content: "－";
 }
 
 .image-editor-modebar .image-editor-precision .image-position-sliders {
@@ -2224,6 +1872,7 @@
 
 .image-editor-modebar .image-editor-dialog-footer {
   grid-area: footer;
+  display: flex;
   align-self: center;
   justify-content: flex-end;
   gap: 8px;
@@ -2232,8 +1881,11 @@
 }
 
 .image-editor-modebar .image-editor-dialog-footer button {
+  width: auto;
+  flex: 0 0 auto;
   min-width: 68px;
   min-height: 34px;
+  margin-top: 0;
   padding-inline: 12px;
 }
 
@@ -2280,7 +1932,7 @@
   }
 
   .image-editor-modebar .image-editor-control-group:first-child {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(120px, 1fr) auto;
   }
 
   .image-editor-modebar .image-editor-control-group:nth-child(2) {
@@ -2295,6 +1947,12 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .image-editor-dialog.image-editor-modebar,
+  .image-editor-modebar .image-editor-close {
+    transition: none;
+  }
+}
 /* Title outline is a glyph treatment, so it lives with copy controls and
    shares the same compact control rhythm as title typography. */
 .copy-editor-title-outline {
