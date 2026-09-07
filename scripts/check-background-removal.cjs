@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const { spawn } = require("node:child_process");
-const { once } = require("node:events");
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
+const { stopChild } = require("./test-process.cjs");
 
 const fixturePng = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=",
@@ -27,8 +27,13 @@ async function startServer() {
       resolve();
     });
   });
-  await startup;
-  return child;
+  try {
+    await startup;
+    return child;
+  } catch (error) {
+    await stopChild(child);
+    throw error;
+  }
 }
 
 (async () => {
@@ -52,6 +57,20 @@ async function startServer() {
     }, [...fixturePng]);
     await page.locator("#imageInput").setInputFiles({ name: "browser-fallback.png", mimeType: "image/png", buffer: fixturePng });
     await page.waitForFunction(() => document.querySelector("#imageState")?.dataset.state === "original");
+
+    await page.evaluate(() => {
+      const originalUpdate = characterAssetVault.update;
+      window.restoreAssetUpdate = () => { characterAssetVault.update = originalUpdate; };
+      characterAssetVault.update = async (key, value) => {
+        if (value?.cutoutBlob) throw new Error("simulated storage failure");
+        return originalUpdate(key, value);
+      };
+    });
+    await page.locator("#cutoutButton").click();
+    await page.waitForFunction(() => !document.querySelector("#cutoutButton").disabled);
+    assert.equal(await page.locator("#imageState").getAttribute("data-state"), "original", "failed asset writes must not apply an unpersisted cutout");
+    await page.evaluate(() => window.restoreAssetUpdate());
+
     await page.locator("#cutoutButton").click();
     await page.waitForFunction(() => document.querySelector("#imageState")?.dataset.state === "cutout");
     assert.match(await page.locator("#imageState").textContent(), /배경 제거됨/);
@@ -73,7 +92,7 @@ async function startServer() {
     console.log("PASS: browser background-removal adapter is served and API-unavailable fallback applies a cutout.");
   } finally {
     await browser.close();
-    server.kill();
+    await stopChild(server);
   }
 })().catch((error) => {
   console.error(error);

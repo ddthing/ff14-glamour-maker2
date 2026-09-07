@@ -1,5 +1,6 @@
 const {spawn}=require('node:child_process');
 const assert=require('node:assert/strict');
+const {stopChild}=require('./test-process.cjs');
 (async()=>{
  const child=spawn(process.execPath,['server.js'],{env:{...process.env,PORT:'4197',HOST:'127.0.0.1'}});
  try {
@@ -9,5 +10,5 @@ const assert=require('node:assert/strict');
   assert.equal((await fetch('http://127.0.0.1:4197/%ZZ')).status,400);
   assert.equal((await fetch('http://127.0.0.1:4197/')).status,200);
   console.log('PASS: public file allowlist, malformed URL recovery, and required assets.');
- } finally {child.kill();}
+ } finally {await stopChild(child);}
 })().catch(error=>{console.error(error);process.exitCode=1});

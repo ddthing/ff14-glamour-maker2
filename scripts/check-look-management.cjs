@@ -36,6 +36,11 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     const duplicateId = await page.evaluate(() => state.selectedLookId);
     const copyKey = await page.evaluate(() => state.characters[0].assetKey);
     assert.notEqual(copyKey, originalKey, 'Duplicate shares mutable image storage with source');
+    const [sourceUrl, copyUrl] = await page.evaluate(() => [
+      looks.find((look) => look.id === "look-1").editor.characters[0].src,
+      state.characters[0].src,
+    ]);
+    assert.notEqual(sourceUrl, copyUrl, 'Duplicate must not share a revocable Blob URL with source');
     assert.equal(await page.locator('#boardTitle').textContent(), '원본 룩 복사본');
     assert.equal(await page.evaluate(() => state.history.length), 0, 'Duplicate inherited source undo history');
     await page.evaluate(async key => {

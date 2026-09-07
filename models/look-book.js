@@ -9,10 +9,17 @@ const LookBook = (() => {
     const copiedKeys = new Map();
     for (const character of result.editor?.characters || []) {
       if (!isCurrent()) return null;
+      const runtimeSrc = character.src;
+      const runtimeOriginalSrc = character.originalSrc;
       if (!character.assetKey) {
-        if (character.src) throw new Error("저장되지 않은 사진이 있습니다. 사진을 다시 추가한 뒤 복제해주세요.");
+        if (runtimeSrc || runtimeOriginalSrc) throw new Error("저장되지 않은 사진이 있습니다. 사진을 다시 추가한 뒤 복제해주세요.");
         continue;
       }
+      // A Blob URL is a process-local handle, not part of the saved look.
+      // Carrying it into the copy would let cleanup of one look revoke the
+      // other look's live image.
+      character.src = "";
+      character.originalSrc = "";
       const originalKey = character.assetKey;
       if (!copiedKeys.has(originalKey)) {
         const asset = await readAsset(originalKey);

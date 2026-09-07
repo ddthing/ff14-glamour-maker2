@@ -91,6 +91,35 @@ function syncTitleFontControls() {
   if (hadWeightFocus) optionsHost.querySelector('[aria-checked="true"]')?.focus();
 }
 
+function syncTitleAlignmentControls() {
+  const controls = document.getElementById("titleAlignmentControls");
+  if (!controls) return;
+  const selectedAlignment = resolveTitleAlign();
+  controls.querySelectorAll("[data-title-align]").forEach((button) => {
+    const selected = button.dataset.titleAlign === selectedAlignment;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-checked", String(selected));
+    button.setAttribute("aria-pressed", String(selected));
+    button.tabIndex = selected ? 0 : -1;
+  });
+}
+
+function syncCopyColorControls() {
+  const titleOutlineInput = document.getElementById("titleOutlineColorInput");
+  if (titleOutlineInput) titleOutlineInput.value = normaliseHexColor(state.titleOutline?.color, "#ffffff");
+  const subtitleColorInput = document.getElementById("subtitleColorInput");
+  const hasCustomSubtitleColor = Boolean(normaliseOptionalHexColor(state.subtitleColor));
+  if (subtitleColorInput) {
+    subtitleColorInput.value = hasCustomSubtitleColor ? state.subtitleColor : defaultSubtitleColor();
+    subtitleColorInput.dataset.mode = hasCustomSubtitleColor ? "custom" : "auto";
+  }
+  const autoButton = document.getElementById("subtitleColorAutoButton");
+  if (autoButton) {
+    autoButton.disabled = !hasCustomSubtitleColor;
+    autoButton.setAttribute("aria-pressed", String(!hasCustomSubtitleColor));
+  }
+}
+
 // Kept only to migrate drafts created before background presets existed.
 // These values never appear in the editor or in the new preset library.
 const legacyStyleRecipes = {
@@ -354,8 +383,16 @@ function createOutfits(itemIds, variants = []) {
   return Array.from({ length: 5 }, (_, index) => createOutfit(variants[index] || itemIds));
 }
 
+function normaliseOutfit(outfit = {}) {
+  return Object.fromEntries(outfitSlots.map((slot) => {
+    const value = outfit?.[slot];
+    const itemId = String(value ?? "");
+    return [slot, /^\d{1,32}$/.test(itemId) ? itemId : null];
+  }));
+}
+
 function cloneOutfits(outfits) {
-  return (outfits || []).map((outfit) => ({ ...outfit }));
+  return (outfits || []).map((outfit) => normaliseOutfit(outfit));
 }
 
 function outfitToItemIds(outfit) {
@@ -369,7 +406,7 @@ function ensureLookOutfits(look) {
   while (look.outfits.length < 5) {
     look.outfits.push(createOutfit(look.itemIds || []));
   }
-  look.outfits = look.outfits.slice(0, 5).map((outfit) => ({ ...createOutfit(), ...outfit }));
+  look.outfits = look.outfits.slice(0, 5).map((outfit) => normaliseOutfit(outfit));
   look.itemIds = outfitToItemIds(look.outfits[0]);
   return look.outfits;
 }
@@ -399,6 +436,8 @@ function createBlankLook(number = 1, id = `look-${number}`) {
     backgroundTexture: "none",
     titleFont: defaultTitleFont,
     titleWeight: defaultTitleWeight,
+    titleAlign: "auto",
+    subtitleColor: "",
     outline: { color: "#f1dfbb", width: 0 },
     titleOutline: { color: "#ffffff", width: 0 },
   };
@@ -420,6 +459,8 @@ function createLookResetSnapshot(look, index = 0) {
     background: blank.background,
     backgroundPattern: blank.backgroundPattern,
     backgroundTexture: blank.backgroundTexture,
+    titleAlign: blank.titleAlign,
+    subtitleColor: blank.subtitleColor,
   };
 }
 
@@ -443,6 +484,8 @@ const state = {
   infoDensity: "summary",
   titleFont: defaultTitleFont,
   titleWeight: defaultTitleWeight,
+  titleAlign: "auto",
+  subtitleColor: "",
   singleRatio: "portrait",
   singleLayout: "info-left",
   backgroundPattern: "none",
@@ -595,14 +638,47 @@ function syncStateIntoLook(look = getSelectedLook()) {
   look.backgroundTexture = backgroundTextureOptions.has(state.backgroundTexture) ? state.backgroundTexture : "none";
   look.titleFont = titleFonts[state.titleFont] ? state.titleFont : defaultTitleFont;
   look.titleWeight = normaliseTitleWeight(look.titleFont, state.titleWeight ?? defaultTitleWeight);
-  look.outline = { ...state.outline };
-  look.titleOutline = { ...state.titleOutline };
+  look.titleAlign = normaliseTitleAlign(state.titleAlign);
+  look.subtitleColor = normaliseOptionalHexColor(state.subtitleColor);
+  look.outline = normaliseOutline(state.outline, "#f1dfbb", 8);
+  look.titleOutline = normaliseOutline(state.titleOutline, "#ffffff", 6);
   look.outfits = cloneOutfits(getLookOutfits(look));
   look.itemIds = outfitToItemIds(look.outfits[0]);
 }
 
 function getItem(itemId) {
   return itemRecordCache.get(String(itemId)) || null;
+}
+
+function serializeItemRecord(item) {
+  const localise = (values) => Object.fromEntries(["ko", "en", "ja"]
+    .filter((language) => typeof values?.[language] === "string")
+    .map((language) => [language, values[language].slice(0, 160)]));
+  return {
+    id: String(item.id),
+    slot: outfitSlots.includes(item.slot) ? item.slot : "",
+    icon: typeof item.icon === "string" ? item.icon.slice(0, 160) : "",
+    iconUrl: typeof item.iconUrl === "string" && item.iconUrl.startsWith("https://") ? item.iconUrl.slice(0, 320) : "",
+    names: localise(item.names),
+    meta: localise(item.meta),
+    source: typeof item.source === "string" ? item.source.slice(0, 80) : "",
+  };
+}
+
+function getPersistedItemRecords() {
+  const referencedIds = new Set();
+  for (const look of looks) {
+    for (const outfit of getLookOutfits(look)) {
+      for (const itemId of outfitToItemIds(outfit)) {
+        const id = String(itemId);
+        if (/^\d+$/.test(id)) referencedIds.add(id);
+      }
+    }
+  }
+  return Array.from(referencedIds)
+    .map((id) => getItem(id))
+    .filter((item) => item && outfitSlots.includes(item.slot))
+    .map(serializeItemRecord);
 }
 
 function registerItemRecords(items = []) {
@@ -696,8 +772,32 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
+function getItemImageUrl(item) {
+  const value = String(item?.iconUrl || "").trim();
+  if (!value) return "";
+  try {
+    const url = new URL(value, window.location.origin);
+    if (url.protocol !== "https:" || !["xivapi.com", "www.xivapi.com"].includes(url.hostname)) return "";
+    return url.href;
+  } catch {
+    return "";
+  }
+}
+
+function renderItemImage(item, fallbackSlot = item?.slot) {
+  const imageUrl = getItemImageUrl(item);
+  if (!imageUrl) return renderEquipmentIcon(fallbackSlot);
+  return `<img class="item-image" src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async"><span class="item-image-fallback" aria-hidden="true">${renderEquipmentIcon(fallbackSlot)}</span>`;
+}
+
+function bindItemImageFallbacks(container) {
+  container.querySelectorAll("img.item-image").forEach((image) => image.addEventListener("error", () => {
+    image.closest(".equipment-icon, .catalog-result-icon")?.classList.add("is-image-fallback");
+  }, { once: true }));
+}
+
 function renderCatalogIcon(item) {
-  return renderEquipmentIcon(item?.slot);
+  return renderItemImage(item);
 }
 
 function renderEquipmentIcon(slot) {
@@ -815,6 +915,58 @@ function clamp(value, min, max, fallback = min) {
   return Number.isFinite(numericValue) ? Math.min(max, Math.max(min, numericValue)) : fallback;
 }
 
+function normaliseOutline(value, fallbackColor, maxWidth) {
+  return {
+    color: normaliseHexColor(value?.color, fallbackColor),
+    width: clamp(value?.width, 0, maxWidth, 0),
+  };
+}
+
+function normaliseHexColor(value, fallback = "") {
+  return /^#[0-9a-f]{6}$/i.test(String(value || "")) ? String(value).toLowerCase() : fallback;
+}
+
+function normaliseOptionalHexColor(value) {
+  return normaliseHexColor(value, "");
+}
+
+function normaliseTitleAlign(value) {
+  return ["auto", "left", "center", "right"].includes(value) ? value : "auto";
+}
+
+function resolveTitleAlign() {
+  if (state.titleAlign !== "auto") return state.titleAlign;
+  if (state.characterCount >= 3) return "center";
+  if (state.characterCount === 1 && state.singleLayout === "info-right") return "right";
+  return "left";
+}
+
+function defaultSubtitleColor() {
+  return ["ink", "charcoal"].includes(state.background) ? "#f7f3ed" : "#263238";
+}
+
+function serializeCharacter(character = {}) {
+  const normalized = {
+    ...LookEditor.emptyCharacter(),
+    ...character,
+    assetKey: typeof character.assetKey === "string" && character.assetKey.length <= 160 ? character.assetKey : null,
+    fileName: typeof character.fileName === "string" ? character.fileName.slice(0, 160) : "이미지를 추가하세요",
+    fileMeta: typeof character.fileMeta === "string" ? character.fileMeta.slice(0, 240) : "PNG, JPG 또는 WebP · 아직 선택하지 않음",
+    cutout: character.cutout === true,
+  };
+  LookEditor.normalizeCharacter(normalized);
+  return {
+    assetKey: normalized.assetKey,
+    fileName: normalized.fileName,
+    fileMeta: normalized.fileMeta,
+    cutout: normalized.cutout,
+    imageFit: normalized.imageFit,
+    zoom: normalized.zoom,
+    panX: normalized.panX,
+    panY: normalized.panY,
+  };
+}
+
 
 function getCharacterImageState(character) {
   return ensureCharacterImageState(character || state.characters[0]) || {
@@ -896,14 +1048,14 @@ function finishImageEditor(apply) {
   if (apply && changed) showToast("이미지 배치를 적용했습니다.");
 }
 
-async function restoreCharacterAssets(savedCharacters = [], characters = state.characters) {
+async function restoreCharacterAssets(savedCharacters = [], characters = state.characters, { sync = true } = {}) {
   const restoreJobs = characters.map(async (character, index) => {
     const saved = savedCharacters[index];
     if (!saved?.assetKey) return;
     character.assetKey = saved.assetKey;
     character.fileName = saved.fileName || character.fileName;
     character.fileMeta = saved.fileMeta || character.fileMeta;
-    character.cutout = Boolean(saved.cutout);
+    character.cutout = saved.cutout === true;
     try {
       const record = await characterAssetVault.read(saved.assetKey);
       if (!record?.originalBlob) {
@@ -923,11 +1075,12 @@ async function restoreCharacterAssets(savedCharacters = [], characters = state.c
     }
   });
   await Promise.all(restoreJobs);
-  syncSelectedCharacter();
+  if (sync) syncSelectedCharacter();
 }
 
 
 function serializeLook(look) {
+  const editor = normaliseLookEditor(look.editor || defaultLookEditor());
   return {
     id: String(look.id),
     title: typeof look.title === "string" ? look.title : "새로운 룩",
@@ -938,9 +1091,11 @@ function serializeLook(look) {
     backgroundTexture: backgroundTextureOptions.has(look.backgroundTexture) ? look.backgroundTexture : "none",
     titleFont: titleFonts[look.titleFont] ? look.titleFont : defaultTitleFont,
     titleWeight: normaliseTitleWeight(look.titleFont || defaultTitleFont, look.titleWeight ?? defaultTitleWeight),
-    outline: { ...(look.outline || { color: "#f1dfbb", width: 0 }) },
-    titleOutline: { ...(look.titleOutline || { color: "#ffffff", width: 0 }) },
-    editor: { ...(look.editor || defaultLookEditor()), characters: (look.editor?.characters || createEmptyCharacters()).map(({ src, originalSrc, ...character }) => character) },
+    titleAlign: normaliseTitleAlign(look.titleAlign),
+    subtitleColor: normaliseOptionalHexColor(look.subtitleColor),
+    outline: normaliseOutline(look.outline, "#f1dfbb", 8),
+    titleOutline: normaliseOutline(look.titleOutline, "#ffffff", 6),
+    editor: { ...editor, characters: editor.characters.map(serializeCharacter) },
   };
 }
 
@@ -954,9 +1109,9 @@ function saveState() {
     subtitle: look.subtitle,
     background: state.background,
     cutout: state.cutout,
-    outline: state.outline,
-    titleOutline: state.titleOutline,
-    shadow: state.shadow,
+    outline: normaliseOutline(state.outline, "#f1dfbb", 8),
+    titleOutline: normaliseOutline(state.titleOutline, "#ffffff", 6),
+    shadow: LookEditor.normalizeShadow(state.shadow),
     zoom: state.zoom,
     panX: state.panX,
     panY: state.panY,
@@ -965,26 +1120,21 @@ function saveState() {
     characterCount: state.characterCount,
     selectedCharacter: state.selectedCharacter,
     outfits: cloneOutfits(getLookOutfits(look)),
-    catalogItems: Array.from(itemRecordCache.values()).filter((item) => /^\d+$/.test(String(item.id))),
+    // Search results are ephemeral. Persist only records referenced by a
+    // saved outfit; otherwise every search grows the localStorage draft.
+    catalogItems: getPersistedItemRecords(),
     multiInfoEnabled: state.multiInfoEnabled,
     multiInfoMode: state.multiInfoMode,
     infoDensity: state.infoDensity,
     titleFont: state.titleFont,
     titleWeight: state.titleWeight,
+    titleAlign: normaliseTitleAlign(state.titleAlign),
+    subtitleColor: normaliseOptionalHexColor(state.subtitleColor),
     singleRatio: state.singleRatio,
     singleLayout: state.singleLayout,
     backgroundPattern: state.backgroundPattern,
     backgroundTexture: state.backgroundTexture,
-    characters: state.characters.map((character) => ({
-      assetKey: character.assetKey || null,
-      fileName: character.fileName,
-      fileMeta: character.fileMeta,
-      cutout: Boolean(character.cutout),
-      imageFit: character.imageFit || "contain",
-      zoom: Number.isFinite(character.zoom) ? character.zoom : 100,
-      panX: Number.isFinite(character.panX) ? character.panX : 0,
-      panY: Number.isFinite(character.panY) ? character.panY : 0,
-    })),
+    characters: state.characters.map(serializeCharacter),
   };
   try {
     localStorage.setItem(draftStorageKey, JSON.stringify(snapshot));
@@ -1022,9 +1172,9 @@ function createSnapshot() {
     subtitle: look.subtitle,
     background: state.background,
     cutout: state.cutout,
-    outline: { ...state.outline },
-    titleOutline: { ...state.titleOutline },
-    shadow: { ...state.shadow },
+    outline: normaliseOutline(state.outline, "#f1dfbb", 8),
+    titleOutline: normaliseOutline(state.titleOutline, "#ffffff", 6),
+    shadow: LookEditor.normalizeShadow(state.shadow),
     zoom: state.zoom,
     panX: state.panX,
     panY: state.panY,
@@ -1037,6 +1187,8 @@ function createSnapshot() {
     infoDensity: state.infoDensity,
     titleFont: state.titleFont,
     titleWeight: state.titleWeight,
+    titleAlign: normaliseTitleAlign(state.titleAlign),
+    subtitleColor: normaliseOptionalHexColor(state.subtitleColor),
     singleRatio: state.singleRatio,
     singleLayout: state.singleLayout,
     backgroundPattern: state.backgroundPattern,
@@ -1050,15 +1202,22 @@ function restoreSnapshot(snapshot) {
   const look = getSelectedLook();
   if (typeof snapshot.title === "string") look.title = snapshot.title;
   if (typeof snapshot.subtitle === "string") look.subtitle = snapshot.subtitle;
-  state.background = snapshot.background;
-  state.cutout = snapshot.cutout;
-  state.outline = { ...snapshot.outline };
-  state.titleOutline = { ...snapshot.titleOutline };
-  state.shadow = { ...snapshot.shadow };
-  state.zoom = snapshot.zoom;
-  state.panX = snapshot.panX;
-  state.panY = snapshot.panY;
-  if (snapshot.characterCount) state.characterCount = snapshot.characterCount;
+  state.background = backgrounds[snapshot.background] ? snapshot.background : "paper";
+  state.cutout = snapshot.cutout === true;
+  state.outline = normaliseOutline(snapshot.outline, "#f1dfbb", 8);
+  state.titleOutline = normaliseOutline(snapshot.titleOutline, "#ffffff", 6);
+  state.shadow = LookEditor.normalizeShadow(snapshot.shadow);
+  const placement = LookEditor.normalizeCharacter({
+    imageFit: snapshot.imageFit,
+    zoom: snapshot.zoom,
+    panX: snapshot.panX,
+    panY: snapshot.panY,
+  });
+  state.zoom = placement.zoom;
+  state.panX = placement.panX;
+  state.panY = placement.panY;
+  state.imageFit = placement.imageFit;
+  if (snapshot.characterCount) state.characterCount = clamp(snapshot.characterCount, 1, 5, 1) | 0;
   if (Number.isInteger(snapshot.selectedCharacter)) state.selectedCharacter = Math.min(state.characterCount - 1, Math.max(0, snapshot.selectedCharacter));
   if (snapshot.activeSlot) state.activeSlot = snapshot.activeSlot;
   if (typeof snapshot.multiInfoEnabled === "boolean") state.multiInfoEnabled = snapshot.multiInfoEnabled;
@@ -1066,12 +1225,19 @@ function restoreSnapshot(snapshot) {
   if (snapshot.infoDensity) state.infoDensity = snapshot.infoDensity;
   if (snapshot.titleFont && titleFonts[snapshot.titleFont]) state.titleFont = snapshot.titleFont;
   if (Number.isFinite(snapshot.titleWeight)) state.titleWeight = normaliseTitleWeight(state.titleFont, snapshot.titleWeight);
-  if (snapshot.singleRatio) state.singleRatio = snapshot.singleRatio;
-  if (snapshot.singleLayout) state.singleLayout = snapshot.singleLayout;
+  state.titleAlign = normaliseTitleAlign(snapshot.titleAlign);
+  state.subtitleColor = normaliseOptionalHexColor(snapshot.subtitleColor);
+  if (["portrait", "landscape"].includes(snapshot.singleRatio)) state.singleRatio = snapshot.singleRatio;
+  if (["info-left", "info-right"].includes(snapshot.singleLayout)) state.singleLayout = snapshot.singleLayout;
   restoreBackgroundStyle(snapshot.backgroundPattern, snapshot.backgroundMotif, snapshot.backgroundTexture);
-  if (snapshot.imageFit) state.imageFit = snapshot.imageFit;
   if (Array.isArray(snapshot.characters)) {
-    state.characters = snapshot.characters.map((character) => ({ ...character }));
+    state.characters = snapshot.characters.slice(0, 5).map((character) => {
+      const copy = { ...character };
+      LookEditor.normalizeCharacter(copy);
+      copy.cutout = character.cutout === true;
+      return copy;
+    });
+    while (state.characters.length < 5) state.characters.push(LookEditor.emptyCharacter());
     syncSelectedCharacter();
   }
   if (Array.isArray(snapshot.outfits)) {
@@ -1483,10 +1649,15 @@ function renderStyles({ refreshInfo = true, refreshPattern = true } = {}) {
   elements.board.style.setProperty("--card-title-font", titleFontConfig.family);
   elements.board.style.setProperty("--card-title-weight", String(state.titleWeight));
   const titleOutlineWidth = clamp(Number(state.titleOutline?.width), 0, 6, 0);
-  const titleOutlineColor = /^#[0-9a-f]{6}$/i.test(state.titleOutline?.color || "") ? state.titleOutline.color : "#ffffff";
+  const titleOutlineColor = normaliseHexColor(state.titleOutline?.color, "#ffffff");
   state.titleOutline = { color: titleOutlineColor, width: titleOutlineWidth };
+  state.titleAlign = normaliseTitleAlign(state.titleAlign);
+  state.subtitleColor = normaliseOptionalHexColor(state.subtitleColor);
   elements.board.style.setProperty("--title-outline-width", `${titleOutlineWidth}px`);
   elements.board.style.setProperty("--title-outline-color", titleOutlineColor);
+  elements.board.style.setProperty("--card-title-align", resolveTitleAlign());
+  elements.board.style.setProperty("--card-subtitle-color", state.subtitleColor || "var(--recipe-ink)");
+  elements.board.style.setProperty("--card-subtitle-opacity", state.subtitleColor ? "1" : ".68");
   elements.portraitWrap.style.setProperty("--portrait-scale", 1);
   elements.portraitWrap.style.setProperty("--pan-x", "0px");
   elements.portraitWrap.style.setProperty("--pan-y", "0px");
@@ -1554,6 +1725,8 @@ function renderStyles({ refreshInfo = true, refreshPattern = true } = {}) {
   syncImagePlacementSummary();
   $("#multiInfoToggle").checked = state.multiInfoEnabled;
   syncTitleFontControls();
+  syncTitleAlignmentControls();
+  syncCopyColorControls();
   const backgroundCurrentLabel = $("#backgroundCurrentLabel");
   if (backgroundCurrentLabel) {
     const currentPreset = backgroundPresets.find((preset) => getBackgroundSelectionSignature(preset) === getBackgroundSelectionSignature());
@@ -1635,6 +1808,13 @@ function shadowDirection() {
   return `${y < 0 ? "n" : y > 0 ? "s" : ""}${x < 0 ? "w" : x > 0 ? "e" : ""}` || "s";
 }
 
+function focusItemSearch() {
+  window.requestAnimationFrame(() => {
+    elements.itemSearch.focus();
+    ensureMobileControlVisible(elements.itemSearch);
+  });
+}
+
 function renderEquipment() {
   const look = getSelectedLook();
   const outfit = getCharacterOutfit(state.selectedCharacter, look);
@@ -1647,21 +1827,26 @@ function renderEquipment() {
     const secondaryName = item ? getSecondaryItemName(item) : "";
     const itemMeta = [getOutfitSlotName(slot), secondaryName || (!item ? "아이템을 검색해 연결" : "")].filter(Boolean).join(" · ");
     const visualLabel = getOutfitSlotVisualLabel(slot);
-    return `<button class="equipment-row${selected ? " is-selected" : ""}${item ? "" : " is-empty"}" data-slot="${slot}" type="button" aria-pressed="${selected}" aria-label="${escapeHtml(`${visualLabel} (${getOutfitSlotName(slot)}) 슬롯 ${item ? itemName : "아이템 연결"}`)}">
-      <span class="equipment-icon" aria-hidden="true">${renderEquipmentIcon(slot)}</span>
-      <span class="equipment-copy"><strong>${escapeHtml(itemName)}</strong><span>${escapeHtml(itemMeta)}</span></span>
-      <span class="equipment-check">${item ? "변경" : "연결"}</span>
-    </button>`;
+    const hasItemImage = Boolean(getItemImageUrl(item));
+    return `<div class="equipment-row-shell">
+      <button class="equipment-row${selected ? " is-selected" : ""}${item ? "" : " is-empty"}" data-slot="${slot}" type="button" aria-pressed="${selected}" aria-label="${escapeHtml(`${visualLabel} (${getOutfitSlotName(slot)}) 슬롯 ${item ? itemName : "아이템 연결"}`)}">
+        <span class="equipment-icon${hasItemImage ? " has-item-image" : ""}" aria-hidden="true">${renderItemImage(item, slot)}</span>
+        <span class="equipment-copy"><strong>${escapeHtml(itemName)}</strong><span>${escapeHtml(itemMeta)}</span></span>
+        <span class="equipment-check">${item ? "변경" : "연결"}</span>
+      </button>
+      ${item ? `<button class="equipment-remove" data-remove-slot="${slot}" type="button" aria-label="${escapeHtml(`${getOutfitSlotName(slot)} ${itemName} 제거`)}">제거</button>` : ""}
+    </div>`;
   }).join("");
-  $$(".equipment-row").forEach((row) => row.addEventListener("click", () => {
+  elements.equipmentList.querySelectorAll(".equipment-row").forEach((row) => row.addEventListener("click", () => {
     state.activeSlot = row.dataset.slot;
     renderEquipment();
     renderCatalog();
-    window.requestAnimationFrame(() => {
-      elements.itemSearch.focus();
-      ensureMobileControlVisible(elements.itemSearch);
-    });
+    focusItemSearch();
   }));
+  elements.equipmentList.querySelectorAll(".equipment-remove").forEach((button) => button.addEventListener("click", () => {
+    removeItem(button.dataset.removeSlot);
+  }));
+  bindItemImageFallbacks(elements.equipmentList);
   if (elements.languageSelect) elements.languageSelect.value = state.language;
   renderBoardGear();
 }
@@ -1678,9 +1863,11 @@ function renderCatalogResults(results, { notice = "" } = {}) {
   elements.catalogResults.setAttribute("aria-busy", "false");
   const resultMarkup = results.length ? results.map((item) => {
     const secondaryName = getSecondaryItemName(item);
-    return `<button class="catalog-result" data-item-id="${escapeHtml(item.id)}" type="button"><span class="catalog-result-icon">${renderCatalogIcon(item)}</span><span class="catalog-result-copy"><strong>${escapeHtml(getItemName(item))}</strong><span>${escapeHtml(secondaryName || getOutfitSlotName(item.slot))}</span></span><span class="catalog-result-action" aria-hidden="true">＋</span></button>`;
+    const hasItemImage = Boolean(getItemImageUrl(item));
+    return `<button class="catalog-result" data-item-id="${escapeHtml(item.id)}" type="button"><span class="catalog-result-icon${hasItemImage ? " has-item-image" : ""}">${renderCatalogIcon(item)}</span><span class="catalog-result-copy"><strong>${escapeHtml(getItemName(item))}</strong><span>${escapeHtml(secondaryName || getOutfitSlotName(item.slot))}</span></span><span class="catalog-result-action" aria-hidden="true">＋</span></button>`;
   }).join("") : `<div class="empty-results"><strong>일치하는 장비가 없습니다.</strong></div>`;
   elements.catalogResults.innerHTML = `${notice ? `<div class="catalog-results-notice" role="status">${escapeHtml(notice)}</div>` : ""}${resultMarkup}`;
+  bindItemImageFallbacks(elements.catalogResults);
   $$(".catalog-result").forEach((button) => button.addEventListener("click", () => { void linkItem(button.dataset.itemId); }));
 }
 
@@ -1733,11 +1920,28 @@ async function linkItem(itemId) {
   renderCatalog();
   showToast(`${getItemName(newItem)}을(를) ${getItemMeta(newItem)}에 연결했습니다.`);
   saveState();
-  window.requestAnimationFrame(() => {
-    elements.itemSearch.focus();
-    ensureMobileControlVisible(elements.itemSearch);
-  });
+  focusItemSearch();
   await hydrateEnglishItemNames([newItem]);
+}
+
+function removeItem(slot) {
+  if (!outfitSlots.includes(slot)) return;
+  const look = getSelectedLook();
+  const outfit = getCharacterOutfit(state.selectedCharacter, look);
+  const itemId = outfit?.[slot];
+  if (!itemId) return;
+  const item = getItem(itemId);
+  recordHistory();
+  // recordHistory normalizes/replaces the outfit array while taking its
+  // snapshot, so reacquire the mutable row after the snapshot is captured.
+  getCharacterOutfit(state.selectedCharacter, look)[slot] = null;
+  ensureLookOutfits(look);
+  state.activeSlot = slot;
+  renderEquipment();
+  renderCatalog();
+  saveState();
+  showToast(item ? `${getItemName(item)}을(를) 장비에서 제거했습니다.` : `${getOutfitSlotName(slot)} 장비를 제거했습니다.`);
+  focusItemSearch();
 }
 
 function normaliseSavedLook(value, index) {
@@ -1750,14 +1954,10 @@ function normaliseSavedLook(value, index) {
   look.backgroundTexture = backgroundTextureOptions.has(value?.backgroundTexture) ? value.backgroundTexture : "none";
   look.titleFont = titleFonts[value?.titleFont] ? value.titleFont : defaultTitleFont;
   look.titleWeight = normaliseTitleWeight(look.titleFont, value?.titleWeight ?? defaultTitleWeight);
-  look.outline = {
-    color: /^#[0-9a-f]{6}$/i.test(value?.outline?.color || "") ? value.outline.color : "#f1dfbb",
-    width: clamp(value?.outline?.width, 0, 8, 0),
-  };
-  look.titleOutline = {
-    color: /^#[0-9a-f]{6}$/i.test(value?.titleOutline?.color || "") ? value.titleOutline.color : "#ffffff",
-    width: clamp(value?.titleOutline?.width, 0, 6, 0),
-  };
+  look.titleAlign = normaliseTitleAlign(value?.titleAlign);
+  look.subtitleColor = normaliseOptionalHexColor(value?.subtitleColor);
+  look.outline = normaliseOutline(value?.outline, "#f1dfbb", 8);
+  look.titleOutline = normaliseOutline(value?.titleOutline, "#ffffff", 6);
   look.outfits = Array.isArray(value?.outfits) ? cloneOutfits(value.outfits) : createOutfits([]);
   look.editor = value?.editor ? normaliseLookEditor(value.editor) : null;
   ensureLookOutfits(look);
@@ -1794,13 +1994,21 @@ function loadDraft() {
     if (saved.background && backgrounds[saved.background]) state.background = saved.background;
     else state.background = look.background || legacyStyle?.background || "paper";
     if (typeof saved.cutout === "boolean") state.cutout = saved.cutout;
-    if (saved.outline) state.outline = { ...state.outline, ...saved.outline };
-    if (saved.titleOutline) state.titleOutline = { ...state.titleOutline, ...saved.titleOutline };
-    if (saved.shadow) state.shadow = { ...state.shadow, ...saved.shadow };
-    if (typeof saved.zoom === "number") state.zoom = saved.zoom;
-    if (typeof saved.panX === "number") state.panX = saved.panX;
-    if (typeof saved.panY === "number") state.panY = saved.panY;
-    if (["contain", "cover"].includes(saved.imageFit)) state.imageFit = saved.imageFit;
+    if (saved.outline) state.outline = normaliseOutline(saved.outline, "#f1dfbb", 8);
+    if (saved.titleOutline) state.titleOutline = normaliseOutline(saved.titleOutline, "#ffffff", 6);
+    if (saved.shadow) state.shadow = LookEditor.normalizeShadow(saved.shadow);
+    if (saved.zoom !== undefined || saved.panX !== undefined || saved.panY !== undefined || saved.imageFit !== undefined) {
+      const placement = LookEditor.normalizeCharacter({
+        imageFit: saved.imageFit,
+        zoom: saved.zoom,
+        panX: saved.panX,
+        panY: saved.panY,
+      });
+      state.zoom = placement.zoom;
+      state.panX = placement.panX;
+      state.panY = placement.panY;
+      state.imageFit = placement.imageFit;
+    }
     if (["ko", "en", "ja"].includes(saved.language)) state.language = saved.language;
     if (typeof saved.multiInfoEnabled === "boolean") state.multiInfoEnabled = saved.multiInfoEnabled;
     if (["fade", "silhouette"].includes(saved.multiInfoMode)) state.multiInfoMode = saved.multiInfoMode;
@@ -1809,6 +2017,8 @@ function loadDraft() {
     else if (titleFonts[look.titleFont]) state.titleFont = look.titleFont;
     if (Number.isFinite(saved.titleWeight)) state.titleWeight = normaliseTitleWeight(state.titleFont, saved.titleWeight);
     else state.titleWeight = normaliseTitleWeight(state.titleFont, look.titleWeight);
+    state.titleAlign = normaliseTitleAlign(saved.titleAlign ?? look.titleAlign);
+    state.subtitleColor = normaliseOptionalHexColor(saved.subtitleColor ?? look.subtitleColor);
     if (["portrait", "landscape"].includes(saved.singleRatio)) state.singleRatio = saved.singleRatio;
     if (["info-left", "info-right"].includes(saved.singleLayout)) state.singleLayout = saved.singleLayout;
     restoreBackgroundStyle(
@@ -1822,16 +2032,19 @@ function loadDraft() {
       saved.characters.slice(0, 5).forEach((savedCharacter, index) => {
         const character = state.characters[index];
         if (!character || !savedCharacter) return;
-        character.assetKey = savedCharacter.assetKey || null;
-        if (savedCharacter.assetKey) {
-          character.fileName = savedCharacter.fileName || character.fileName;
-          character.fileMeta = savedCharacter.fileMeta || character.fileMeta;
+        character.assetKey = typeof savedCharacter.assetKey === "string" && savedCharacter.assetKey.length <= 160
+          ? savedCharacter.assetKey
+          : null;
+        if (character.assetKey) {
+          if (typeof savedCharacter.fileName === "string") character.fileName = savedCharacter.fileName.slice(0, 160);
+          if (typeof savedCharacter.fileMeta === "string") character.fileMeta = savedCharacter.fileMeta.slice(0, 240);
         }
-        character.cutout = Boolean(savedCharacter.cutout);
+        character.cutout = savedCharacter.cutout === true;
         character.imageFit = ["contain", "cover"].includes(savedCharacter.imageFit) ? savedCharacter.imageFit : "contain";
         if (Number.isFinite(savedCharacter.zoom)) character.zoom = savedCharacter.zoom;
         if (Number.isFinite(savedCharacter.panX)) character.panX = savedCharacter.panX;
         if (Number.isFinite(savedCharacter.panY)) character.panY = savedCharacter.panY;
+        LookEditor.normalizeCharacter(character);
       });
     }
     const selectedCharacter = state.characters[state.selectedCharacter];
@@ -1879,8 +2092,10 @@ function selectLook(id) {
   restoreBackgroundStyle(nextLook.backgroundPattern, nextLook.backgroundMotif, nextLook.backgroundTexture);
   state.titleFont = titleFonts[nextLook.titleFont] ? nextLook.titleFont : defaultTitleFont;
   state.titleWeight = normaliseTitleWeight(state.titleFont, nextLook.titleWeight ?? defaultTitleWeight);
-  state.outline = { ...state.outline, ...(nextLook.outline || {}) };
-  state.titleOutline = { ...state.titleOutline, ...(nextLook.titleOutline || {}) };
+  state.titleAlign = normaliseTitleAlign(nextLook.titleAlign);
+  state.subtitleColor = normaliseOptionalHexColor(nextLook.subtitleColor);
+  state.outline = normaliseOutline(nextLook.outline, "#f1dfbb", 8);
+  state.titleOutline = normaliseOutline(nextLook.titleOutline, "#ffffff", 6);
   styleAdvancedOpen = false;
   state.activeSlot = "head";
   state.selectedCharacter = 0;
@@ -1912,7 +2127,8 @@ function formatImageOffset(value) {
 
 async function handleImageFile(file, characterIndex = state.selectedCharacter, { render = true, notify = true } = {}) {
   const operationEpoch = workspaceEpoch;
-  if (!file || !file.type.startsWith("image/")) {
+  const fileType = String(file?.type || "").toLowerCase();
+  if (!file || !["image/png", "image/jpeg", "image/webp"].includes(fileType)) {
     if (notify) showToast("PNG, JPG 또는 WebP 이미지를 선택해주세요.");
     return false;
   }
@@ -2063,6 +2279,8 @@ async function quickCutout() {
     label.textContent = state.cutout ? "원본으로 복원" : "배경 제거";
   };
 
+  let resultUrl = "";
+  let applied = false;
   try {
     const sourceResponse = await fetch(sourceUrl);
     if (!sourceResponse.ok) throw new Error("원본 이미지를 읽지 못했습니다.");
@@ -2110,7 +2328,7 @@ async function quickCutout() {
       resultBlob = browserResult.blob;
       processingTier = browserResult.tier;
     }
-    const resultUrl = createAssetUrl(resultBlob);
+    resultUrl = createAssetUrl(resultBlob);
     let image;
     try {
       image = await loadCanvasImage(resultUrl);
@@ -2121,6 +2339,23 @@ async function quickCutout() {
     }
     if (!isCurrentSource()) {
       URL.revokeObjectURL(resultUrl);
+      assetUrls.delete(resultUrl);
+      scheduleAssetCleanup();
+      showToast("원본이나 작업 상태가 바뀌어 배경 제거 결과를 적용하지 않았습니다.");
+      return;
+    }
+    try {
+      await writeCharacterAsset(targetCharacter.assetKey, { cutoutBlob: resultBlob });
+    } catch {
+      URL.revokeObjectURL(resultUrl);
+      assetUrls.delete(resultUrl);
+      showToast("배경제거는 완료됐지만 브라우저 저장에 실패했습니다.");
+      return;
+    }
+    if (!isCurrentSource()) {
+      URL.revokeObjectURL(resultUrl);
+      assetUrls.delete(resultUrl);
+      scheduleAssetCleanup();
       showToast("원본이나 작업 상태가 바뀌어 배경 제거 결과를 적용하지 않았습니다.");
       return;
     }
@@ -2130,20 +2365,19 @@ async function quickCutout() {
       fileMeta: `${image.naturalWidth} × ${image.naturalHeight} · 배경 제거`,
       cutout: true,
     });
+    applied = true;
     syncSelectedCharacter();
     renderCast();
     renderStyles();
     renderSourcePanel();
-    try {
-      await writeCharacterAsset(targetCharacter.assetKey, { cutoutBlob: resultBlob });
-      if (!isCurrentSource()) return;
-      saveState();
-    } catch {
-      showToast("배경제거는 완료됐지만 브라우저 저장에 실패했습니다.");
-      return;
-    }
+    saveState();
     showToast(`배경 제거 완료 · ${image.naturalWidth} × ${image.naturalHeight} 원본 해상도${processingTier ? ` · ${processingTier}` : ""}`);
   } catch (error) {
+    if (resultUrl && !applied) {
+      URL.revokeObjectURL(resultUrl);
+      assetUrls.delete(resultUrl);
+      scheduleAssetCleanup();
+    }
     showToast(error.message || "이미지를 처리하지 못했습니다.");
   } finally {
     finishProcessing();
@@ -2196,7 +2430,8 @@ function captureExportCopy() {
       }
     }
     return { lines, font: `${style.fontWeight} ${parseFloat(style.fontSize) * scale}px ${style.fontFamily}`,
-      color: style.color, stroke: element === elements.boardTitle ? state.titleOutline.width * scale : 0,
+      color: style.color, opacity: Number.parseFloat(style.opacity) || 1,
+      stroke: element === elements.boardTitle ? state.titleOutline.width * scale : 0,
       strokeColor: state.titleOutline.color, letterSpacing: (parseFloat(style.letterSpacing) || 0) * scale };
   });
 }
@@ -2286,6 +2521,8 @@ function resetStyles() {
   state.infoDensity = "summary";
   state.titleFont = defaultTitleFont;
   state.titleWeight = defaultTitleWeight;
+  state.titleAlign = "auto";
+  state.subtitleColor = "";
   state.singleRatio = "portrait";
   state.singleLayout = "info-left";
   styleAdvancedOpen = false;
@@ -2320,6 +2557,8 @@ function resetCardData() {
   state.infoDensity = "summary";
   state.titleFont = defaultTitleFont;
   state.titleWeight = defaultTitleWeight;
+  state.titleAlign = normaliseTitleAlign(defaults.titleAlign);
+  state.subtitleColor = normaliseOptionalHexColor(defaults.subtitleColor);
   state.singleRatio = "portrait";
   state.singleLayout = "info-left";
   state.characterCount = 1;
@@ -2392,6 +2631,8 @@ async function resetWorkspace() {
     infoDensity: "summary",
     titleFont: defaultTitleFont,
     titleWeight: defaultTitleWeight,
+    titleAlign: "auto",
+    subtitleColor: "",
     singleRatio: "portrait",
     singleLayout: "info-left",
     backgroundPattern: "none",
@@ -2551,6 +2792,14 @@ function initialiseInteractions() {
     renderStyles({ refreshInfo: false, refreshPattern: false });
     saveState();
   });
+  $$('button[data-title-align]').forEach((button) => button.addEventListener("click", () => {
+    const nextAlignment = normaliseTitleAlign(button.dataset.titleAlign);
+    if (nextAlignment === state.titleAlign) return;
+    recordHistory();
+    state.titleAlign = nextAlignment;
+    renderStyles({ refreshInfo: false, refreshPattern: false });
+    saveState();
+  }));
   document.addEventListener("keydown", (event) => {
     const radio = event.target.closest('[role="radio"]');
     const group = radio?.closest('[role="radiogroup"]');
@@ -2675,6 +2924,34 @@ function initialiseInteractions() {
   bindHistoryRange($("#outlineRange"), value => { state.outline.width = value; });
   bindHistoryRange(elements.titleOutlineRange, value => { state.titleOutline.width = value; });
   bindHistoryRange($("#shadowRange"), value => { state.shadow.strength = value; });
+  const bindColorInput = (input, update) => {
+    if (!input) return;
+    let editing = false;
+    input.addEventListener("input", () => {
+      if (!editing) {
+        recordHistory();
+        editing = true;
+      }
+      update(input.value);
+      renderStyles({ refreshInfo: false, refreshPattern: false });
+      saveState();
+    });
+    input.addEventListener("change", () => { editing = false; });
+    input.addEventListener("blur", () => { editing = false; });
+  };
+  bindColorInput($("#titleOutlineColorInput"), (value) => {
+    state.titleOutline.color = normaliseHexColor(value, "#ffffff");
+  });
+  bindColorInput($("#subtitleColorInput"), (value) => {
+    state.subtitleColor = normaliseHexColor(value, defaultSubtitleColor());
+  });
+  $("#subtitleColorAutoButton")?.addEventListener("click", () => {
+    if (!state.subtitleColor) return;
+    recordHistory();
+    state.subtitleColor = "";
+    renderStyles({ refreshInfo: false, refreshPattern: false });
+    saveState();
+  });
   $$(".color-swatch").forEach((swatch) => swatch.addEventListener("click", () => { recordHistory(); state.outline.color = swatch.dataset.color; renderStyles(); saveState(); }));
   $$(".title-outline-swatch").forEach((swatch) => swatch.addEventListener("click", () => {
     if (swatch.dataset.titleOutlineColor === state.titleOutline.color) return;
@@ -2974,6 +3251,15 @@ function initialiseLookManager() {
       const copy = await LookBook.copy(snapshot, { createId: createAssetKey,
         readAsset: characterAssetVault.read, writeAsset: writeCharacterAsset, isCurrent });
       if (!copy || !isCurrent()) return;
+      // The copy owns a new IndexedDB key. Rehydrate fresh Blob URLs before it
+      // becomes visible; revoking the source URL later must never break both
+      // looks at once.
+      copy.editor?.characters?.forEach((character) => {
+        character.src = "";
+        character.originalSrc = "";
+      });
+      await restoreCharacterAssets(copy.editor?.characters, copy.editor?.characters, { sync: false });
+      if (!isCurrent()) return;
       looks.splice(looks.indexOf(source) + 1, 0, copy);
       captureDefaultLookSnapshots();
       $("#lookSearch").value = "";

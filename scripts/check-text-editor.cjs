@@ -25,9 +25,9 @@ const subtitle = "설원에서 포착한 파란빛 겨울 산책입니다. This 
       const style = getComputedStyle(element);
       return { overflow: style.overflow, whiteSpace: style.whiteSpace, textOverflow: style.textOverflow };
     });
-    assert.equal(savedTitleMetrics.overflow, "hidden");
+    assert.equal(savedTitleMetrics.overflow, "visible");
     assert.equal(savedTitleMetrics.whiteSpace, "nowrap");
-    assert.equal(savedTitleMetrics.textOverflow, "ellipsis");
+    assert.equal(savedTitleMetrics.textOverflow, "clip");
 
     await page.locator("#cardSubtitleInput").fill(subtitle);
     assert.equal(await page.locator("#boardSubtitle").textContent(), subtitle);

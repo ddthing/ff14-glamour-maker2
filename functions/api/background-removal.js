@@ -1,4 +1,5 @@
 const maxUploadBytes = 16 * 1024 * 1024;
+const maxResultBytes = 32 * 1024 * 1024;
 const allowedImageTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
 const upstreamTimeoutMs = 120_000;
 
@@ -23,12 +24,10 @@ export async function onRequestPost(context) {
 
   let imageBytes;
   try {
-    imageBytes = await context.request.arrayBuffer();
-  } catch {
+    imageBytes = await readLimitedRequestBody(context.request, maxUploadBytes);
+  } catch (error) {
+    if (error.code === "UPLOAD_TOO_LARGE") return json({ error: "16MB 이하 이미지를 사용해주세요." }, 413);
     return json({ error: "이미지를 읽지 못했습니다." }, 400);
-  }
-  if (imageBytes.byteLength > maxUploadBytes) {
-    return json({ error: "16MB 이하 이미지를 사용해주세요." }, 413);
   }
 
   const headers = new Headers({
@@ -68,9 +67,26 @@ export async function onRequestPost(context) {
   }
 
   const upstreamType = normaliseContentType(upstream.headers.get("content-type"));
-  if (!upstreamType.startsWith("image/")) {
+  if (!allowedImageTypes.has(upstreamType)) {
+    await upstream.body?.cancel();
     console.error("[background-removal] upstream returned a non-image response");
     return json({ error: "배경 제거 결과를 확인할 수 없습니다.", code: "cutout_invalid_response" }, 502);
+  }
+
+  let output;
+  try {
+    output = await readLimitedResponseBody(upstream, maxResultBytes, upstreamTimeoutMs);
+  } catch (error) {
+    const timedOut = error.code === "UPSTREAM_TIMEOUT";
+    console.error(`[background-removal] ${error.code === "RESULT_TOO_LARGE" ? "upstream result too large" : timedOut ? "upstream body timeout" : "upstream body read failed"}`);
+    return json({
+      error: error.code === "RESULT_TOO_LARGE"
+        ? "배경 제거 결과가 너무 큽니다."
+        : timedOut ? "배경 제거 시간이 초과되었습니다. 잠시 후 다시 시도해주세요." : "배경 제거 결과를 읽지 못했습니다.",
+      code: error.code === "RESULT_TOO_LARGE"
+        ? "cutout_result_too_large"
+        : timedOut ? "cutout_service_timeout" : "cutout_invalid_response",
+    }, timedOut ? 504 : 502);
   }
 
   const responseHeaders = new Headers({
@@ -79,7 +95,7 @@ export async function onRequestPost(context) {
     "Content-Disposition": "inline",
     "X-Background-Mode": "gpu",
   });
-  return new Response(upstream.body, { status: 200, headers: responseHeaders });
+  return new Response(output, { status: 200, headers: responseHeaders });
 }
 
 export function onRequestOptions() {
@@ -115,6 +131,92 @@ async function fetchWithTimeout(url, options) {
     return await fetch(url, { ...options, signal: controller.signal });
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+function createResultTooLargeError() {
+  const error = new Error("배경 제거 결과가 너무 큽니다.");
+  error.code = "RESULT_TOO_LARGE";
+  return error;
+}
+
+function createUploadTooLargeError() {
+  const error = new Error("16MB 이하 이미지를 사용해주세요.");
+  error.code = "UPLOAD_TOO_LARGE";
+  return error;
+}
+
+async function readLimitedRequestBody(request, limit) {
+  const contentLength = Number(request.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > limit) throw createUploadTooLargeError();
+  if (!request.body?.getReader) {
+    const output = new Uint8Array(await request.arrayBuffer());
+    if (output.byteLength > limit) throw createUploadTooLargeError();
+    return output;
+  }
+  return readLimitedStreamBody(request.body, limit, createUploadTooLargeError);
+}
+
+async function readLimitedResponseBody(response, limit, timeoutMs = 0) {
+  const contentLength = Number(response.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > limit) {
+    await response.body?.cancel();
+    throw createResultTooLargeError();
+  }
+  if (!response.body?.getReader) {
+    const output = new Uint8Array(await response.arrayBuffer());
+    if (output.byteLength > limit) throw createResultTooLargeError();
+    return output;
+  }
+  return readLimitedStreamBody(response.body, limit, createResultTooLargeError, timeoutMs);
+}
+
+async function readLimitedStreamBody(stream, limit, createLimitError, timeoutMs = 0) {
+  const reader = stream.getReader();
+  const chunks = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await readStreamChunk(reader, timeoutMs);
+      if (done) break;
+      const chunk = value instanceof Uint8Array ? value : new Uint8Array(value);
+      size += chunk.byteLength;
+      if (size > limit) {
+        await reader.cancel();
+        throw createLimitError();
+      }
+      chunks.push(chunk);
+    }
+  } catch (error) {
+    try { await reader.cancel(); } catch {}
+    throw error;
+  }
+  const output = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return output;
+}
+
+async function readStreamChunk(reader, timeoutMs) {
+  if (!timeoutMs) return reader.read();
+  let timer;
+  try {
+    return await Promise.race([
+      reader.read(),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          reader.cancel().catch(() => {});
+          const error = new Error("upstream response timed out");
+          error.code = "UPSTREAM_TIMEOUT";
+          reject(error);
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
   }
 }
 

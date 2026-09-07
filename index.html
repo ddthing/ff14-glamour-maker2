@@ -171,15 +171,35 @@
 
               <section class="inspector-section portrait-section" id="imageSection">
                 <div class="panel-section-head"><h2>이미지</h2><span class="image-state" id="imageState" aria-live="polite">이미지 없음</span></div>
+                <div class="image-workflow-group image-import-group" aria-labelledby="imageImportGroupTitle">
+                  <div class="image-workflow-head"><span id="imageImportGroupTitle">사진 가져오기</span><small>원본은 브라우저에 안전하게 보관합니다</small></div>
                   <div class="portrait-source-card is-empty" id="portraitSourceCard">
-                  <div class="source-thumb is-empty" id="sourceThumbFrame"><img id="sourceThumb" alt="사진 미선택" /></div>
-                  <div class="source-copy"><strong id="sourceFileName" aria-live="polite">사진 미선택</strong><span id="sourceFileMeta" aria-live="polite">PNG · JPG · WebP · 여러 장 선택 가능</span></div>
+                    <div class="source-thumb is-empty" id="sourceThumbFrame"><img id="sourceThumb" alt="사진 미선택" /></div>
+                    <div class="source-copy"><strong id="sourceFileName" aria-live="polite">사진 미선택</strong><span id="sourceFileMeta" aria-live="polite">PNG · JPG · WebP · 여러 장 선택 가능</span></div>
+                  </div>
+                  <button class="image-drop-zone" id="imageDropZone" type="button" aria-controls="imageInput"><span class="image-drop-icon" aria-hidden="true">＋</span><span><strong>사진 선택 또는 여기로 끌어오기</strong><small>PNG · JPG · WebP · 여러 장을 한 번에 추가할 수 있어요</small></span></button>
                 </div>
-                <button class="image-drop-zone" id="imageDropZone" type="button" aria-controls="imageInput"><span class="image-drop-icon" aria-hidden="true">＋</span><span><strong>사진 가져오기</strong><small>기기에서 PNG · JPG · WebP를 선택하세요</small></span></button>
-                <div class="compact-option-row image-fit-row"><span>프레임</span><div class="compact-segments" role="group" aria-label="이미지 프레임 표시"><button class="is-selected" data-image-fit="contain" type="button">전체 보기</button><button data-image-fit="cover" type="button">채우기</button></div></div>
-                <div class="image-transform-row image-placement-launch-row"><span>배치</span><div class="image-placement-summary"><output id="imagePlacementSummary" aria-live="polite">100% · 기본 위치</output><button class="image-placement-launch" id="openImageEditorButton" type="button" aria-controls="canvasBoard" aria-expanded="false">크기·위치 편집</button></div></div>
-                <button class="secondary-button cutout-action" id="cutoutButton" type="button"><span>배경 제거</span><small>원본 보존 · 첫 실행은 준비 필요</small><span class="cutout-progress" aria-hidden="true"></span></button>
-                <div class="image-position-row image-placement-tip-row"><span>안내</span><div class="image-editor-hint"><span class="image-editor-hint-key">카드에서 직접</span><span>편집을 열면 카드 위에서 드래그해 위치를 맞춥니다.</span></div></div>
+                <div class="image-workflow-group image-placement-group" aria-labelledby="imagePlacementGroupTitle">
+                  <div class="image-workflow-head"><span id="imagePlacementGroupTitle">프레임과 배치</span><small>카드에서 보이는 이미지 영역을 조정합니다</small></div>
+                  <div class="compact-option-row image-fit-row"><span>프레임</span><div class="compact-segments" role="group" aria-label="이미지 프레임 표시"><button class="is-selected" data-image-fit="contain" type="button">전체 보기</button><button data-image-fit="cover" type="button">채우기</button></div></div>
+                  <div class="image-transform-row image-placement-launch-row"><span>배치</span><div class="image-placement-summary"><output id="imagePlacementSummary" aria-live="polite">100% · 기본 위치</output><button class="image-placement-launch" id="openImageEditorButton" type="button" aria-controls="canvasBoard" aria-expanded="false">크기·위치 편집</button></div></div>
+                  <div class="image-position-row image-placement-tip-row"><span>안내</span><div class="image-editor-hint"><span class="image-editor-hint-key">카드에서 직접</span><span>편집을 열면 카드 위에서 드래그해 위치를 맞춥니다.</span></div></div>
+                </div>
+                <div class="image-workflow-group image-treatment-group" aria-labelledby="imageTreatmentGroupTitle">
+                  <div class="image-workflow-head"><span id="imageTreatmentGroupTitle">이미지 처리</span><small>원본 복원과 배경 제거는 언제든 되돌릴 수 있어요</small></div>
+                  <button class="secondary-button cutout-action" id="cutoutButton" type="button"><span>배경 제거</span><small>원본 보존 · 첫 실행은 준비 필요</small><span class="cutout-progress" aria-hidden="true"></span></button>
+                  <button class="style-advanced-toggle image-style-toggle" id="styleAdvancedToggle" type="button" aria-expanded="false" aria-controls="outlineAdvancedSection shadowAdvancedSection"><span>이미지 테두리와 그림자</span><span class="style-advanced-icon" aria-hidden="true">＋</span></button>
+                  <div class="image-style-control" id="outlineAdvancedSection" data-style-advanced>
+                    <div class="image-style-control-head"><h3>테두리</h3><span class="value-readout" id="outlineValue">00 px</span></div>
+                    <div class="control-line"><span class="control-label">색상</span><div class="swatch-row" id="outlineSwatches"><button class="color-swatch is-selected" data-color="#f1dfbb" style="--swatch:#f1dfbb" type="button" aria-label="웜 아이보리"></button><button class="color-swatch" data-color="#b9d4d5" style="--swatch:#b9d4d5" type="button" aria-label="미스트 블루"></button><button class="color-swatch" data-color="#171820" style="--swatch:#171820" type="button" aria-label="잉크"></button><button class="color-swatch" data-color="#b87663" style="--swatch:#b87663" type="button" aria-label="테라코타"></button></div></div>
+                    <div class="range-line"><input id="outlineRange" type="range" min="0" max="8" value="0" step="1" aria-label="이미지 외곽선 두께" /><div class="range-labels"><span>없음</span><span>굵게</span></div></div>
+                  </div>
+                  <div class="image-style-control" id="shadowAdvancedSection" data-style-advanced>
+                    <div class="image-style-control-head"><h3>그림자</h3><span class="value-readout" id="shadowValue">20%</span></div>
+                    <div class="range-line"><input id="shadowRange" type="range" min="0" max="70" value="20" step="1" aria-label="이미지 그림자 강도" /><div class="range-labels"><span>부드럽게</span><span>진하게</span></div></div>
+                    <div class="shadow-controls"><span class="control-label">방향</span><div class="direction-pad" role="group" aria-label="그림자 방향"><button data-shadow="nw" type="button" aria-label="왼쪽 위">↖</button><button data-shadow="n" type="button" aria-label="위">↑</button><button data-shadow="ne" type="button" aria-label="오른쪽 위">↗</button><button data-shadow="w" type="button" aria-label="왼쪽">←</button><span class="direction-center" aria-hidden="true"></span><button data-shadow="e" type="button" aria-label="오른쪽">→</button><button data-shadow="sw" type="button" aria-label="왼쪽 아래">↙</button><button data-shadow="s" type="button" aria-label="아래">↓</button><button data-shadow="se" type="button" aria-label="오른쪽 아래">↘</button></div></div>
+                  </div>
+                </div>
               </section>
 
               <section class="inspector-section copy-editor-section" id="copyEditorSection" aria-labelledby="copyEditorTitle">
@@ -191,12 +211,29 @@
                     <small class="copy-editor-count" id="cardTitleCount" aria-live="polite">0 / 64</small>
                   </label>
                   <label class="copy-editor-field" for="cardSubtitleInput">
-                    <span>설명</span>
+                    <span>설명 <em class="field-optional">선택 입력</em></span>
                     <textarea id="cardSubtitleInput" rows="2" maxlength="160" spellcheck="true" aria-describedby="copyEditorHint cardSubtitleCount"></textarea>
                     <small class="copy-editor-count" id="cardSubtitleCount" aria-live="polite">0 / 160</small>
                   </label>
                 </div>
                 <p class="copy-editor-hint" id="copyEditorHint">캔버스의 문구를 클릭해도 편집할 수 있어요. 긴 문장은 여기에서 전체 내용을 확인하세요.</p>
+                <div class="copy-editor-style-grid">
+                  <div class="copy-editor-style-field">
+                    <div class="copy-editor-typography-head"><span>제목 정렬</span><small>왼쪽 · 가운데 · 오른쪽</small></div>
+                    <div class="compact-segments title-alignment-controls" id="titleAlignmentControls" role="radiogroup" aria-label="제목 정렬">
+                      <button data-title-align="left" type="button" role="radio" aria-checked="false">왼쪽</button>
+                      <button data-title-align="center" type="button" role="radio" aria-checked="false">가운데</button>
+                      <button data-title-align="right" type="button" role="radio" aria-checked="false">오른쪽</button>
+                    </div>
+                  </div>
+                  <div class="copy-editor-style-field">
+                    <div class="copy-editor-typography-head"><span>설명 색상</span><small>자동 또는 직접 선택</small></div>
+                    <div class="copy-editor-color-row">
+                      <input id="subtitleColorInput" type="color" value="#263238" aria-label="설명 텍스트 색상" />
+                      <button class="copy-editor-color-reset" id="subtitleColorAutoButton" type="button">자동</button>
+                    </div>
+                  </div>
+                </div>
                 <div class="copy-editor-typography title-font-option-row" aria-labelledby="copyTypographyTitle">
                   <div class="copy-editor-typography-head"><span id="copyTypographyTitle">제목 서체</span><small>제목에만 적용</small></div>
                   <div class="title-font-control"><select id="titleFontSelect" aria-label="카드 제목 글꼴"></select><div class="title-weight-row" id="titleWeightRow"><span class="title-weight-label">굵기</span><div class="title-weight-options" id="titleWeightOptions" role="radiogroup" aria-label="제목 굵기"></div></div></div>
@@ -209,6 +246,7 @@
                       <button class="title-outline-swatch" data-title-outline-color="#263238" style="--swatch:#263238" type="button" role="radio" aria-checked="false" aria-label="먹색"></button>
                       <button class="title-outline-swatch" data-title-outline-color="#b9d4d5" style="--swatch:#b9d4d5" type="button" role="radio" aria-checked="false" aria-label="미스트 블루"></button>
                     </div>
+                    <label class="title-outline-color-picker" for="titleOutlineColorInput"><span>직접 선택</span><input id="titleOutlineColorInput" type="color" value="#ffffff" aria-label="제목 외곽선 직접 선택" /></label>
                     <label class="title-outline-range" for="titleOutlineRange"><span class="sr-only">제목 외곽선 두께</span><input id="titleOutlineRange" type="range" min="0" max="6" value="0" step="1" aria-label="제목 외곽선 두께" /></label>
                   </div>
                 </div>
@@ -277,19 +315,6 @@
                   <div class="background-preset-list" id="backgroundPresetList" role="list" hidden></div>
                   <p class="background-preset-empty" id="backgroundPresetEmpty">단색·패턴·질감을 고른 뒤 저장하면 여기에서 다시 사용할 수 있습니다.</p>
                 </div>
-                <button class="style-advanced-toggle" id="styleAdvancedToggle" type="button" aria-expanded="false" aria-controls="outlineAdvancedSection shadowAdvancedSection"><span>세부 스타일</span><span class="style-advanced-icon" aria-hidden="true">＋</span></button>
-              </section>
-
-              <section class="inspector-section compact-section" id="outlineAdvancedSection" data-style-advanced>
-                <div class="panel-section-head"><h2>테두리</h2><span class="value-readout" id="outlineValue">02 px</span></div>
-                <div class="control-line"><span class="control-label">색상</span><div class="swatch-row" id="outlineSwatches"><button class="color-swatch is-selected" data-color="#f1dfbb" style="--swatch:#f1dfbb" type="button" aria-label="웜 아이보리"></button><button class="color-swatch" data-color="#b9d4d5" style="--swatch:#b9d4d5" type="button" aria-label="미스트 블루"></button><button class="color-swatch" data-color="#171820" style="--swatch:#171820" type="button" aria-label="잉크"></button><button class="color-swatch" data-color="#b87663" style="--swatch:#b87663" type="button" aria-label="테라코타"></button></div></div>
-                <div class="range-line"><input id="outlineRange" type="range" min="0" max="8" value="0" step="1" aria-label="외곽선 두께" /><div class="range-labels"><span>없음</span><span>굵게</span></div></div>
-              </section>
-
-              <section class="inspector-section compact-section" id="shadowAdvancedSection" data-style-advanced>
-                <div class="panel-section-head"><h2>그림자</h2><span class="value-readout" id="shadowValue">35%</span></div>
-                <div class="range-line"><input id="shadowRange" type="range" min="0" max="70" value="20" step="1" aria-label="그림자 강도" /><div class="range-labels"><span>부드럽게</span><span>진하게</span></div></div>
-                <div class="shadow-controls"><span class="control-label">방향</span><div class="direction-pad" role="group" aria-label="그림자 방향"><button data-shadow="nw" type="button" aria-label="왼쪽 위">↖</button><button data-shadow="n" type="button" aria-label="위">↑</button><button data-shadow="ne" type="button" aria-label="오른쪽 위">↗</button><button data-shadow="w" type="button" aria-label="왼쪽">←</button><span class="direction-center" aria-hidden="true"></span><button data-shadow="e" type="button" aria-label="오른쪽">→</button><button data-shadow="sw" type="button" aria-label="왼쪽 아래">↙</button><button data-shadow="s" type="button" aria-label="아래">↓</button><button data-shadow="se" type="button" aria-label="오른쪽 아래">↘</button></div></div>
               </section>
 
             </div>

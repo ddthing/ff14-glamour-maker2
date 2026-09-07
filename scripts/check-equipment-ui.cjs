@@ -52,7 +52,9 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          results: [{ id: "check-ui-item", slot: "head", names: { ko: "검증용 장비", en: "UI check item" }, meta: { ko: "머리 · 검증" } }],
+          results: Array.from({ length: 250 }, (_, index) => index === 0
+            ? { id: "9000001", slot: "head", iconUrl: "https://xivapi.com/i/9000/9000001.png", names: { ko: "검증용 장비", en: "UI check item" }, meta: { ko: "머리 · 검증" } }
+            : { id: String(9000001 + index), slot: "head", names: { ko: `검증용 장비 ${index}` }, meta: { ko: "머리 · 검증" } }),
         }),
       });
     });
@@ -69,8 +71,51 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     await page.emulateMedia({ reducedMotion: "reduce" });
     assert.equal(await page.locator(".catalog-progress").evaluate((element) => getComputedStyle(element).animationName), "none", "catalog motion ignores reduced-motion");
     releaseSearch();
-    await page.waitForSelector('.catalog-result[data-item-id="check-ui-item"]');
+    await page.waitForSelector('.catalog-result[data-item-id="9000001"]');
+    const catalogImage = await page.locator('.catalog-result[data-item-id="9000001"] .item-image').getAttribute("src");
+    assert.equal(catalogImage, "https://xivapi.com/i/9000/9000001.png", "catalog results should use the item image when one is available");
     await page.unroute("**/api/items/search*");
+
+    await page.locator('.catalog-result[data-item-id="9000001"]').click();
+    const savedCatalogSize = await page.evaluate(() => {
+      const snapshot = JSON.parse(localStorage.getItem("glamour-atelier-draft-v3"));
+      return snapshot.catalogItems.length;
+    });
+    assert.equal(savedCatalogSize, 1, "localStorage should retain only catalog records referenced by outfits");
+
+    const linked = await page.evaluate(() => {
+      const row = document.querySelector('.equipment-row[data-slot="head"]');
+      return {
+        image: row?.querySelector(".item-image")?.getAttribute("src") || "",
+        removeCount: document.querySelectorAll('.equipment-remove[data-remove-slot="head"]').length,
+        removeLabel: document.querySelector('.equipment-remove[data-remove-slot="head"]')?.getAttribute("aria-label") || "",
+        cardItemImages: document.querySelectorAll('#canvasBoard img[src*="xivapi.com"]').length,
+      };
+    });
+    assert.equal(linked.image, "https://xivapi.com/i/9000/9000001.png", "assigned equipment should show the item image");
+    assert.equal(linked.removeCount, 1, "assigned equipment should expose a remove button");
+    assert.match(linked.removeLabel, /제거/, "remove button should describe the destructive action");
+    assert.equal(linked.cardItemImages, 0, "item images must stay out of the composition card");
+
+    await page.screenshot({ path: "artifacts/ui-equipment-panel-item-image.png", fullPage: true });
+    await page.locator('.equipment-remove[data-remove-slot="head"]').click();
+    await page.waitForFunction(() => document.querySelector('.equipment-row[data-slot="head"]')?.classList.contains("is-empty"));
+    const removed = await page.evaluate(() => {
+      const snapshot = JSON.parse(localStorage.getItem("glamour-atelier-draft-v3"));
+      const row = document.querySelector('.equipment-row[data-slot="head"]');
+      return {
+        empty: row?.classList.contains("is-empty"),
+        image: row?.querySelector(".item-image")?.getAttribute("src") || "",
+        removeCount: document.querySelectorAll('.equipment-remove[data-remove-slot="head"]').length,
+        outfitValue: snapshot?.looks?.[0]?.outfits?.[0]?.head ?? null,
+        savedCatalogSize: snapshot?.catalogItems?.length ?? -1,
+      };
+    });
+    assert.equal(removed.empty, true, "remove should clear the assigned equipment row");
+    assert.equal(removed.image, "", "removed equipment should no longer render its item image");
+    assert.equal(removed.removeCount, 0, "remove action should disappear after clearing the slot");
+    assert.equal(removed.outfitValue, null, "remove should persist an empty outfit slot");
+    assert.equal(removed.savedCatalogSize, 0, "unreferenced item records should be dropped after removal");
 
     const result = await page.evaluate(() => {
       const action = document.querySelector(".catalog-result-action");
@@ -90,7 +135,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "equipment panel overflows at 320px");
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.screenshot({ path: "artifacts/ui-equipment-panel-after.png", fullPage: true });
-    console.log("PASS: equipment selection rhythm, action pills, catalog progress motion, reduced-motion fallback, and 320px reflow.");
+    console.log("PASS: equipment selection rhythm, item images, remove action, catalog progress motion, reduced-motion fallback, and 320px reflow.");
   } finally {
     await browser.close();
   }

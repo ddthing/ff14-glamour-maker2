@@ -5,6 +5,7 @@
   --card-title-line-slot: clamp(30px, 7.4cqw, 64px);
   --card-subtitle-line-slot: clamp(12px, 2.1cqw, 22px);
   --card-title-gap: clamp(3px, .7cqw, 8px);
+  --card-title-glyph-safe: clamp(2px, .35cqw, 6px);
 }
 
 .canvas-board .board-editorial-header .board-title-block {
@@ -24,9 +25,14 @@
   max-width: 100%;
   height: var(--card-title-line-slot);
   min-height: 0;
-  overflow: hidden;
+  /* A font outline is painted outside the CSS line box. Clipping this
+     element cuts ascenders and the configurable stroke on some faces. Keep
+     the line slot compact, but reserve horizontal breathing room and let the
+     glyph paint outside its box. */
+  padding-inline: var(--card-title-glyph-safe);
+  overflow: visible;
   overflow-wrap: normal;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -641,4 +647,17 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
   body.image-placement-mode .canvas-board .character-figure {
     transition: none;
   }
+}
+
+/* Copy alignment and subtitle color are card-owned state. Keeping them on
+   the title block means the preview and the export capture the same glyph
+   geometry instead of maintaining a second text layout recipe. */
+.canvas-board .board-editorial-header .board-title-block {
+  text-align: var(--card-title-align, left);
+}
+
+.canvas-board .board-editorial-header .caption-description {
+  color: var(--card-subtitle-color, var(--recipe-ink, currentColor)) !important;
+  opacity: var(--card-subtitle-opacity, .68);
+  text-align: var(--card-title-align, left) !important;
 }

@@ -284,7 +284,8 @@ async function render({ state, dimensions, exportTheme, background, patternStars
     // Paint the same line geometry captured from the visible card, including
     // wrapped copy and the outline's scale, instead of a second title recipe.
     for (const copy of copyLayout) {
-      context.save(); context.textAlign = "left"; context.textBaseline = "alphabetic";
+      context.save(); context.globalAlpha = Number.isFinite(copy.opacity) ? copy.opacity : 1;
+      context.textAlign = "left"; context.textBaseline = "alphabetic";
       context.font = copy.font; context.fillStyle = copy.color;
       context.letterSpacing = `${copy.letterSpacing}px`;
       context.lineJoin = "round"; context.lineWidth = copy.stroke; context.strokeStyle = copy.strokeColor;

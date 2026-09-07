@@ -14,16 +14,25 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.equal(await page.locator("#castSelectionSummary").getAttribute("aria-live"), "polite");
 
     const order = await page.locator("#imageSection > *").evaluateAll((children) => children.map((element) => {
-      if (element.id === "portraitSourceCard") return "source";
       if (element.id) return element.id;
-      if (element.classList.contains("portrait-source-card")) return "source";
-      if (element.classList.contains("image-fit-row")) return "fit";
-      if (element.classList.contains("image-placement-launch-row")) return "placement";
-      if (element.classList.contains("cutout-action")) return "cutout";
-      if (element.classList.contains("image-placement-tip-row")) return "tip";
       return element.className || element.tagName.toLowerCase();
     }));
-    assert.deepEqual(order.slice(0, 7), ["panel-section-head", "source", "imageDropZone", "fit", "placement", "cutoutButton", "tip"], "image controls should follow the task order");
+    assert.deepEqual(order.slice(0, 4), ["panel-section-head", "image-workflow-group image-import-group", "image-workflow-group image-placement-group", "image-workflow-group image-treatment-group"], "image workflow groups should follow the task order");
+    const imageWorkflow = await page.locator("#imageSection .image-workflow-group").evaluateAll((groups) => groups.map((group) => [
+      group.querySelector(".portrait-source-card")?.id,
+      group.querySelector(".image-drop-zone")?.id,
+      ...[...group.querySelectorAll("[data-image-fit]")].map((element) => element.dataset.imageFit),
+      group.querySelector(".image-placement-launch-row")?.className,
+      group.querySelector(".cutout-action")?.id,
+      group.querySelector(".image-style-toggle")?.id,
+      group.querySelector("#outlineAdvancedSection")?.id,
+      group.querySelector("#shadowAdvancedSection")?.id,
+    ].filter(Boolean)));
+    assert.deepEqual(imageWorkflow, [
+      ["portraitSourceCard", "imageDropZone"],
+      ["contain", "cover", "image-transform-row image-placement-launch-row"],
+      ["cutoutButton", "styleAdvancedToggle", "outlineAdvancedSection", "shadowAdvancedSection"],
+    ], "image workflow controls should stay local to their task group");
 
     await page.locator('[data-cast-count="3"]').click();
     await page.locator('#castSelector button[data-character-select="2"]').click();
@@ -34,7 +43,9 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
       const inspector = document.querySelector(".inspector").getBoundingClientRect();
       const summary = document.querySelector("#castSelectionSummary").getBoundingClientRect();
       const dropZone = document.querySelector("#imageDropZone").getBoundingClientRect();
-      const controls = [...document.querySelectorAll("#imageSection button")].map((button) => Math.round(button.getBoundingClientRect().height));
+      const controls = [...document.querySelectorAll("#imageSection button")]
+        .filter((button) => !button.closest("[hidden]") && getComputedStyle(button).display !== "none")
+        .map((button) => Math.round(button.getBoundingClientRect().height));
       return {
         inspectorWidth: Math.round(inspector.width),
         summaryWidth: Math.round(summary.width),
