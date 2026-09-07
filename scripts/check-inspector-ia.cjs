@@ -13,6 +13,26 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.equal(initialSummary, "캐릭터 01 · 1인", "inspector should identify the initial target");
     assert.equal(await page.locator("#castSelectionSummary").getAttribute("aria-live"), "polite");
 
+    const editorFlow = await page.locator(".editor-section-nav").evaluate((nav) => ({
+      label: nav.querySelector(".editor-flow-label")?.textContent.trim(),
+      steps: [...nav.querySelectorAll("[data-editor-section]")].map((button) => ({
+        target: button.dataset.editorSection,
+        index: button.querySelector(".editor-section-index")?.textContent.trim(),
+      })),
+      sectionStates: ["imageSection", "copyEditorSection", "cardStyleSection"].map((id) => {
+        const section = document.getElementById(id);
+        const style = section ? getComputedStyle(section) : null;
+        return { id, hidden: section?.hidden ?? true, display: style?.display ?? "none" };
+      }),
+    }));
+    assert.equal(editorFlow.label, "순서대로 편집", "editor navigation should explain the sequential flow");
+    assert.deepEqual(editorFlow.steps.map(({ target, index }) => [target, index]), [
+      ["imageSection", "01"],
+      ["copyEditorSection", "02"],
+      ["cardStyleSection", "03"],
+    ], "editor flow should use numbered section jumps");
+    assert.ok(editorFlow.sectionStates.every(({ hidden, display }) => !hidden && display !== "none"), `editor sections should stay in one flow: ${JSON.stringify(editorFlow.sectionStates)}`);
+
     const order = await page.locator("#imageSection > *").evaluateAll((children) => children.map((element) => {
       if (element.id) return element.id;
       return element.className || element.tagName.toLowerCase();
@@ -38,6 +58,26 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     await page.locator('#castSelector button[data-character-select="2"]').click();
     assert.equal(await page.locator("#castSelectionSummary").textContent(), "캐릭터 03 · 3인", "selection context should follow the selected character");
     assert.equal(await page.locator('#castSelector button[data-character-select="2"]').getAttribute("aria-pressed"), "true");
+
+    await page.locator('[data-cast-count="5"]').click();
+    const compactCastSlots = await page.locator("#castSelector button").evaluateAll((buttons) => buttons.map((button) => {
+      const rect = button.getBoundingClientRect();
+      const visual = button.querySelector(".cast-slot-visual")?.getBoundingClientRect();
+      const empty = button.querySelector(".cast-empty-thumb");
+      return {
+        height: Math.round(rect.height),
+        visualWidth: Math.round(visual?.width ?? 0),
+        visualHeight: Math.round(visual?.height ?? 0),
+        emptyRadius: empty ? getComputedStyle(empty).borderRadius : "",
+      };
+    }));
+    assert.equal(compactCastSlots.length, 5, "five-person selection should expose five compact slots");
+    assert.ok(compactCastSlots.every(({ height }) => height <= 80), `empty cast slots should not be portrait cards: ${JSON.stringify(compactCastSlots)}`);
+    assert.ok(compactCastSlots.every(({ visualWidth, visualHeight }) => visualWidth >= 32 && visualHeight >= 32), `cast slots should keep a visible circular affordance: ${JSON.stringify(compactCastSlots)}`);
+    assert.ok(compactCastSlots.every(({ emptyRadius }) => !emptyRadius || emptyRadius === "50%"), `empty cast affordance should be circular: ${JSON.stringify(compactCastSlots)}`);
+
+    await page.locator('[data-cast-count="3"]').click();
+    await page.locator('#castSelector button[data-character-select="2"]').click();
 
     const desktop = await page.evaluate(() => {
       const inspector = document.querySelector(".inspector").getBoundingClientRect();

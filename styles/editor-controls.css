@@ -2048,15 +2048,176 @@
   .cast-count-control button, .image-placement-launch, .cutout-action) { font-size: 13px; line-height: 1.5; }
 .inspector :is(.compact-segments button, .cast-count-control button) { min-height: 36px; }
 .inspector :is(.copy-editor-field textarea, .title-font-control select) { font-size: 14px; line-height: 1.6; }
-.editor-section-nav { display: flex; gap: 4px; position: sticky; top: 0; z-index: 5;
-  background: var(--card); padding: 12px 0; border-bottom: 1px solid var(--border); }
-.editor-section-nav button { flex: 1; min-height: 40px; padding: 8px 12px;
-  border: 0; border-radius: var(--radius-sm); color: var(--muted-foreground);
-  background: transparent; font: 600 14px/1.4 var(--sans);
-  transition: background-color 160ms ease, color 160ms ease; }
-.editor-section-nav button[aria-pressed="true"] { color: var(--primary-foreground); background: var(--primary); }
-.editor-section-nav button:hover:not([aria-pressed="true"]) { color: var(--foreground); background: var(--muted); }
+.editor-section-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  min-width: 0;
+  background: color-mix(in oklch, var(--card) 96%, transparent);
+  padding: 11px 0 10px;
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(10px);
+}
+.editor-flow-label {
+  flex: 0 0 auto;
+  color: var(--muted-foreground);
+  font: 600 11px/1.4 var(--sans);
+  white-space: nowrap;
+}
+.editor-flow-steps {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.editor-section-nav button {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 5px;
+  min-height: 32px;
+  padding: 5px 8px 7px;
+  border: 0;
+  border-radius: 0;
+  color: var(--muted-foreground);
+  background: transparent;
+  font: 650 13px/1.35 var(--sans);
+  white-space: nowrap;
+  transition: color 160ms ease;
+}
+.editor-section-nav button + button::before {
+  position: absolute;
+  left: -3px;
+  color: var(--border);
+  content: "→";
+  font-size: 11px;
+  pointer-events: none;
+}
+.editor-section-index {
+  color: var(--muted-foreground);
+  font: 700 10px/1 var(--mono);
+  letter-spacing: .04em;
+}
+.editor-section-nav button[aria-pressed="true"] { color: var(--foreground); }
+.editor-section-nav button[aria-pressed="true"]::after {
+  position: absolute;
+  right: 8px;
+  bottom: 1px;
+  left: 8px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--primary);
+  content: "";
+}
+.editor-section-nav button:hover,
+.editor-section-nav button:focus-visible { color: var(--foreground); }
+.editor-section-nav button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
 @media (prefers-reduced-motion: reduce) { .editor-section-nav button { transition: none; } }
+
+/* Empty cast slots are actions, not miniature portrait cards. Keep the
+   target compact and let the circular affordance carry the empty state. */
+.cast-selector {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.cast-selector button {
+  display: grid;
+  grid-template-rows: 40px auto;
+  align-content: center;
+  justify-items: center;
+  min-width: 0;
+  min-height: 64px;
+  aspect-ratio: auto;
+  overflow: visible;
+  padding: 6px 2px 5px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--muted-foreground);
+  background: transparent;
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+.cast-selector button:hover,
+.cast-selector button:focus-visible {
+  color: var(--foreground);
+  background: var(--muted);
+}
+.cast-selector button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.cast-selector button.is-selected {
+  border-color: color-mix(in oklch, var(--primary) 42%, var(--border));
+  background: color-mix(in oklch, var(--primary) 6%, var(--background));
+  box-shadow: none;
+}
+.cast-selector button.is-selected::after {
+  position: absolute;
+  right: 10px;
+  bottom: 3px;
+  left: 10px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--primary);
+  content: "";
+}
+.cast-selector .cast-slot-visual {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  overflow: hidden;
+  position: static;
+  top: auto;
+  left: auto;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: inherit;
+  background: var(--background);
+  font-size: inherit;
+  font-weight: inherit;
+}
+.cast-selector img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  opacity: .92;
+}
+.cast-selector button.is-selected img { opacity: 1; }
+.cast-selector .cast-empty-thumb {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--muted-foreground);
+  border-radius: 50%;
+  color: var(--muted-foreground);
+  background: transparent;
+  font: 500 18px/1 var(--sans);
+}
+.cast-selector button.is-selected .cast-empty-thumb {
+  border-color: var(--primary);
+  color: var(--foreground);
+}
+.cast-selector .cast-slot-index {
+  position: static;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  font: 700 10px/1 var(--mono);
+  letter-spacing: .04em;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cast-selector button { transition: none; }
+}
 
 /* Card output settings stay with card styling. The equipment panel edits the
    source data; this row controls whether that data is printed on lineup cards. */

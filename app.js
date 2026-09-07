@@ -1533,7 +1533,7 @@ function renderCast() {
     ${(() => {
       const source = resolveCharacterAsset(character, "hero");
       return `<button class="${index === state.selectedCharacter ? "is-selected" : ""}${source ? "" : " is-empty"}" type="button" data-character-select="${index}" aria-pressed="${index === state.selectedCharacter}" aria-label="캐릭터 ${index + 1} 편집">
-      ${source ? `<img src="${escapeHtml(source)}" alt="" />` : `<span class="cast-empty-thumb" aria-hidden="true">＋</span>`}<span>${String(index + 1).padStart(2, "0")}</span>
+      <span class="cast-slot-visual" aria-hidden="true">${source ? `<img src="${escapeHtml(source)}" alt="" />` : `<span class="cast-empty-thumb">＋</span>`}</span><span class="cast-slot-index">${String(index + 1).padStart(2, "0")}</span>
     </button>`;
     })()}
   `).join(""));

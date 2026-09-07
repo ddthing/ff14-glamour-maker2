@@ -27,8 +27,8 @@
     </noscript>
     <link rel="stylesheet" href="styles.css?v=20260907-parity-1" />
     <link rel="stylesheet" href="styles/card-composer.css?v=20260907-title-controls-1" />
-    <link rel="stylesheet" href="styles/editor-controls.css?v=20260907-parity-1" />
-    <link rel="stylesheet" href="styles/card-readability.css?v=20260907-title-controls-1" />
+    <link rel="stylesheet" href="styles/editor-controls.css?v=20260907-inspector-flow-3" />
+    <link rel="stylesheet" href="styles/card-readability.css?v=20260907-two-person-rails-empty-state-1" />
   </head>
   <body>
     <a class="skip-link" href="#canvas">편집 영역으로 건너뛰기</a>
@@ -149,10 +149,13 @@
             </div>
 
             <div class="inspector-panel" id="stylePanel" role="tabpanel" aria-labelledby="styleTab">
-              <nav class="editor-section-nav" aria-label="꾸미기 편집 항목">
-                <button type="button" data-editor-section="imageSection" aria-pressed="true">이미지</button>
-                <button type="button" data-editor-section="copyEditorSection" aria-pressed="false">문구</button>
-                <button type="button" data-editor-section="cardStyleSection" aria-pressed="false">배경</button>
+              <nav class="editor-section-nav" aria-label="꾸미기 편집 흐름">
+                <span class="editor-flow-label">순서대로 편집</span>
+                <div class="editor-flow-steps">
+                  <button type="button" data-editor-section="imageSection" aria-pressed="true"><span class="editor-section-index">01</span><span>이미지</span></button>
+                  <button type="button" data-editor-section="copyEditorSection" aria-pressed="false"><span class="editor-section-index">02</span><span>문구</span></button>
+                  <button type="button" data-editor-section="cardStyleSection" aria-pressed="false"><span class="editor-section-index">03</span><span>배경</span></button>
+                </div>
               </nav>
               <section class="inspector-section cast-section">
                 <div class="panel-section-head">
