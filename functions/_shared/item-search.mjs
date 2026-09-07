@@ -25,6 +25,7 @@ export function normaliseItemSearchText(value) {
   return String(value || "")
     .normalize("NFKC")
     .toLocaleLowerCase("ko-KR")
+    .replace(/자켓/gu, "재킷")
     .replace(/[\s\p{P}\p{S}]+/gu, "");
 }
 
@@ -40,6 +41,20 @@ export function buildIconUrl(iconId) {
   const icon = String(numericIcon).padStart(6, "0");
   const bucket = String(Math.floor(numericIcon / 1000) * 1000).padStart(6, "0");
   return `https://xivapi.com/i/${bucket}/${icon}.png`;
+}
+
+function normaliseIconUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw, "https://xivapi.com");
+    if (url.protocol !== "https:" || !["xivapi.com", "www.xivapi.com", "v2.xivapi.com"].includes(url.hostname)) return "";
+    if (!url.pathname.startsWith("/i/")) return "";
+    if (url.hostname === "v2.xivapi.com") url.hostname = "xivapi.com";
+    return url.href;
+  } catch {
+    return "";
+  }
 }
 
 export function resolveItemSearchLanguage(query, requestedLanguage) {
@@ -59,7 +74,7 @@ export function normaliseKoreanRecord(record) {
     id,
     slot,
     icon: "",
-    iconUrl: String(record.iconUrl || ""),
+    iconUrl: normaliseIconUrl(record.iconUrl),
     names: { ko: name },
     meta: { ko: itemMeta(slot, itemLevel, "ko") },
     itemLevel: Number.isFinite(itemLevel) && itemLevel > 0 ? itemLevel : null,
@@ -102,8 +117,8 @@ function inferItemSlot(fields) {
 }
 
 function getIconUrl(icon) {
-  if (typeof icon?.path === "string" && icon.path) return icon.path;
-  if (typeof icon?.url === "string" && icon.url) return icon.url;
+  const directUrl = normaliseIconUrl(icon?.path) || normaliseIconUrl(icon?.url);
+  if (directUrl) return directUrl;
   return buildIconUrl(icon?.id);
 }
 
