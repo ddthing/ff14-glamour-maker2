@@ -79,6 +79,21 @@ try {
   assert.ok(assetUrls[0].endsWith("/assets/data/items-ko-head.json"), "slot searches should request only the active slot index");
   assert.equal((await itemSearchResponse.json()).results[0].id, "38238");
 
+  const localizedKoreanResponse = await onRequestGet({
+    request: new Request("https://tuyeong-set-maker2.example/api/items/search?q=%EC%95%84%EA%B8%B0%EB%8F%BC%EC%A7%80%20%EC%9D%98%EC%83%81&slot=body&language=en"),
+    env: {
+      ASSETS: {
+        fetch: async () => new Response(JSON.stringify([
+          { id: "15479", slot: "body", names: { ko: "아기돼지 의상" }, itemLevel: 1 },
+        ]), { status: 200, headers: { "Content-Type": "application/json" } }),
+      },
+    },
+  });
+  assert.equal(localizedKoreanResponse.status, 200, "Korean queries must not use the remote language search path");
+  const localizedKoreanPayload = await localizedKoreanResponse.json();
+  assert.equal(localizedKoreanPayload.language, "ko");
+  assert.equal(localizedKoreanPayload.results[0].id, "15479", "a Korean body query should return 아기돼지 의상 even when the page is English");
+
   let response = await onRequestPost({ request: request(), env: {} });
   assert.equal(response.status, 503);
   assert.equal((await response.json()).code, "cutout_service_not_configured");

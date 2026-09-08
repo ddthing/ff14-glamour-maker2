@@ -171,26 +171,29 @@ const castCounts = [1, 2, 3, 5];
     const mobileLineup = await page.evaluate(() => {
       const board = document.querySelector("#canvasBoard");
       const primary = board?.querySelector(".multi-info-items");
-      const secondary = board?.querySelector(".multi-info-item > small");
       const column = board?.querySelector(".multi-info-column");
       const boardRect = board?.getBoundingClientRect();
       const columnRect = column?.getBoundingClientRect();
       const primaryStyle = primary ? getComputedStyle(primary) : null;
-      const secondaryStyle = secondary ? getComputedStyle(secondary) : null;
+      const secondaryCount = [...(board?.querySelectorAll(".multi-info-item > small") || [])].filter((element) => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      }).length;
       return {
         boardWidth: boardRect?.width || 0,
         columnWidth: columnRect?.width || 0,
         primaryFontSize: primaryStyle ? Number.parseFloat(primaryStyle.fontSize) : 0,
-        secondaryDisplay: secondaryStyle?.display || "none",
+        secondaryCount,
         overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
       };
     });
     assert.ok(mobileLineup.boardWidth > 0 && mobileLineup.columnWidth > 0, "mobile lineup card is not visible");
     assert.ok(mobileLineup.primaryFontSize >= 8, `mobile lineup item type is too small: ${mobileLineup.primaryFontSize}px`);
-    assert.equal(mobileLineup.secondaryDisplay, "none", "mobile lineup keeps a competing secondary item line");
+    assert.equal(mobileLineup.secondaryCount, 0, "blank mobile lineup should not fabricate secondary item names");
     assert.equal(mobileLineup.overflow, false, "mobile lineup card overflows the viewport");
     await page.screenshot({ path: "artifacts/accessibility-card-readability-mobile.png", fullPage: true });
-    console.log(`PASS: mobile lineup copy uses ${mobileLineup.primaryFontSize}px primary type without secondary-line collisions.`);
+    console.log(`PASS: mobile lineup copy uses ${mobileLineup.primaryFontSize}px primary type without empty secondary names or overflow.`);
     console.log(`PASS: card text layers, opaque equipment notes, accessible names, and multi-info halos hold across ${results.length} cast/background states.`);
   } finally {
     await browser.close();

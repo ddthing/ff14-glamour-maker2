@@ -10,12 +10,13 @@ const ItemSearch = (() => {
     let controller;
     function cancel() { revision++; controller?.abort(); controller = null; }
     function clear() { cancel(); cache.clear(); }
-    async function search({ query, slot, language }, emit) {
+    async function search({ query, slot, language: requestedLanguage }, emit) {
       cancel();
       const current = revision;
       query = query.trim();
       if (!query) { emit({ kind: "idle" }); return; }
       if (!/^\d+$/.test(query) && query.length < 2) { emit({ kind: "short" }); return; }
+      const language = resolveSearchLanguage(query, requestedLanguage);
       const key = `${language}:${slot}:${query.normalize("NFKC").toLocaleLowerCase()}`;
       const cached = cache.get(key);
       if (cached?.expiresAt > now()) {
@@ -58,6 +59,19 @@ const ItemSearch = (() => {
       }
       await delay(retryDelays[attempt], options.signal);
     }
+  }
+
+  // Search language follows the script the user typed, not only the page
+  // locale. A Korean query must never fall through to the remote English
+  // catalog: older local servers and stale deployments route that request to
+  // XIVAPI, where Korean names can produce a 502. Keep this contract aligned
+  // with the server and Pages Function.
+  function resolveSearchLanguage(query, requestedLanguage) {
+    const language = ["ko", "en", "ja"].includes(requestedLanguage) ? requestedLanguage : "ko";
+    if (/^\d+$/.test(query)) return language;
+    if (/[\uAC00-\uD7A3]/u.test(query)) return "ko";
+    if (/[\u3040-\u30FF]/u.test(query)) return "ja";
+    return language === "ja" ? "ja" : "en";
   }
 
   function delay(milliseconds, signal) {

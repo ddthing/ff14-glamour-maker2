@@ -15,6 +15,17 @@ const ItemSearch = require('../models/item-search.js');
   await search.search(args(' 최신 '), event => events.push(event));
   assert.equal(pending.length, 2);
   assert.equal(events.at(-1).source, 'cache');
+
+  let koreanSearchUrl = '';
+  const koreanSearch = ItemSearch.create({
+    fetch: async url => {
+      koreanSearchUrl = String(url);
+      return { ok: true, json: async () => ({ results: [{ id: '15479', slot: 'body', names: { ko: '아기돼지 의상' } }] }) };
+    },
+  });
+  await koreanSearch.search({ query: '아기돼지 의상', slot: 'body', language: 'en' }, () => {});
+  assert.equal(new URL(koreanSearchUrl, 'http://localhost').searchParams.get('language'), 'ko', 'Hangul queries must use the Korean index even when the UI language is English');
+
   const cancelled = search.search(args('취소'), event => events.push(event));
   search.clear(); const length = events.length;
   reply(pending.at(-1), [{ id: 'deleted' }]); await cancelled;
@@ -28,7 +39,7 @@ const ItemSearch = require('../models/item-search.js');
   await cached.search(args('foo'), event => collect.push(event));
   assert.equal(calls, 1, 'Normalized query missed cache');
   await cached.search({ ...args('foo'), slot: 'body' }, () => {});
-  await cached.search({ ...args('foo'), language: 'en' }, () => {});
+  await cached.search({ ...args('foo'), language: 'ja' }, () => {});
   assert.equal(calls, 3, 'Slot/language shared cache entries');
   await cached.search(args('foo'), () => {});
   assert.equal(calls, 4, 'Old cache entries were not evicted');

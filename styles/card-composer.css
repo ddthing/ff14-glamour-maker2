@@ -773,9 +773,10 @@
 }
 
 /* Lineup cards become narrow before the editor itself reaches its mobile
-   breakpoint. Keep the primary item names legible in the exported card and
-   leave the secondary locale line to the inspector, where it has room to
-   breathe. The complete item list remains in the button's accessible name. */
+   breakpoint. Keep the Korean primary name prominent, but retain the English
+   locale line in the card so preview and export communicate the same item
+   identity. The secondary line gets its own compact measure instead of being
+   removed from the composition. */
 @container (max-width: 540px) {
   .canvas-board[data-cast="3"] .multi-info-column,
   .canvas-board[data-cast="4"] .multi-info-column,
@@ -796,7 +797,15 @@
   .canvas-board[data-cast="3"] .multi-info-item > small,
   .canvas-board[data-cast="4"] .multi-info-item > small,
   .canvas-board[data-cast="5"] .multi-info-item > small {
-    display: none;
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: clamp(6px, .64cqw, 8px);
+    line-height: 1.1;
+    letter-spacing: .015em;
   }
 
 }
