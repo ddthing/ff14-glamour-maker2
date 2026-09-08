@@ -17,6 +17,7 @@ const remoteFontPattern = "**/pretendardvariable-dynamic-subset.min.css";
     const domContentLoadedMs = Date.now() - startedAt;
     assert.ok(domContentLoadedMs < 800, `remote font blocked the app shell for ${domContentLoadedMs}ms`);
     assert.equal(await page.locator("#canvasBoard").isVisible(), true, "app shell did not render while font was delayed");
+    await page.waitForSelector("#textEditorDock:not([hidden])");
 
     await page.evaluate(() => {
       window.__draftWriteCount = 0;
@@ -28,7 +29,6 @@ const remoteFontPattern = "**/pretendardvariable-dynamic-subset.min.css";
       };
       window.__liveStyleControlCalls = Object.fromEntries([
         "renderSourcePanel",
-        "renderBackgroundPresets",
         "syncTitleFontControls",
         "syncTitleAlignmentControls",
         "syncCopyColorControls",
@@ -51,7 +51,8 @@ const remoteFontPattern = "**/pretendardvariable-dynamic-subset.min.css";
         input.dispatchEvent(new Event("input", { bubbles: true }));
       }
     });
-    await page.waitForTimeout(350);
+    await page.waitForFunction(() => window.__liveStyleRenderCalls >= 1, null, { timeout: 2000 });
+    await page.waitForTimeout(100);
     const draftWrites = await page.evaluate(() => ({
       count: window.__draftWriteCount,
       shadowStrength: JSON.parse(localStorage.getItem("tuyeong-set-maker2-draft-v3"))?.shadow?.strength,
@@ -63,7 +64,6 @@ const remoteFontPattern = "**/pretendardvariable-dynamic-subset.min.css";
     assert.equal(draftWrites.shadowStrength, 60, "batched draft should contain the final input value");
     assert.deepEqual(draftWrites.liveStyleControlCalls, {
       renderSourcePanel: 0,
-      renderBackgroundPresets: 0,
       syncTitleFontControls: 0,
       syncTitleAlignmentControls: 0,
       syncCopyColorControls: 0,

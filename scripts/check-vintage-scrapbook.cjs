@@ -16,7 +16,7 @@ const fixtureImage = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
     <path d="m520 514 82 68-31 45-91-49z" fill="#d4b688"/>
   </svg>
 `)}`;
-const assetPath = path.join(__dirname, "..", "assets", "themes", "vintage-scrapbook-plate.svg");
+const assetPath = path.join(__dirname, "..", "assets", "themes", "materials", "airy-paper-material-v1.webp");
 
 (async () => {
   const browser = await chromium.launch({ headless: true, channel: "msedge" });
@@ -69,7 +69,12 @@ const assetPath = path.join(__dirname, "..", "assets", "themes", "vintage-scrapb
       renderAll();
     });
 
-    await page.locator("#scrapbookPreset").click();
+    await page.evaluate(() => {
+      state.background = "paper";
+      state.backgroundTexture = "grain";
+      renderStyles();
+    });
+    await page.locator('#backgroundArtPanel button[data-pattern="scrapbook"]').click();
     const selected = await page.evaluate(() => ({
       background: state.background,
       pattern: state.backgroundPattern,
@@ -83,14 +88,14 @@ const assetPath = path.join(__dirname, "..", "assets", "themes", "vintage-scrapb
         panX: state.characters[0].panX,
         panY: state.characters[0].panY,
       },
-      pressed: document.querySelector("#scrapbookPreset")?.getAttribute("aria-pressed"),
+      selected: document.querySelector('#backgroundArtPanel button[data-pattern="scrapbook"]')?.getAttribute("aria-checked"),
     }));
-    assert.deepEqual(selected.source, sourceBefore, "scrapbook preset must not mutate the source image or its placement");
+    assert.deepEqual(selected.source, sourceBefore, "scrapbook pattern must not mutate the source image or its placement");
     assert.deepEqual({ background: selected.background, pattern: selected.pattern, texture: selected.texture }, {
       background: "paper", pattern: "scrapbook", texture: "grain",
     });
-    assert.match(selected.backgroundImage, /vintage-scrapbook-plate\.svg/);
-    assert.equal(selected.pressed, "true");
+    assert.match(selected.backgroundImage, /airy-paper-material-v1\.webp/);
+    assert.equal(selected.selected, "true");
 
     const gearNotes = await page.evaluate(() => [...document.querySelectorAll("#boardGearList > .board-gear-item")].map((note) => {
       const itemRect = note.getBoundingClientRect();
@@ -111,15 +116,15 @@ const assetPath = path.join(__dirname, "..", "assets", "themes", "vintage-scrapb
       && trailingLine === "none"
     )), "scrapbook notes must use an overlapping tape and omit the two marked rules");
 
-    const svg = fs.readFileSync(assetPath, "utf8");
-    assert.match(svg, /<svg\b/);
-    assert.doesNotMatch(svg, /<image\b|<text\b|data:image|base64/i, "scrapbook plate must not contain photos, generated text, or embedded images");
+    assert.equal(fs.existsSync(assetPath), true, "the generated airy material must be present in the project");
     const asset = await page.evaluate(async () => {
-      const response = await fetch("assets/themes/vintage-scrapbook-plate.svg", { cache: "no-store" });
-      return { ok: response.ok, body: await response.text() };
+      const response = await fetch("assets/themes/materials/airy-paper-material-v1.webp", { cache: "no-store" });
+      const bitmap = await createImageBitmap(await response.blob());
+      const result = { ok: response.ok, width: bitmap.width, height: bitmap.height };
+      bitmap.close();
+      return result;
     });
-    assert.equal(asset.ok, true, "the scrapbook plate must be published as a browser asset");
-    assert.doesNotMatch(asset.body, /<image\b|<text\b|data:image|base64/i, "published scrapbook plate must stay text-free and image-free");
+    assert.deepEqual(asset, { ok: true, width: 1024, height: 1536 }, "published airy material must be a readable WebP raster asset");
 
     await page.evaluate(() => {
       window.__scrapbookRender = null;
@@ -164,9 +169,9 @@ const assetPath = path.join(__dirname, "..", "assets", "themes", "vintage-scrapb
         originalSrc: state.characters[0].originalSrc,
       },
     }));
-    assert.deepEqual(exportState.render, { hasBackgroundImage: true, width: 1080, height: 1350 }, "PNG export must load the text-free scrapbook plate");
-    assert.match(exportState.drawImageCalls[0], /vintage-scrapbook-plate\.svg/, "PNG must paint the scrapbook plate before the source image");
-    assert.ok(exportState.drawImageCalls.slice(1).every((source) => !/vintage-scrapbook-plate\.svg/.test(source)), "the scrapbook plate must not replace the source image");
+    assert.deepEqual(exportState.render, { hasBackgroundImage: true, width: 1024, height: 1536 }, "PNG export must load the optimized airy material");
+    assert.ok(exportState.drawImageCalls.filter((source) => /airy-paper-material-v1\.webp/.test(source)).length >= 1, "PNG must paint the optimized airy material");
+    assert.ok(exportState.drawImageCalls.some((source) => source === sourceBefore.src), "PNG must still paint the untouched source image");
     const sourceDraw = exportState.drawImageMetadata.find(({ src }) => src === sourceBefore.src);
     assert.deepEqual(sourceDraw && {
       naturalWidth: sourceDraw.naturalWidth,
@@ -186,10 +191,10 @@ const assetPath = path.join(__dirname, "..", "assets", "themes", "vintage-scrapb
     await page.locator("#canvasBoard").screenshot({ path: "artifacts/vintage-scrapbook-board.png" });
     await page.setViewportSize({ width: 390, height: 900 });
     await page.locator("#styleTab").click();
-    await page.locator("#scrapbookPreset").scrollIntoViewIfNeeded();
-    const mobilePreset = await page.locator("#scrapbookPreset").boundingBox();
-    assert.ok(mobilePreset && mobilePreset.x >= 0 && mobilePreset.x + mobilePreset.width <= 390, "scrapbook preset must fit a narrow inspector");
-    console.log("PASS: vintage scrapbook uses a text-free decorative plate, preserves source image references, and paints the same plate in preview and PNG export.");
+    await page.locator('#backgroundArtPanel button[data-pattern="scrapbook"]').scrollIntoViewIfNeeded();
+    const mobilePattern = await page.locator('#backgroundArtPanel button[data-pattern="scrapbook"]').boundingBox();
+    assert.ok(mobilePattern && mobilePattern.x >= 0 && mobilePattern.x + mobilePattern.width <= 390, "scrapbook pattern must fit a narrow inspector");
+    console.log("PASS: airy material uses the generated paper asset, preserves source image references, and paints the same material in preview and PNG export.");
   } finally {
     await browser.close();
   }

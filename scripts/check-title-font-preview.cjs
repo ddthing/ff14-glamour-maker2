@@ -21,11 +21,11 @@ const requestedFonts = [
     await page.locator("#cardTitleInput").fill("새 제목 폰트의 미리보기와 저장 경로 확인");
     await page.locator("#cardTitleInput").blur();
     await page.waitForFunction(() => document.querySelector("#canvasBoard")?.dataset.copyRendered === "true");
-    const optionLabels = (await page.locator("#titleFontSelect option").allTextContents()).map((label) => label.trim());
+    const optionLabels = (await page.locator("#textEditorFontSelect option").allTextContents()).map((label) => label.trim());
     assert.deepEqual(optionLabels, [...optionLabels].sort((left, right) => left.localeCompare(right, "ko-KR") || left.localeCompare(right)), "title font select must be 가나다순");
 
     for (const requested of requestedFonts) {
-      await page.locator("#titleFontSelect").selectOption(requested.value);
+      await page.locator("#textEditorFontSelect").selectOption(requested.value);
       let result;
       try {
         result = await page.evaluate(async ({ value, family }) => {
@@ -33,7 +33,7 @@ const requestedFonts = [
           const title = document.querySelector("#boardTitle");
           const titleCopy = captureExportCopy().find((copy) => copy.lines.some((line) => line.text.includes("새 제목 폰트")));
           return {
-            selected: document.querySelector("#titleFontSelect")?.value,
+            selected: document.querySelector("#textEditorFontSelect")?.value,
             titleFamily: getComputedStyle(title).fontFamily,
             exportedFamily: titleCopy?.font || "",
             copyRendered: document.querySelector("#canvasBoard")?.dataset.copyRendered,

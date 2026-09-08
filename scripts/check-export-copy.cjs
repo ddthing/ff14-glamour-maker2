@@ -9,10 +9,7 @@ await page.locator('#imageInput').setInputFiles({name:'export-fixture.png',mimeT
 await page.waitForFunction(()=>document.querySelector('#portraitWrap img')?.naturalWidth>0);
 const title='제목 전체를 빠짐없이 보존하며 줄바꿈과 외곽선까지 확인하는 긴 문장입니다';
 await page.locator('#cardTitleInput').fill(title);await page.locator('#cardTitleInput').blur();
-await page.locator('[data-title-align="center"]').click();
-await page.locator('#copyEditorAdvanced summary').click();
-await page.locator('#titleOutlineRange').scrollIntoViewIfNeeded();
-await page.locator('#titleOutlineRange').fill('3');
+await page.locator('[data-floating-align="center"]').click();
 await page.waitForFunction(() => document.querySelector('#canvasBoard')?.dataset.copyRendered === 'true');
 await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 await page.evaluate(()=>{window.drawnCopy=[];window.drawnCopyDetails=[];const old=CanvasRenderingContext2D.prototype.fillText;CanvasRenderingContext2D.prototype.fillText=function(text,...rest){window.drawnCopy.push(text);window.drawnCopyDetails.push({text,x:rest[0],textAlign:this.textAlign});return old.call(this,text,...rest)}});

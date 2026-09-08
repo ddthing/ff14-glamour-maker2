@@ -10,7 +10,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     await page.waitForSelector("#canvasBoard");
     await page.locator('[data-cast-count="2"]').click();
     await page.waitForFunction(() => document.querySelector("#canvasBoard")?.dataset.cast === "2");
-    await page.locator("#collagePreset").click();
+    await page.locator('#backgroundArtPanel button[data-pattern="collage"]').click();
     await page.waitForFunction(() => document.querySelector("#canvasBoard")?.dataset.backgroundPattern === "collage");
 
     const snapshot = await page.evaluate(() => {

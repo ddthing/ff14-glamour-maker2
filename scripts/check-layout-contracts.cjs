@@ -111,7 +111,7 @@ async function assertTwoPersonTitle(browser) {
           exportAlign: copy?.textAlign,
           exportAnchor: copy?.lines[0]?.x,
           layoutCenter: getExportDimensions().layoutWidth / 2,
-          selectedCenter: document.querySelector('[data-title-align="center"]')?.getAttribute("aria-checked"),
+          selectedCenter: document.querySelector('[data-floating-align="center"]')?.getAttribute("aria-checked"),
         };
       });
       assert.equal(defaultMetric.textAlign, "center",
@@ -128,7 +128,7 @@ async function assertTwoPersonTitle(browser) {
         `two-person default PNG title is not card-centered at ${width}px: ${JSON.stringify(defaultMetric)}`);
 
       for (const alignment of ["left", "center", "right"]) {
-        await page.locator(`[data-title-align="${alignment}"]`).click();
+        await page.locator(`[data-floating-align="${alignment}"]`).click();
         await page.evaluate(() => new Promise(requestAnimationFrame));
         const metric = await page.evaluate((expectedAlignment) => {
           const board = document.querySelector("#canvasBoard").getBoundingClientRect();

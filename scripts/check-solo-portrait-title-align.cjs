@@ -43,11 +43,11 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
         textRight: text.right,
       };
     });
-    await page.locator('[data-title-align="left"]').click();
+    await page.locator('[data-floating-align="left"]').click();
     const left = await measureAlignment();
-    await page.locator('[data-title-align="center"]').click();
+    await page.locator('[data-floating-align="center"]').click();
     const center = await measureAlignment();
-    await page.locator('[data-title-align="right"]').click();
+    await page.locator('[data-floating-align="right"]').click();
     const right = await measureAlignment();
     assert.ok(Math.abs(left.textLeft - left.blockLeft) < 8, `solo portrait left alignment is not card-relative: ${JSON.stringify(left)}`);
     assert.ok(Math.abs(center.textCenter - center.boardCenter) < 4, `solo portrait center alignment is not card-relative: ${JSON.stringify(center)}`);

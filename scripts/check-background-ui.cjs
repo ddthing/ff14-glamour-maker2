@@ -14,6 +14,9 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto(process.env.TEST_BASE_URL || "http://localhost:4173");
     await page.waitForSelector("#backgroundArtPanel");
+    assert.equal(await page.locator("#backgroundPresetPanel").count(), 0, "background preset panel must be retired");
+    assert.equal(await page.locator("#saveBackgroundPresetButton").count(), 0, "background preset save action must be retired");
+    assert.equal(await page.locator("#backgroundPresetForm").count(), 0, "background preset form must be retired");
 
     const initial = await page.evaluate(() => {
       const panel = document.querySelector("#backgroundArtPanel");
@@ -155,6 +158,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     await page.screenshot({ path: "artifacts/ui-background-panel-after.png", fullPage: false });
 
     await page.setViewportSize({ width: 320, height: 800 });
+    await page.waitForTimeout(40);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "background controls overflow at 320px");
     console.log("PASS: solid, pattern, and texture cards share selection geometry, independent state, reduced-motion behavior, and 320px reflow.");
   } finally {

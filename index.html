@@ -34,10 +34,10 @@
       />
     </noscript>
     <link rel="stylesheet" href="styles/tokens.css?v=20260908-shared-tokens-1" />
-    <link rel="stylesheet" href="styles.css?v=20260908-legacy-seams-1" />
-    <link rel="stylesheet" href="styles/card-composer.css?v=20260908-title-fonts-2" />
-    <link rel="stylesheet" href="styles/editor-controls.css?v=20260908-scrapbook-1" />
-    <link rel="stylesheet" href="styles/card-readability.css?v=20260908-scrapbook-tape-2" />
+    <link rel="stylesheet" href="styles.css?v=20260909-radius-contract-1" />
+    <link rel="stylesheet" href="styles/card-composer.css?v=20260909-title-size-3" />
+    <link rel="stylesheet" href="styles/editor-controls.css?v=20260909-radius-contract-1" />
+    <link rel="stylesheet" href="styles/card-readability.css?v=20260909-copy-target-1" />
   </head>
   <body>
     <a class="skip-link" data-i18n="skip.editor" href="#canvas">편집 영역으로 건너뛰기</a>
@@ -48,8 +48,10 @@
         </a>
 
         <div class="topbar-actions">
-          <span id="saveStatus" class="save-status" data-i18n="status.autosave" role="status" aria-live="polite">이 브라우저에 자동 저장</span>
-          <button class="save-retry-button" id="saveRetryButton" type="button" data-i18n-aria-label="status.retry" data-i18n-title="status.retry" aria-label="다시 저장" title="다시 저장" hidden aria-hidden="true">↻</button>
+          <div class="topbar-history" role="group" data-i18n-aria-label="canvas.history" aria-label="편집 기록">
+            <button class="topbar-history-button" id="undoButton" type="button" data-i18n-aria-label="canvas.undo" data-i18n-title="canvas.undo" aria-label="되돌리기" title="되돌리기" aria-keyshortcuts="Control+Z Meta+Z"><span class="sr-only" data-i18n="canvas.undo">되돌리기</span></button>
+            <button class="topbar-history-button is-muted" id="redoButton" type="button" data-i18n-aria-label="canvas.redo" data-i18n-title="canvas.redo" aria-label="다시 실행" title="다시 실행" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z"><span class="sr-only" data-i18n="canvas.redo">다시 실행</span></button>
+          </div>
           <label class="language-select-control" for="languageSelect">
             <span class="language-select-label" data-i18n="language.label">언어</span>
             <span class="language-select-wrap">
@@ -74,6 +76,26 @@
           </button>
         </div>
         <div class="rail-bottom">
+          <details class="rail-site-nav" id="railSiteNavigation">
+            <summary class="rail-button rail-site-nav-toggle" data-i18n-aria-label="site.aria" data-i18n-title="site.aria" aria-label="사이트 안내" title="사이트 안내">
+              <span class="tool-key rail-site-nav-mark" aria-hidden="true">i</span><small data-i18n="site.menu">안내</small>
+            </summary>
+            <div class="rail-site-menu">
+              <nav class="rail-site-menu-nav" data-i18n-aria-label="site.aria" aria-label="사이트 안내">
+                <a href="terms/" data-i18n="site.terms">이용약관</a>
+                <a href="privacy/" data-i18n="site.privacy">개인정보처리방침</a>
+                <a href="guide/" data-i18n="site.guide">가이드</a>
+                <a href="contact/" data-i18n="site.contact">문의</a>
+                <a href="support/" data-i18n="site.support">후원</a>
+              </nav>
+              <p class="rail-site-disclaimer" data-i18n="site.disclaimer">투영세트메이커2는 스퀘어 에닉스와 관계없는 비공식 팬 도구입니다. FINAL FANTASY XIV 및 관련 자산의 권리는 각 권리자에게 있습니다.</p>
+            </div>
+          </details>
+          <div class="rail-save-status" id="saveStatusGroup" data-state="saved" role="group" data-i18n-aria-label="status.group" data-i18n-title="status.autosave" aria-label="저장 상태" title="자동 저장">
+            <span class="rail-save-status-mark" aria-hidden="true"></span>
+            <span id="saveStatus" class="save-status" data-i18n="status.autosave" role="status" aria-live="polite">자동 저장</span>
+            <button class="save-retry-button" id="saveRetryButton" type="button" data-i18n-aria-label="status.retry" data-i18n-title="status.retry" aria-label="다시 저장" title="다시 저장" hidden aria-hidden="true">↻</button>
+          </div>
           <button class="rail-button rail-collapse-button" id="libraryToggleButton" type="button" data-i18n-aria-label="library.expand" data-i18n-title="library.expand" aria-expanded="false" aria-controls="lookLibrary" aria-label="LOOK BOOK 펼치기" title="LOOK BOOK 펼치기">
             <span class="tool-key" aria-hidden="true">›</span><small class="sr-only" data-i18n="library.expand">LOOK BOOK 펼치기</small>
           </button>
@@ -103,24 +125,45 @@
       <main class="workspace" id="canvas" tabindex="-1" data-i18n-aria-label="project.editor" aria-label="투영세트메이커2 편집기">
         <div class="workspace-grid">
           <section class="canvas-column" data-i18n-aria-label="canvas.aria" aria-label="룩 캔버스">
-            <div class="canvas-heading">
-              <div class="canvas-toolbar" role="group" data-i18n-aria-label="canvas.tools" aria-label="캔버스 도구">
-                <div class="toolbar-cluster">
-                  <button class="toolbar-button" id="previousLook" type="button" data-i18n-aria-label="canvas.previous" data-i18n-title="canvas.previous" aria-label="이전 룩" title="이전 룩"><span aria-hidden="true">←</span> <span data-i18n="canvas.previous">이전</span></button>
-                  <button class="toolbar-button" id="nextLook" type="button" data-i18n-aria-label="canvas.next" data-i18n-title="canvas.next" aria-label="다음 룩" title="다음 룩"><span data-i18n="canvas.next">다음</span> <span aria-hidden="true">→</span></button>
+            <div class="stage-wrap">
+              <div class="text-editor-dock" id="textEditorDock" role="region" data-i18n-aria-label="copy.dock" aria-label="텍스트 빠른 편집" hidden>
+                <div class="text-editor-dock-target">
+                  <span class="text-editor-dock-target-mark" aria-hidden="true">T</span>
+                  <div class="text-editor-dock-target-copy">
+                    <span class="text-editor-dock-eyebrow" data-i18n="copy.dockKicker">텍스트 선택됨</span>
+                    <strong id="textEditorDockTargetLabel" data-i18n="copy.cardTitle">카드 제목</strong>
+                  </div>
                 </div>
-                <div class="toolbar-cluster toolbar-cluster--right">
-                  <button class="toolbar-icon" id="undoButton" type="button" data-i18n="canvas.undo" data-i18n-aria-label="canvas.undo" data-i18n-title="canvas.undo" aria-label="실행 취소" title="실행 취소">되돌리기</button>
-                  <button class="toolbar-icon is-muted" id="redoButton" type="button" data-i18n="canvas.redo" data-i18n-aria-label="canvas.redo" data-i18n-title="canvas.redo" aria-label="다시 실행" title="다시 실행">다시 실행</button>
-                  <span class="toolbar-divider"></span>
-                  <button class="toolbar-icon canvas-focus-button" id="focusCanvasButton" type="button" data-i18n-aria-label="canvas.focus" data-i18n-title="canvas.focus" aria-label="캔버스 크게 보기" aria-pressed="false" title="캔버스 크게 보기">⛶</button>
+                <span class="text-editor-dock-divider" aria-hidden="true"></span>
+                <div class="text-editor-dock-tools" role="toolbar" data-i18n-aria-label="copy.dockToolbar" aria-label="텍스트 서식 도구">
+                  <label class="text-editor-dock-font-field" for="textEditorFontSelect">
+                    <span class="sr-only" data-i18n="copy.dockFont">서체 설정</span>
+                    <select id="textEditorFontSelect" data-i18n-aria-label="copy.dockFont" aria-label="서체 설정"></select>
+                  </label>
+                  <div class="text-editor-dock-size" role="group" data-i18n-aria-label="copy.dockFontSize" aria-label="글자 크기">
+                    <button class="text-editor-dock-step" id="textEditorFontSizeDown" type="button" data-i18n-aria-label="copy.dockFontSizeDecrease" data-i18n-title="copy.dockFontSizeDecrease" aria-label="글자 크기 줄이기" title="글자 크기 줄이기">−</button>
+                    <output class="text-editor-dock-size-value" id="textEditorFontSizeValue" aria-live="polite">16</output>
+                    <button class="text-editor-dock-step" id="textEditorFontSizeUp" type="button" data-i18n-aria-label="copy.dockFontSizeIncrease" data-i18n-title="copy.dockFontSizeIncrease" aria-label="글자 크기 키우기" title="글자 크기 키우기">+</button>
+                  </div>
+                  <button class="text-editor-dock-format" id="textEditorBoldButton" type="button" data-i18n-aria-label="copy.dockBold" data-i18n-title="copy.dockBold" aria-label="굵게" title="굵게" aria-pressed="false"><span aria-hidden="true">B</span></button>
+                  <button class="text-editor-dock-format" id="textEditorItalicButton" type="button" data-i18n-aria-label="copy.dockItalic" data-i18n-title="copy.dockItalic" aria-label="이탤릭" title="이탤릭" aria-pressed="false"><span aria-hidden="true">I</span></button>
+                  <button class="text-editor-dock-format" id="textEditorUnderlineButton" type="button" data-i18n-aria-label="copy.dockUnderline" data-i18n-title="copy.dockUnderline" aria-label="밑줄" title="밑줄" aria-pressed="false"><span aria-hidden="true">U</span></button>
+                  <button class="text-editor-dock-format text-editor-dock-uppercase" id="textEditorUppercaseButton" type="button" data-i18n-aria-label="copy.dockUppercase" data-i18n-title="copy.dockUppercase" aria-label="대문자 전환" title="대문자 전환" aria-pressed="false"><span aria-hidden="true">aA</span></button>
+                  <label class="text-editor-dock-color" for="textEditorColorInput" data-i18n-title="copy.dockColor" title="제목 색상">
+                    <span class="text-editor-dock-color-mark" id="textEditorColorMark" aria-hidden="true">A</span>
+                    <input id="textEditorColorInput" type="color" value="#263238" data-i18n-aria-label="copy.titleTextColor" aria-label="제목 텍스트 색상" />
+                  </label>
+                  <button class="text-editor-dock-color-auto" id="textEditorColorAutoButton" type="button" data-i18n-aria-label="copy.dockColorAuto" data-i18n-title="copy.dockColorAuto" aria-label="자동 색상" title="자동 색상" aria-pressed="true">A·</button>
+                  <span class="text-editor-dock-divider" aria-hidden="true"></span>
+                  <div class="text-editor-dock-align" id="textEditorAlignControls" role="radiogroup" data-i18n-aria-label="copy.alignment" aria-label="카드 제목 정렬">
+                    <button class="text-editor-dock-icon-button" data-floating-align="left" type="button" role="radio" aria-checked="false" data-i18n-aria-label="copy.left" data-i18n-title="copy.left" aria-label="왼쪽 정렬" title="왼쪽 정렬"><span class="alignment-glyph alignment-glyph--left" aria-hidden="true"></span></button>
+                    <button class="text-editor-dock-icon-button" data-floating-align="center" type="button" role="radio" aria-checked="false" data-i18n-aria-label="copy.center" data-i18n-title="copy.center" aria-label="가운데 정렬" title="가운데 정렬"><span class="alignment-glyph alignment-glyph--center" aria-hidden="true"></span></button>
+                    <button class="text-editor-dock-icon-button" data-floating-align="right" type="button" role="radio" aria-checked="false" data-i18n-aria-label="copy.right" data-i18n-title="copy.right" aria-label="오른쪽 정렬" title="오른쪽 정렬"><span class="alignment-glyph alignment-glyph--right" aria-hidden="true"></span></button>
+                  </div>
                 </div>
               </div>
-            </div>
-
-            <div class="stage-wrap">
               <div class="stage-composition">
-                <div class="canvas-board" id="canvasBoard" style="--board-bg: #d7d6dc">
+                <div class="canvas-board" id="canvasBoard" data-copy-target="title" style="--board-bg: #d7d6dc">
                   <div class="scene-background" id="sceneBackground"></div>
                   <div class="scene-texture"></div>
                   <div class="scene-pattern" id="scenePattern" aria-hidden="true"></div>
@@ -140,17 +183,37 @@
                   <small class="board-copyright" id="boardCopyright" data-i18n="card.copyright">© SQUARE ENIX</small>
                 </div>
               </div>
+              <div class="canvas-view-bar" id="canvasViewBar" role="group" data-i18n-aria-label="canvas.viewBar" aria-label="카드 보기 조절">
+                <div class="canvas-view-context">
+                  <svg class="ui-icon canvas-view-context-mark" aria-hidden="true" focusable="false"><use href="assets/icons/ui.svg#canvas-view"></use></svg>
+                  <span data-i18n="canvas.viewLabel">카드 보기</span>
+                </div>
+                <div class="canvas-view-actions">
+                  <div class="canvas-view-navigation" role="group" data-i18n-aria-label="canvas.lookNavigation" aria-label="룩 탐색">
+                    <button class="canvas-view-icon canvas-view-nav-button" id="previousLook" type="button" data-i18n-aria-label="canvas.previous" data-i18n-title="canvas.previous" aria-label="이전 룩" title="이전 룩"><span aria-hidden="true">←</span><span class="sr-only" data-i18n="canvas.previous">이전</span></button>
+                    <button class="canvas-view-icon canvas-view-nav-button" id="nextLook" type="button" data-i18n-aria-label="canvas.next" data-i18n-title="canvas.next" aria-label="다음 룩" title="다음 룩"><span class="sr-only" data-i18n="canvas.next">다음</span><span aria-hidden="true">→</span></button>
+                  </div>
+                  <span class="canvas-view-divider"></span>
+                  <div class="canvas-view-zoom" role="group" data-i18n-aria-label="canvas.viewZoom" aria-label="카드 보기 배율">
+                    <button class="canvas-view-step" id="canvasViewZoomOut" type="button" data-i18n-aria-label="canvas.viewZoomOut" data-i18n-title="canvas.viewZoomOut" aria-label="카드 보기 축소" title="카드 보기 축소"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="assets/icons/ui.svg#minus"></use></svg></button>
+                    <label class="canvas-view-range-label" for="canvasViewZoomRange">
+                      <span class="sr-only" data-i18n="canvas.viewZoom">카드 보기 배율</span>
+                      <input id="canvasViewZoomRange" type="range" min="50" max="150" step="5" value="100" data-i18n-aria-label="canvas.viewZoom" aria-label="카드 보기 배율" />
+                    </label>
+                    <button class="canvas-view-step" id="canvasViewZoomIn" type="button" data-i18n-aria-label="canvas.viewZoomIn" data-i18n-title="canvas.viewZoomIn" aria-label="카드 보기 확대" title="카드 보기 확대"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="assets/icons/ui.svg#plus"></use></svg></button>
+                    <output class="canvas-view-readout" id="canvasViewZoomReadout" for="canvasViewZoomRange" aria-live="polite" aria-atomic="true">100%</output>
+                  </div>
+                  <span class="canvas-view-divider" aria-hidden="true"></span>
+                  <span class="canvas-view-pages" data-i18n-aria-label="canvas.pageCount" aria-label="페이지 1 / 1">
+                    <svg class="ui-icon canvas-view-pages-icon" aria-hidden="true" focusable="false"><use href="assets/icons/ui.svg#pages"></use></svg>
+                    <span data-i18n="canvas.page">페이지</span>
+                    <strong>1 / 1</strong>
+                  </span>
+                  <button class="canvas-view-icon" id="canvasViewFitButton" type="button" data-i18n-aria-label="canvas.viewFit" data-i18n-title="canvas.viewFit" aria-label="카드 맞춤 보기" title="카드 맞춤 보기"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="assets/icons/ui.svg#fit"></use></svg></button>
+                  <button class="canvas-view-icon canvas-view-focus-button" id="canvasViewFocusButton" type="button" data-i18n-aria-label="canvas.focus" data-i18n-title="canvas.focus" aria-label="캔버스 크게 보기" aria-pressed="false" title="캔버스 크게 보기"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="assets/icons/ui.svg#expand"></use></svg></button>
+                </div>
+              </div>
             </div>
-            <footer class="app-site-footer">
-              <nav class="app-site-footer-nav" data-i18n-aria-label="site.aria" aria-label="사이트 안내">
-                <a href="terms/" data-i18n="site.terms">이용약관</a>
-                <a href="privacy/" data-i18n="site.privacy">개인정보처리방침</a>
-                <a href="guide/" data-i18n="site.guide">가이드</a>
-                <a href="contact/" data-i18n="site.contact">문의</a>
-                <a href="support/" data-i18n="site.support">후원</a>
-              </nav>
-              <p data-i18n="site.disclaimer">투영세트메이커2는 스퀘어 에닉스와 관계없는 비공식 팬 도구입니다. FINAL FANTASY XIV 및 관련 자산의 권리는 각 권리자에게 있습니다.</p>
-            </footer>
           </section>
 
           <aside class="inspector" data-i18n-aria-label="inspector.aria" aria-label="편집 속성">
@@ -160,7 +223,7 @@
                 <div class="reset-control">
                   <button class="reset-button" id="resetButton" type="button" data-i18n="reset.label" aria-expanded="false" aria-controls="resetMenu" aria-haspopup="menu">초기화</button>
                   <div class="reset-menu" id="resetMenu" role="menu" aria-labelledby="resetButton" hidden>
-                    <p id="resetMenuDescription" data-i18n="reset.description">스타일과 카드 데이터를 구분해 비웁니다. 모든 로컬 데이터 삭제는 이 브라우저의 LOOK BOOK·이미지·프리셋을 지웁니다.</p>
+                    <p id="resetMenuDescription" data-i18n="reset.description">스타일과 카드 데이터를 구분해 비웁니다. 모든 로컬 데이터 삭제는 이 브라우저의 LOOK BOOK과 이미지를 지웁니다.</p>
                     <button type="button" role="menuitem" id="resetStylesButton" data-i18n="reset.styles">스타일만 초기화</button>
                     <button type="button" role="menuitem" id="resetCardButton" data-i18n="reset.card">현재 카드 비우기</button>
                     <button type="button" role="menuitem" id="resetWorkspaceButton" data-i18n="reset.workspace">모든 로컬 데이터 삭제</button>
@@ -228,7 +291,7 @@
                 <div class="panel-section-head"><h2 id="copyEditorTitle" data-i18n="copy.title">문구</h2></div>
                 <div class="copy-editor-contextbar" id="copyEditorContextbar">
                   <div class="copy-editor-contextbar-head">
-                    <div class="copy-editor-context-title"><span class="copy-editor-context-kicker" data-i18n="copy.quick">빠른 편집</span><strong id="copyEditorTarget" data-i18n="copy.cardTitle">카드 제목</strong></div>
+                    <div class="copy-editor-context-title"><span class="copy-editor-context-kicker" data-i18n="copy.contentKicker">내용 입력</span><strong id="copyEditorTarget" data-i18n="copy.cardTitle">카드 제목</strong></div>
                     <button class="copy-editor-card-focus" id="focusCardTitleButton" type="button" data-i18n="copy.selectOnCard" data-i18n-aria-label="copy.selectOnCard" aria-label="카드에서 제목 선택">카드에서 제목 선택</button>
                   </div>
                   <div class="copy-editor-toolbar" role="toolbar" data-i18n-aria-label="copy.toolbar" aria-label="제목 빠른 편집 도구">
@@ -333,10 +396,10 @@
                         <span class="background-art-preview background-art-preview--bitmap" aria-hidden="true"></span><span data-i18n="pattern.bitmap">체커보드</span>
                       </button>
                       <button class="background-art-choice" data-pattern="collage" type="button" role="radio" aria-checked="false">
-                        <span class="background-art-preview background-art-preview--collage" aria-hidden="true"></span><span data-i18n="pattern.collage">콜라주</span>
+                        <span class="background-art-preview background-art-preview--collage" aria-hidden="true"></span><span data-i18n="pattern.collage">기록의 조각</span>
                       </button>
                       <button class="background-art-choice" data-pattern="scrapbook" type="button" role="radio" aria-checked="false">
-                        <span class="background-art-preview background-art-preview--scrapbook" aria-hidden="true"></span><span data-i18n="pattern.scrapbook">스크랩북</span>
+                        <span class="background-art-preview background-art-preview--scrapbook" aria-hidden="true"></span><span data-i18n="pattern.scrapbook">푸른 여백</span>
                       </button>
                     </div>
                   </div>
@@ -351,26 +414,6 @@
                       </button>
                     </div>
                   </div>
-                </div>
-                <div class="background-preset-panel" id="backgroundPresetPanel">
-                  <button class="background-preset-apply" id="scrapbookPreset" type="button" aria-pressed="false">
-                    <span class="background-preset-preview scrapbook-paper-preview" data-pattern="scrapbook" style="--preset-bg:#efe7da;--preset-ink:#3b4040;--preset-light:#fbf7ef" aria-hidden="true"></span>
-                    <span class="background-preset-copy"><strong data-i18n="preset.scrapbook">빈티지 스크랩북</strong><small data-i18n="preset.scrapbookDescription">원본 사진을 보존한 종이·테이프 레이아웃</small></span>
-                  </button>
-                  <button class="background-preset-apply" id="collagePreset" type="button" aria-pressed="false">
-                    <span class="background-preset-preview collage-paper-preview" style="--preset-bg:#f4eee4;--preset-ink:#687984;--preset-light:#fffaf3" aria-hidden="true"></span>
-                    <span class="background-preset-copy"><strong data-i18n="preset.collage">종이 콜라주</strong><small data-i18n="preset.collageDescription">이미지와 장비 정보를 종이 레이어로 묶기</small></span>
-                  </button>
-                  <div class="background-preset-panel-head">
-                    <div><span data-i18n="preset.title">내 프리셋</span><small id="backgroundPresetCount" aria-live="polite"></small></div>
-                    <button class="background-preset-save-button" id="saveBackgroundPresetButton" type="button" data-i18n="preset.save" aria-expanded="false">＋ 저장</button>
-                  </div>
-                  <form class="background-preset-form" id="backgroundPresetForm" hidden>
-                    <label class="background-preset-name-field" for="backgroundPresetName"><span data-i18n="preset.name">프리셋 이름</span><input id="backgroundPresetName" type="text" maxlength="28" data-i18n-placeholder="preset.namePlaceholder" placeholder="예: 분홍 별" autocomplete="off" /></label>
-                    <div class="background-preset-form-actions"><button class="secondary-button" id="backgroundPresetCancel" data-i18n="preset.cancel" type="button">취소</button><button class="primary-button" data-i18n="preset.savePlain" type="submit">저장</button></div>
-                  </form>
-                  <div class="background-preset-list" id="backgroundPresetList" role="list" hidden></div>
-                  <p class="background-preset-empty" id="backgroundPresetEmpty" data-i18n="preset.empty">단색·패턴·질감을 고른 뒤 저장하면 여기에서 다시 사용할 수 있습니다.</p>
                 </div>
               </section>
 
@@ -427,7 +470,7 @@
 
     <dialog id="deleteWorkspaceDialog" class="delete-workspace-dialog" aria-labelledby="deleteWorkspaceTitle" aria-describedby="deleteWorkspaceDescription">
       <h2 id="deleteWorkspaceTitle" data-i18n="dialog.deleteTitle">이 브라우저의 작업을 모두 삭제할까요?</h2>
-      <p id="deleteWorkspaceDescription" data-i18n="dialog.deleteDescription">LOOK BOOK, 원본 사진, 배경 제거 이미지와 배경 프리셋을 모두 삭제합니다. 삭제한 데이터는 되돌릴 수 없습니다.</p>
+      <p id="deleteWorkspaceDescription" data-i18n="dialog.deleteDescription">LOOK BOOK, 원본 사진, 배경 제거 이미지를 모두 삭제합니다. 삭제한 데이터는 되돌릴 수 없습니다.</p>
       <div class="delete-workspace-actions"><button id="cancelWorkspaceDelete" data-i18n="dialog.deleteCancel" type="button" autofocus>취소</button><button id="confirmWorkspaceDelete" data-i18n="dialog.deleteConfirm" type="button">모두 삭제</button></div>
     </dialog>
     <dialog id="lookManagerDialog" class="look-manager-dialog" aria-labelledby="lookManagerTitle">
@@ -448,18 +491,18 @@
     <script src="models/image-assets.js?v=20260907-project-name-1"></script>
     <script src="models/image-validation.js?v=20260908-source-preserving-1"></script>
     <script src="models/draft-storage.js?v=20260908-draft-storage-3"></script>
-    <script src="models/i18n.js?v=20260908-scrapbook-1"></script>
+    <script src="models/i18n.js?v=20260909-copy-target-2"></script>
     <script src="models/item-records.js?v=20260908-item-records-1"></script>
     <script src="models/item-search.js?v=20260908-language-aware-search-1"></script>
     <script src="models/crop-plan.js?v=20260908-crop-plan-1"></script>
     <script src="models/card-layout.js?v=20260908-gear-layout-2"></script>
-    <script src="models/card-copy.js?v=20260907-render-parity-1"></script>
+    <script src="models/card-copy.js?v=20260909-floating-text-toolbar-1"></script>
     <script src="models/color-contrast.js?v=20260907-silhouette-contrast-1"></script>
-    <script src="models/card-png.js?v=20260908-scrapbook-tape-2"></script>
+    <script src="models/card-materials.js?v=20260908-material-kit-1"></script>
+    <script src="models/card-png.js?v=20260908-material-kit-1"></script>
     <script src="models/editor-navigation.js?v=20260906-navigation-1"></script>
-    <script src="models/background-presets.js?v=20260907-background-presets-1"></script>
     <script src="models/title-typography.js?v=20260908-title-fonts-1"></script>
     <script src="models/background-removal.js?v=20260907-browser-birefnet-3"></script>
-    <script src="app.js?v=20260908-gear-note-markup-1"></script>
+    <script src="app.js?v=20260909-copy-target-1"></script>
   </body>
 </html>

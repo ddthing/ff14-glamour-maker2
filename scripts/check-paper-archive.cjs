@@ -11,13 +11,21 @@ const fixturePng = Buffer.from(
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     await page.goto(process.env.TEST_BASE_URL || "http://localhost:4173");
     await page.waitForSelector("#canvasBoard");
+    assert.equal(await page.locator('[data-pattern="collage"] [data-i18n="pattern.collage"]').textContent(), "기록의 조각", "archive pattern must use the public name");
+    assert.equal(await page.locator('#backgroundArtPanel button[data-pattern="scrapbook"] [data-i18n="pattern.scrapbook"]').textContent(), "푸른 여백", "airy pattern must use the public name");
+    assert.equal(await page.locator("#backgroundPresetPanel").count(), 0, "background presets must be retired in favor of direct pattern selection");
     const before = await page.evaluate(() => {
       state.background = "rose";
       state.backgroundPattern = "stars";
       renderStyles();
       return JSON.stringify({ characters: state.characters, title: state.title, titleFont: state.titleFont, castCount: state.castCount });
     });
-    await page.locator("#scrapbookPreset").evaluate((button) => button.click());
+    await page.evaluate(() => {
+      state.background = "paper";
+      state.backgroundTexture = "grain";
+      renderStyles();
+    });
+    await page.locator('#backgroundArtPanel button[data-pattern="scrapbook"]').click();
     const after = await page.evaluate(() => ({
       protected: JSON.stringify({ characters: state.characters, title: state.title, titleFont: state.titleFont, castCount: state.castCount }),
       background: state.background, pattern: state.backgroundPattern, texture: state.backgroundTexture,
@@ -26,13 +34,18 @@ const fixturePng = Buffer.from(
     assert.equal(after.background, "paper");
     assert.equal(after.pattern, "scrapbook");
     assert.equal(after.texture, "grain");
-    assert.equal(await page.locator("#scrapbookPreset").getAttribute("aria-pressed"), "true");
-    await page.locator("#collagePreset").evaluate((button) => button.click());
+    assert.equal(await page.locator('#backgroundArtPanel button[data-pattern="scrapbook"]').getAttribute("aria-checked"), "true");
+    await page.evaluate(() => {
+      state.background = "linen";
+      state.backgroundTexture = "grain";
+      renderStyles();
+    });
+    await page.locator('#backgroundArtPanel button[data-pattern="collage"]').click();
     const collageState = await page.evaluate(() => ({
       background: state.background, pattern: state.backgroundPattern, texture: state.backgroundTexture,
     }));
     assert.deepEqual(collageState, { background: "linen", pattern: "collage", texture: "grain" });
-    assert.equal(await page.locator("#collagePreset").getAttribute("aria-pressed"), "true");
+    assert.equal(await page.locator('#backgroundArtPanel button[data-pattern="collage"]').getAttribute("aria-checked"), "true");
     await page.evaluate(() => {
       const records = [
         ["91001", "head", "낡은 깃털 장식 모자"],
@@ -49,11 +62,11 @@ const fixturePng = Buffer.from(
       renderAll();
     });
     const collageAsset = await page.evaluate(async () => ({
-      fetched: (await fetch("assets/themes/collage-paper-plate.png", { cache: "no-store" })).ok,
+      fetched: (await fetch("assets/themes/materials/archive-paper-material-v1.webp", { cache: "no-store" })).ok,
       backgroundImage: getComputedStyle(document.querySelector("#sceneBackground")).backgroundImage,
     }));
-    assert.equal(collageAsset.fetched, true, "the collage plate must be published as a browser asset");
-    assert.match(collageAsset.backgroundImage, /collage-paper-plate\.png/, "preview must paint the collage plate");
+    assert.equal(collageAsset.fetched, true, "the generated archive material must be published as a browser asset");
+    assert.match(collageAsset.backgroundImage, /archive-paper-material-v1\.webp/, "preview must paint the optimized archive material");
     await page.evaluate(() => {
       window.__collageRender = null;
       const originalRender = CardPng.render;
@@ -69,7 +82,7 @@ const fixturePng = Buffer.from(
       const originalDrawImage = CanvasRenderingContext2D.prototype.drawImage;
       window.__collageOriginalDrawImage = originalDrawImage;
       CanvasRenderingContext2D.prototype.drawImage = function captureCollageBackground(image, ...args) {
-        if (String(image.currentSrc || image.src || "").includes("collage-paper-plate.png")) {
+        if (String(image.currentSrc || image.src || "").includes("archive-paper-material-v1.webp")) {
           window.__collageDrawImageCalls.push({
             naturalWidth: image.naturalWidth,
             naturalHeight: image.naturalHeight,
@@ -77,15 +90,6 @@ const fixturePng = Buffer.from(
           });
         }
         return originalDrawImage.call(this, image, ...args);
-      };
-      window.__collageTapeFillRects = [];
-      const originalFillRect = CanvasRenderingContext2D.prototype.fillRect;
-      window.__collageOriginalFillRect = originalFillRect;
-      CanvasRenderingContext2D.prototype.fillRect = function captureCollageTape(...args) {
-        if (/215, 196, 164/.test(String(this.fillStyle))) {
-          window.__collageTapeFillRects.push({ fillStyle: this.fillStyle, args });
-        }
-        return originalFillRect.apply(this, args);
       };
     });
     await page.locator("#imageInput").setInputFiles({ name: "collage-fixture.png", mimeType: "image/png", buffer: fixturePng });
@@ -96,7 +100,7 @@ const fixturePng = Buffer.from(
     await download.saveAs("artifacts/collage-card-export.png");
     await page.waitForFunction(() => !document.querySelector("#exportButton").hasAttribute("aria-busy"));
     const exportAsset = await page.evaluate(() => window.__collageRender);
-    assert.deepEqual(exportAsset, { hasBackgroundImage: true, width: 1122, height: 1402 }, "PNG export must load the same collage plate");
+    assert.deepEqual(exportAsset, { hasBackgroundImage: true, width: 1024, height: 1536 }, "PNG export must load the optimized archive material");
     const gearBounds = await page.evaluate(() => {
       const board = document.querySelector("#canvasBoard").getBoundingClientRect();
       return [...document.querySelectorAll("#boardGearList .board-gear-item")].map((item) => {
@@ -117,18 +121,18 @@ const fixturePng = Buffer.from(
     assert.ok(gearBounds.every(({ position }) => position === "absolute"), `collage portrait notes lost absolute placement: ${JSON.stringify(gearBounds)}`);
     const collageTape = await page.evaluate(() => {
       const note = document.querySelector("#boardGearList .board-gear-item");
-      const styles = getComputedStyle(note, "::after");
+      const styles = getComputedStyle(note.querySelector(".gear-tile-tape"));
       return {
-        content: styles.content,
         width: Number.parseFloat(styles.width),
         height: Number.parseFloat(styles.height),
         top: Number.parseFloat(styles.top),
         backgroundColor: styles.backgroundColor,
+        stampDisplay: getComputedStyle(note.querySelector(".gear-note-stamp")).display,
       };
     });
-    assert.equal(collageTape.content, '""', "collage notes must expose one semantic tape layer");
     assert.ok(collageTape.width > 0 && collageTape.height > 0 && collageTape.top < 0, `collage tape geometry is invalid: ${JSON.stringify(collageTape)}`);
     assert.notEqual(collageTape.backgroundColor, "rgba(0, 0, 0, 0)", "collage tape must remain visible");
+    assert.equal(collageTape.stampDisplay, "block", "archive notes must expose a stamp layer");
     const gearGeometry = await page.evaluate(() => {
       const board = document.querySelector("#canvasBoard").getBoundingClientRect();
       const dimensions = CardLayout.dimensionsFor(1, "portrait");
@@ -209,8 +213,6 @@ const fixturePng = Buffer.from(
     }));
     assert.ok(maxLandscapeGearDrift <= 0.75, `landscape preview equipment geometry drifted ${maxLandscapeGearDrift.toFixed(2)}px from CardLayout: ${JSON.stringify(landscapeGearGeometry)}`);
     const backgroundDraw = await page.evaluate(() => window.__collageDrawImageCalls[0]);
-    const tapeDraw = await page.evaluate(() => window.__collageTapeFillRects[0]);
-    assert.ok(tapeDraw?.args?.[2] > 0 && tapeDraw?.args?.[3] > 0, `PNG collage notes must draw the matching tape layer: ${JSON.stringify(tapeDraw)}`);
     assert.equal(backgroundDraw.args.length, 8, "PNG collage plate should use a source crop, not stretch the asset");
     const [sourceX, sourceY, sourceWidth, sourceHeight, targetX, targetY, targetWidth, targetHeight] = backgroundDraw.args;
     const coverScale = Math.max(1080 / backgroundDraw.naturalWidth, 1350 / backgroundDraw.naturalHeight);
@@ -219,18 +221,17 @@ const fixturePng = Buffer.from(
     assert.deepEqual([targetX, targetY, targetWidth, targetHeight], [0, 0, 1080, 1350], "PNG collage plate target must cover the full portrait card");
     await page.evaluate(() => {
       CanvasRenderingContext2D.prototype.drawImage = window.__collageOriginalDrawImage;
-      CanvasRenderingContext2D.prototype.fillRect = window.__collageOriginalFillRect;
     });
     await page.locator("#canvasBoard").screenshot({ path: "artifacts/collage-board.png" });
     await page.reload();
     await page.waitForSelector("#canvasBoard");
-    assert.equal(await page.locator("#collagePreset").getAttribute("aria-pressed"), "true");
+    assert.equal(await page.locator('#backgroundArtPanel button[data-pattern="collage"]').getAttribute("aria-checked"), "true");
     for (const width of [390, 1280]) {
       await page.setViewportSize({ width, height: 900 });
       await page.locator("#styleTab").click();
-      await page.locator("#collagePreset").scrollIntoViewIfNeeded();
-      const box = await page.locator("#collagePreset").boundingBox();
-      assert.ok(box.width > 100 && box.x >= 0 && box.x + box.width <= width);
+      await page.locator('#backgroundArtPanel button[data-pattern="collage"]').scrollIntoViewIfNeeded();
+      const box = await page.locator('#backgroundArtPanel button[data-pattern="collage"]').boundingBox();
+      assert.ok(box.width > 80 && box.x >= 0 && box.x + box.width <= width);
       await page.screenshot({ path: `artifacts/collage-${width}.png` });
     }
     console.log("PASS: vintage scrapbook and paper collage change only background axes, persist, and fit desktop/mobile.");

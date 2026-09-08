@@ -18,15 +18,16 @@ const slots = ["head", "body", "hands", "legs", "feet", "weapon"];
     });
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
     assert.equal(fs.existsSync(path.join(output, "favicon.svg")), false, "Pages bundle must not publish the rejected favicon");
-    const collageAsset = path.join(output, "assets", "themes", "collage-paper-plate.png");
-    assert.equal(fs.existsSync(collageAsset), true, "Pages bundle must publish the collage paper plate");
-    const collageHeader = fs.readFileSync(collageAsset).subarray(0, 8);
-    assert.deepEqual([...collageHeader], [137, 80, 78, 71, 13, 10, 26, 10], "collage paper plate must remain a valid PNG asset");
-    const scrapbookAsset = path.join(output, "assets", "themes", "vintage-scrapbook-plate.svg");
-    assert.equal(fs.existsSync(scrapbookAsset), true, "Pages bundle must publish the vintage scrapbook plate");
-    const scrapbookMarkup = fs.readFileSync(scrapbookAsset, "utf8");
-    assert.match(scrapbookMarkup, /<svg\b/, "vintage scrapbook plate must remain an SVG asset");
-    assert.doesNotMatch(scrapbookMarkup, /<image\b|<text\b|data:image|base64/i, "vintage scrapbook plate must not embed photos or generated text");
+    assert.equal(fs.existsSync(path.join(output, "assets", "themes", "collage-paper-plate.png")), false, "Pages bundle must not ship the obsolete collage plate");
+    assert.equal(fs.existsSync(path.join(output, "assets", "themes", "vintage-scrapbook-plate.svg")), false, "Pages bundle must not ship the obsolete scrapbook plate");
+    for (const material of ["archive-paper-material-v1.webp", "airy-paper-material-v1.webp"]) {
+      const materialAsset = path.join(output, "assets", "themes", "materials", material);
+      assert.equal(fs.existsSync(materialAsset), true, `Pages bundle must publish generated material: ${material}`);
+      const materialHeader = fs.readFileSync(materialAsset).subarray(0, 8);
+      const materialContainer = fs.readFileSync(materialAsset).subarray(8, 12);
+      assert.deepEqual([...materialHeader.subarray(0, 4)], [82, 73, 70, 70], `optimized material must remain a RIFF asset: ${material}`);
+      assert.deepEqual([...materialContainer], [87, 69, 66, 80], `optimized material must remain a WebP asset: ${material}`);
+    }
     const recordsBySlot = new Map();
     slots.forEach((slot) => {
       const file = path.join(output, "assets", "data", `items-ko-${slot}.json`);

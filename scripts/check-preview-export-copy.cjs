@@ -24,10 +24,7 @@ const title = "투영세트메이커2 미리보기와 PNG가 같은 글자 렌�
 
     await page.locator("#cardTitleInput").fill(title);
     await page.locator("#cardTitleInput").blur();
-    await page.locator('[data-title-align="center"]').click();
-    await page.locator("#copyEditorAdvanced summary").click();
-    await page.locator("#titleOutlineRange").scrollIntoViewIfNeeded();
-    await page.locator("#titleOutlineRange").fill("3");
+    await page.locator('[data-floating-align="center"]').click();
     await page.waitForFunction(() => document.querySelector("#canvasBoard")?.dataset.copyRendered === "true");
 
     const preview = await page.evaluate(() => {
@@ -85,8 +82,8 @@ const title = "투영세트메이커2 미리보기와 PNG가 같은 글자 렌�
         }
       };
     });
-    await page.locator("#titleOutlineRange").scrollIntoViewIfNeeded();
-    await page.locator("#titleOutlineRange").fill("2");
+    await page.locator('[data-floating-align="right"]').click();
+    await page.locator('[data-floating-align="center"]').click();
     await page.waitForFunction(() => window.__copyDrawCalls.length >= 1);
     const downloadPromise = page.waitForEvent("download");
     await page.locator("#exportButton").click();

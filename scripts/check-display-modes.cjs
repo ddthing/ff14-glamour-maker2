@@ -11,7 +11,7 @@ const focusTargets = [
   "#styleTab",
   "#exportButton",
   "#portraitWrap .character-figure",
-  "#focusCanvasButton",
+  "#canvasViewFocusButton",
   "#boardTitle",
 ];
 
@@ -21,12 +21,13 @@ const focusTargets = [
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     await page.addInitScript(() => localStorage.clear());
     await page.emulateMedia({ reducedMotion: "reduce", forcedColors: "active", colorScheme: "dark" });
-    await page.goto(process.env.TEST_BASE_URL || "http://localhost:4173");
+    await page.goto(process.env.TEST_BASE_URL || "http://localhost:4173", { waitUntil: "networkidle" });
     await page.waitForSelector("#canvasBoard");
 
     const snapshots = [];
     for (const viewport of viewports) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth + 1);
       const snapshot = await page.evaluate((label) => {
         const visible = (element) => {
           if (!(element instanceof HTMLElement) || element.hidden || element.closest("[hidden]")) return false;

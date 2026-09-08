@@ -49,8 +49,8 @@ const fixturePng = Buffer.from(
     const mobile = await page.locator("#imageEditorDialog").boundingBox();
     const mobileRange = await page.locator("#zoomRange").boundingBox();
     const header = await page.locator('.topbar').boundingBox();
-    const toolbar = await page.locator('.canvas-heading').boundingBox();
-    assert.ok(toolbar.y >= header.y + header.height - 1, 'Mobile header overlaps the canvas toolbar in placement mode');
+    const stage = await page.locator('.stage-wrap').boundingBox();
+    assert.ok(stage.y >= header.y + header.height - 1, 'Mobile header overlaps the card stage in placement mode');
     const rangeHeights = await page.locator('#imageEditorDialog input[type="range"]').evaluateAll(inputs => inputs.filter(input => input.getClientRects().length).map(input => ({ id: input.id, height: input.getBoundingClientRect().height })));
     for (const range of rangeHeights) assert.ok(range.height >= 40, `${range.id} has a cramped hit area: ${range.height}`);
     const mobileAlignment = await page.evaluate(() => {

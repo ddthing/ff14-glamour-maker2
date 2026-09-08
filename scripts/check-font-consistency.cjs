@@ -19,7 +19,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
         ".inspector-title-row h1",
         ".panel-section-head h2",
         ".primary-button",
-        ".toolbar-button",
+        ".topbar-history-button",
         "#languageSelect",
         "#titleFontSelect",
         "#cardTitleInput",

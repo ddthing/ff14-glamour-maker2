@@ -131,7 +131,7 @@ async function indexedAssetCount(page) {
     assert.equal(storage["glamour-atelier-draft-v2"], null, "full reset must remove legacy drafts too");
     assert.equal(storage["tuyeong-set-maker2-background-presets-v2"], null, "full reset must remove saved presets");
     assert.equal(storage["glamour-atelier-background-presets-v2"], null, "full reset must remove legacy saved presets too");
-    assert.deepEqual(JSON.parse(storage["tuyeong-set-maker2-ui-v2"]), { libraryCollapsed: true });
+    assert.deepEqual(JSON.parse(storage["tuyeong-set-maker2-ui-v2"]), { libraryCollapsed: true, canvasViewZoom: 100 });
     assert.equal(storage["glamour-atelier-ui-v2"], null, "full reset must remove legacy UI preferences too");
     assert.equal(await indexedAssetCount(page), 0, "full reset must clear the IndexedDB image vault");
 

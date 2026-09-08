@@ -9,18 +9,18 @@ async function mobileLayout(page) {
     const input = document.querySelector("#lookSearch");
     const toggle = document.querySelector("#mobileLookSearchToggle");
     const rail = document.querySelector(".rail");
-    const canvasHeading = document.querySelector(".canvas-heading");
+    const stageWrap = document.querySelector(".stage-wrap");
     const searchRect = search?.getBoundingClientRect();
     const inputRect = input?.getBoundingClientRect();
     const railRect = rail?.getBoundingClientRect();
-    const canvasHeadingRect = canvasHeading?.getBoundingClientRect();
+    const stageWrapRect = stageWrap?.getBoundingClientRect();
     return {
       width: document.documentElement.scrollWidth,
       viewportWidth: window.innerWidth,
       searchVisible: Boolean(searchRect && searchRect.width > 0 && searchRect.height > 0),
       searchRect: searchRect ? { left: searchRect.left, right: searchRect.right, top: searchRect.top, bottom: searchRect.bottom } : null,
       inputRect: inputRect ? { left: inputRect.left, right: inputRect.right, top: inputRect.top, bottom: inputRect.bottom } : null,
-      canvasTop: canvasHeadingRect?.top ?? null,
+      canvasTop: stageWrapRect?.top ?? null,
       toggleExpanded: toggle?.getAttribute("aria-expanded"),
       activeId: document.activeElement?.id || "",
       railTop: railRect?.top ?? null,
@@ -59,7 +59,7 @@ async function mobileLayout(page) {
     await page.waitForFunction(() => document.activeElement?.id === "lookSearch");
     await page.waitForFunction(() => {
       const search = document.querySelector("#lookSearchField")?.getBoundingClientRect();
-      const canvas = document.querySelector(".canvas-heading")?.getBoundingClientRect();
+      const canvas = document.querySelector(".stage-wrap")?.getBoundingClientRect();
       return search && canvas && search.bottom <= canvas.top + 1;
     });
     const opened = await mobileLayout(page);

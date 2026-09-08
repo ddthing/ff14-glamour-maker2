@@ -54,7 +54,7 @@ async function measureContrast(page) {
     } }));
     await page.goto(process.env.TEST_BASE_URL || 'http://localhost:4173');
     await page.waitForSelector('#castSelector button');
-    assert.equal(await page.locator('#backgroundPresetForm').isVisible(), false);
+    assert.equal(await page.locator('#backgroundPresetPanel').count(), 0);
     await page.locator('#styleAdvancedToggle').click();
     for (const dark of [false, true]) {
       await page.evaluate(dark => document.documentElement.classList.toggle('dark', dark), dark);
@@ -64,16 +64,11 @@ async function measureContrast(page) {
           await page.locator('#itemSearch').fill('검증');
           await page.waitForSelector('.catalog-result');
         }
-        if (panel === 'style') await page.locator('#saveBackgroundPresetButton').click();
         await page.waitForTimeout(350); // Wait for theme and button color transitions. const checks below reads settled colors.
         const checks = await measureContrast(page);
         const failures = checks.filter(c => c.ratio < c.minimum);
         results.push({ theme: dark ? 'dark' : 'light', panel, checked: checks.length, minTextRatio: Math.min(...checks.filter(c => c.kind === 'text').map(c => c.ratio)), failures });
         assert.deepEqual(failures, [], JSON.stringify(failures));
-        if (panel === 'style') {
-          await page.locator('#backgroundPresetCancel').click();
-          assert.equal(await page.locator('#backgroundPresetForm').isVisible(), false);
-        }
       }
     }
     await page.evaluate(() => document.documentElement.classList.remove('dark'));

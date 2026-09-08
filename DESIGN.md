@@ -42,10 +42,9 @@ The working dials are:
 The left list is navigation for saved looks/projects, not a template picker.
 It uses neutral numbered markers so it cannot be mistaken for a second style
 gallery. Card styling has one source of truth in the direct controls in the
-right inspector. Background styling now has one source of truth in the
-three direct axes, solid, pattern, and texture. A user-owned preset may recall
-only that three-part background tuple and must never change typography,
-geometry, or image placement.
+right inspector. Background styling has one source of truth in the three
+direct axes: solid, pattern, and texture. There is no second background
+gallery or saved preset layer competing with those controls.
 
 ## Card rules
 

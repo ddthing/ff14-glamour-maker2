@@ -34,7 +34,8 @@ const htmlFiles = [path.join(output, 'index.html'), ...publicPageDirectories.map
 for (const htmlFile of htmlFiles) {
   const html = fs.readFileSync(htmlFile, 'utf8');
   for (const match of html.matchAll(/(?:src|href)="((?:\.\.\/)?(?:models\/|styles\/|assets\/|app\.js|styles\.css)[^"?]*)(?:\?[^\"]*)?"/g)) {
-    const assetPath = path.resolve(path.dirname(htmlFile), match[1]);
+    const assetReference = match[1].split('#', 1)[0];
+    const assetPath = path.resolve(path.dirname(htmlFile), assetReference);
     if (!assetPath.startsWith(`${output}${path.sep}`) || !fs.existsSync(assetPath)) throw new Error(`Missing build asset: ${match[1]} referenced by ${path.relative(output, htmlFile)}`);
   }
 }

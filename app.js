@@ -46,6 +46,33 @@ const titleFonts = titleTypography.fonts;
 const titleFontOrder = titleTypography.fontOrder;
 const defaultTitleFont = titleTypography.defaultFont;
 const defaultTitleWeight = titleTypography.defaultWeight;
+const titleFontSizeMin = 8;
+const titleFontSizeMax = 72;
+const titleFontSizeStep = 1;
+const defaultTitleFontSize = 16;
+const subtitleFontSizeMin = 6;
+const subtitleFontSizeMax = 48;
+const subtitleFontSizeStep = 1;
+const defaultSubtitleFontSize = 10;
+const defaultSubtitleWeight = 400;
+
+function normaliseTitleFontSize(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return defaultTitleFontSize;
+  const stepped = Math.round(numeric / titleFontSizeStep) * titleFontSizeStep;
+  return Math.min(titleFontSizeMax, Math.max(titleFontSizeMin, stepped));
+}
+
+function normaliseSubtitleFontSize(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return defaultSubtitleFontSize;
+  const stepped = Math.round(numeric / subtitleFontSizeStep) * subtitleFontSizeStep;
+  return Math.min(subtitleFontSizeMax, Math.max(subtitleFontSizeMin, stepped));
+}
+
+function normaliseTitleBoolean(value) {
+  return value === true || value === "true";
+}
 
 function getTitleFontConfig(fontKey = state?.titleFont) {
   return titleTypography.config(fontKey);
@@ -59,29 +86,66 @@ function getTitleWeightOptions(fontKey) {
   return titleTypography.weightOptions(fontKey);
 }
 
+const copyEditorStyleFields = Object.freeze({
+  title: Object.freeze({ font: "titleFont", weight: "titleWeight", fontSize: "titleFontSize", italic: "titleItalic", underline: "titleUnderline", uppercase: "titleUppercase", color: "titleColor" }),
+  subtitle: Object.freeze({ font: "subtitleFont", weight: "subtitleWeight", fontSize: "subtitleFontSize", italic: "subtitleItalic", underline: "subtitleUnderline", uppercase: "subtitleUppercase", color: "subtitleColor" }),
+});
+
+function getCopyEditorTarget() {
+  return elements?.board?.dataset.copyTarget === "subtitle" ? "subtitle" : "title";
+}
+
+function getCopyEditorStyle(target = getCopyEditorTarget()) {
+  const nextTarget = target === "subtitle" ? "subtitle" : "title";
+  const fields = copyEditorStyleFields[nextTarget];
+  const fontKey = titleFonts[state[fields.font]] ? state[fields.font] : defaultTitleFont;
+  const fontConfig = getTitleFontConfig(fontKey);
+  const fontSize = nextTarget === "subtitle"
+    ? normaliseSubtitleFontSize(state[fields.fontSize])
+    : normaliseTitleFontSize(state[fields.fontSize]);
+  const fallbackWeight = nextTarget === "subtitle" ? defaultSubtitleWeight : defaultTitleWeight;
+  return {
+    target: nextTarget,
+    fields,
+    fontKey,
+    fontConfig,
+    fontSize,
+    weight: normaliseTitleWeight(fontKey, state[fields.weight] ?? fallbackWeight),
+    italic: normaliseTitleBoolean(state[fields.italic]),
+    underline: normaliseTitleBoolean(state[fields.underline]),
+    uppercase: normaliseTitleBoolean(state[fields.uppercase]),
+    color: normaliseOptionalHexColor(state[fields.color]),
+  };
+}
+
 function populateTitleFontSelect() {
-  const select = $("#titleFontSelect");
-  if (!select || select.dataset.ready === "true") return;
-  titleFontOrder.forEach((fontKey) => {
-    const option = document.createElement("option");
-    option.value = fontKey;
-    option.textContent = titleFonts[fontKey].label;
-    option.style.fontFamily = titleFonts[fontKey].family;
-    select.appendChild(option);
+  $$("#titleFontSelect, #textEditorFontSelect").forEach((select) => {
+    if (select.dataset.ready === "true") return;
+    titleFontOrder.forEach((fontKey) => {
+      const option = document.createElement("option");
+      option.value = fontKey;
+      option.textContent = titleFonts[fontKey].label;
+      option.style.fontFamily = titleFonts[fontKey].family;
+      select.appendChild(option);
+    });
+    select.dataset.ready = "true";
   });
-  select.dataset.ready = "true";
 }
 
 function syncTitleFontControls() {
   populateTitleFontSelect();
-  const select = $("#titleFontSelect");
+  const selects = $$("#titleFontSelect, #textEditorFontSelect");
   const weightRow = $("#titleWeightRow");
   const optionsHost = $("#titleWeightOptions");
-  if (!select || !weightRow || !optionsHost) return;
+  if (!selects.length) return;
   if (!titleFonts[state.titleFont]) state.titleFont = defaultTitleFont;
   const config = getTitleFontConfig(state.titleFont);
   state.titleWeight = normaliseTitleWeight(state.titleFont, state.titleWeight ?? config.weights[config.weights.length - 1]);
-  select.value = state.titleFont;
+  selects.forEach((select) => {
+    select.value = state.titleFont;
+    select.style.fontFamily = config.family;
+  });
+  if (!weightRow || !optionsHost) return;
   optionsHost.style.setProperty("--weight-preview-font", config.family);
   const options = getTitleWeightOptions(state.titleFont);
   weightRow.hidden = options.length === 0;
@@ -110,31 +174,193 @@ function syncTitleAlignmentControls() {
 function syncCopyColorControls() {
   const titleOutlineInput = document.getElementById("titleOutlineColorInput");
   if (titleOutlineInput) titleOutlineInput.value = normaliseHexColor(state.titleOutline?.color, "#ffffff");
-  const titleColorInput = document.getElementById("titleColorInput");
   const hasCustomTitleColor = Boolean(normaliseOptionalHexColor(state.titleColor));
-  if (titleColorInput) {
-    titleColorInput.value = hasCustomTitleColor ? state.titleColor : defaultTitleColor();
-    titleColorInput.dataset.mode = hasCustomTitleColor ? "custom" : "auto";
-  }
-  const autoButton = document.getElementById("titleColorAutoButton");
-  if (autoButton) {
+  [document.getElementById("titleColorInput"), document.getElementById("textEditorColorInput")].forEach((input) => {
+    if (!input) return;
+    input.value = hasCustomTitleColor ? state.titleColor : defaultTitleColor();
+    input.dataset.mode = hasCustomTitleColor ? "custom" : "auto";
+  });
+  [document.getElementById("titleColorAutoButton"), document.getElementById("textEditorColorAutoButton")].forEach((autoButton) => {
+    if (!autoButton) return;
     autoButton.disabled = !hasCustomTitleColor;
     autoButton.setAttribute("aria-pressed", String(!hasCustomTitleColor));
+  });
+}
+
+function closeTextEditorMoreMenu() {
+  const button = document.getElementById("textEditorMoreButton");
+  const menu = document.getElementById("textEditorMoreMenu");
+  if (!button || !menu) return;
+  menu.hidden = true;
+  button.setAttribute("aria-expanded", "false");
+}
+
+function syncTextEditorDock() {
+  const dock = document.getElementById("textEditorDock");
+  if (!dock) return;
+  const visible = state.activePanel === "stylePanel" && !imageEditorOpen;
+  dock.hidden = !visible;
+  if (!visible) {
+    closeTextEditorMoreMenu();
+    return;
   }
+
+  const style = getCopyEditorStyle();
+  const fontSelect = document.getElementById("textEditorFontSelect");
+  const fontSizeValue = document.getElementById("textEditorFontSizeValue");
+  const fontSizeDown = document.getElementById("textEditorFontSizeDown");
+  const fontSizeUp = document.getElementById("textEditorFontSizeUp");
+  const boldButton = document.getElementById("textEditorBoldButton");
+  const italicButton = document.getElementById("textEditorItalicButton");
+  const underlineButton = document.getElementById("textEditorUnderlineButton");
+  const uppercaseButton = document.getElementById("textEditorUppercaseButton");
+  const colorInput = document.getElementById("textEditorColorInput");
+  const colorMark = document.getElementById("textEditorColorMark");
+  if (fontSelect) {
+    fontSelect.value = style.fontKey;
+    fontSelect.style.fontFamily = style.fontConfig.family;
+  }
+  const fontSizeMin = style.target === "subtitle" ? subtitleFontSizeMin : titleFontSizeMin;
+  const fontSizeMax = style.target === "subtitle" ? subtitleFontSizeMax : titleFontSizeMax;
+  if (fontSizeValue) fontSizeValue.textContent = String(style.fontSize);
+  if (fontSizeDown) fontSizeDown.disabled = style.fontSize <= fontSizeMin;
+  if (fontSizeUp) fontSizeUp.disabled = style.fontSize >= fontSizeMax;
+  if (boldButton) {
+    const canToggleWeight = style.fontConfig.weights.length > 1;
+    boldButton.disabled = !canToggleWeight;
+    boldButton.setAttribute("aria-disabled", String(!canToggleWeight));
+    boldButton.setAttribute("aria-pressed", String(style.weight >= 700));
+  }
+  [[italicButton, style.italic], [underlineButton, style.underline], [uppercaseButton, style.uppercase]].forEach(([button, active]) => {
+    if (!button) return;
+    button.setAttribute("aria-pressed", String(Boolean(active)));
+    button.classList.toggle("is-selected", Boolean(active));
+  });
+  const copyColor = style.color || defaultTitleColor();
+  if (colorInput) {
+    colorInput.value = copyColor;
+    colorInput.setAttribute("aria-label", style.target === "subtitle" ? t("copy.descriptionTextColor") : t("copy.titleTextColor"));
+  }
+  if (colorMark) colorMark.style.setProperty("--dock-color", copyColor);
+  const selectedAlignment = resolveTitleAlign();
+  document.querySelectorAll("[data-floating-align]").forEach((button) => {
+    const selected = button.dataset.floatingAlign === selectedAlignment;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-checked", String(selected));
+    button.tabIndex = selected ? 0 : -1;
+  });
 }
 
 function setCopyEditorTarget(target = "title") {
   const nextTarget = target === "subtitle" ? "subtitle" : "title";
   elements.board?.setAttribute("data-copy-target", nextTarget);
   const targetLabel = document.getElementById("copyEditorTarget");
-  if (!targetLabel) return;
   const translationKey = nextTarget === "subtitle" ? "copy.cardDescription" : "copy.cardTitle";
-  targetLabel.dataset.i18n = translationKey;
-  targetLabel.textContent = t(translationKey);
+  [targetLabel, document.getElementById("textEditorDockTargetLabel")].forEach((label) => {
+    if (!label) return;
+    label.dataset.i18n = translationKey;
+    label.textContent = t(translationKey);
+  });
+  syncTextEditorDock();
 }
 
-// Kept only to migrate drafts created before background presets existed.
-// These values never appear in the editor or in the new preset library.
+function setCopyEditorFont(value, target = getCopyEditorTarget()) {
+  const style = getCopyEditorStyle(target);
+  const nextFont = titleFonts[value] ? value : defaultTitleFont;
+  if (nextFont === style.fontKey) return;
+  recordHistory();
+  state[style.fields.font] = nextFont;
+  state[style.fields.weight] = getTitleFontConfig(nextFont).weights.at(-1);
+  renderStyles({ refreshInfo: false, refreshPattern: false });
+  saveState();
+}
+
+function setTitleFont(value) {
+  setCopyEditorFont(value, "title");
+}
+
+function setTextEditorFont(value) {
+  setCopyEditorFont(value, getCopyEditorTarget());
+}
+
+function setCopyEditorFontSize(value, target = getCopyEditorTarget()) {
+  const style = getCopyEditorStyle(target);
+  const nextSize = style.target === "subtitle" ? normaliseSubtitleFontSize(value) : normaliseTitleFontSize(value);
+  if (nextSize === style.fontSize) return;
+  recordHistory();
+  state[style.fields.fontSize] = nextSize;
+  renderStyles({ refreshInfo: false, refreshPattern: false });
+  saveState();
+}
+
+function setTitleFontSize(value) {
+  setCopyEditorFontSize(value, "title");
+}
+
+function setTextEditorFontSize(value) {
+  setCopyEditorFontSize(value, getCopyEditorTarget());
+}
+
+function toggleCopyEditorBold(target = getCopyEditorTarget()) {
+  const style = getCopyEditorStyle(target);
+  const weights = getTitleWeightOptions(style.fontKey).map(({ weight }) => weight);
+  if (!weights.length) return;
+  const currentWeight = style.weight;
+  const nextWeight = currentWeight >= 700
+    ? (weights.find((weight) => weight < 700) ?? weights[0])
+    : (weights.find((weight) => weight >= 700) ?? weights.at(-1));
+  if (nextWeight === currentWeight) return;
+  recordHistory();
+  state[style.fields.weight] = normaliseTitleWeight(style.fontKey, nextWeight);
+  renderStyles({ refreshInfo: false, refreshPattern: false });
+  saveState();
+}
+
+function toggleTitleBold() {
+  toggleCopyEditorBold("title");
+}
+
+function toggleCopyEditorInlineStyle(styleName, target = getCopyEditorTarget()) {
+  if (!["italic", "underline", "uppercase"].includes(styleName)) return;
+  const style = getCopyEditorStyle(target);
+  recordHistory();
+  state[style.fields[styleName]] = !normaliseTitleBoolean(state[style.fields[styleName]]);
+  renderStyles({ refreshInfo: false, refreshPattern: false });
+  saveState();
+}
+
+function toggleTitleInlineStyle(field) {
+  const styleName = { titleItalic: "italic", titleUnderline: "underline", titleUppercase: "uppercase" }[field];
+  toggleCopyEditorInlineStyle(styleName, "title");
+}
+
+function toggleTextEditorBold() {
+  toggleCopyEditorBold(getCopyEditorTarget());
+}
+
+function toggleTextEditorInlineStyle(styleName) {
+  toggleCopyEditorInlineStyle(styleName, getCopyEditorTarget());
+}
+
+function resetCopyEditorColorToAuto(target = getCopyEditorTarget()) {
+  const style = getCopyEditorStyle(target);
+  if (!style.color) return;
+  recordHistory();
+  state[style.fields.color] = "";
+  renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
+  saveState();
+}
+
+function resetTitleColorToAuto() {
+  resetCopyEditorColorToAuto("title");
+}
+
+function resetTextEditorColorToAuto() {
+  resetCopyEditorColorToAuto(getCopyEditorTarget());
+}
+
+// Kept only to migrate legacy style recipes stored inside old drafts.
+// These values never appear as a second theme gallery in the editor.
 const legacyStyleRecipes = {
   "quiet-paper": {
     background: "paper",
@@ -233,19 +459,17 @@ const patternStars = [
 const backgroundPatternOptions = new Set(["none", "dots", "stars", "halftone", "bitmap", "collage", "scrapbook"]);
 const legacyBackgroundPatternAliases = Object.freeze({ index: "collage" });
 const backgroundSurfaceAssets = Object.freeze({
-  collage: "assets/themes/collage-paper-plate.png",
-  scrapbook: "assets/themes/vintage-scrapbook-plate.svg",
+  collage: CardMaterials.get("collage").asset,
+  scrapbook: CardMaterials.get("scrapbook").asset,
 });
 const backgroundTextureOptions = new Set(["none", "grain"]);
 const storageNamespace = "tuyeong-set-maker2";
 const languagePreferenceStorageKey = `${storageNamespace}-language-v1`;
 const draftStorageKey = `${storageNamespace}-draft-v3`;
 const uiPreferencesStorageKey = `${storageNamespace}-ui-v2`;
-const backgroundPresetStorageKey = `${storageNamespace}-background-presets-v2`;
 const legacyStorageMigrations = [
   { source: "glamour-atelier-draft-v3", target: draftStorageKey },
   { source: "glamour-atelier-ui-v2", target: uiPreferencesStorageKey },
-  { source: "glamour-atelier-background-presets-v2", target: backgroundPresetStorageKey },
 ];
 const legacyStorageKeys = [
   "glamour-atelier-draft-v1",
@@ -253,165 +477,25 @@ const legacyStorageKeys = [
   "glamour-atelier-draft-v3",
   "glamour-atelier-ui-v1",
   "glamour-atelier-ui-v2",
+  "tuyeong-set-maker2-background-presets-v2",
   "glamour-atelier-background-presets-v1",
   "glamour-atelier-background-presets-v2",
 ];
-const backgroundPresetLimit = 18;
-const backgroundPatternLabels = Object.freeze({
-  none: "패턴 없음",
-  dots: "도트",
-  stars: "별",
-  halftone: "하프톤",
-  bitmap: "체커보드",
-  collage: "콜라주",
-  scrapbook: "스크랩북",
-});
-const backgroundTextureLabels = Object.freeze({ none: "질감 없음", grain: "그레인" });
-let backgroundPresets = [];
-let backgroundPresetCreateOpen = false;
-const backgroundPresetModel = BackgroundPresets.create({
-  backgrounds,
-  patternLabels: backgroundPatternLabels,
-  textureLabels: backgroundTextureLabels,
-  patterns: backgroundPatternOptions,
-  textures: backgroundTextureOptions,
-  limit: backgroundPresetLimit,
-  idFactory: () => `background-${createAssetKey()}`,
-});
-
-function getBackgroundSelection(source = state) {
-  return backgroundPresetModel.selection(source);
-}
-
-function getBackgroundSelectionSignature(source = state) {
-  return backgroundPresetModel.signature(source);
-}
 
 function describeBackgroundSelection(source = state) {
-  const selection = getBackgroundSelection(source);
-  const patternLabel = selection.backgroundPattern === "none"
+  const patternLabel = source.backgroundPattern === "none"
     ? t("background.patternNone")
-    : t(`pattern.${selection.backgroundPattern}`);
-  const textureLabel = selection.backgroundTexture === "none"
+    : t(`pattern.${source.backgroundPattern}`);
+  const textureLabel = source.backgroundTexture === "none"
     ? t("background.textureNone")
-    : t(`texture.${selection.backgroundTexture}`);
+    : t(`texture.${source.backgroundTexture}`);
   return [
-    selection.background === "custom"
-      ? t("background.customWithColor", { color: selection.customBackgroundColor.toUpperCase() })
-      : t(`background.${selection.background}`),
+    source.background === "custom"
+      ? t("background.customWithColor", { color: source.customBackgroundColor.toUpperCase() })
+      : t(`background.${source.background}`),
     patternLabel,
     textureLabel,
   ].join(" · ");
-}
-
-function loadBackgroundPresets() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(backgroundPresetStorageKey) || "[]");
-    backgroundPresets = backgroundPresetModel.load(saved);
-  } catch {
-    backgroundPresets = [];
-  }
-}
-
-function saveBackgroundPresets() {
-  try {
-    localStorage.setItem(backgroundPresetStorageKey, JSON.stringify(backgroundPresets));
-  } catch {
-    // The editor remains usable when browser storage is unavailable.
-  }
-}
-
-function renderBackgroundPresets() {
-  const starter = $("#scrapbookPreset");
-  if (starter) starter.setAttribute("aria-pressed", String(
-    state.background === "paper" && state.backgroundPattern === "scrapbook" && state.backgroundTexture === "grain",
-  ));
-  const collageStarter = $("#collagePreset");
-  if (collageStarter) collageStarter.setAttribute("aria-pressed", String(
-    state.background === "linen" && state.backgroundPattern === "collage" && state.backgroundTexture === "grain",
-  ));
-  const list = $("#backgroundPresetList");
-  const empty = $("#backgroundPresetEmpty");
-  const count = $("#backgroundPresetCount");
-  if (!list) return;
-  const currentSignature = getBackgroundSelectionSignature();
-  list.innerHTML = backgroundPresets.map((preset) => {
-    const background = getBackgroundTheme(preset);
-    const selected = getBackgroundSelectionSignature(preset) === currentSignature;
-    return `<article class="background-preset-item${selected ? " is-current" : ""}">
-      <button class="background-preset-apply" type="button" data-background-preset-id="${escapeHtml(preset.id)}" aria-pressed="${selected}" aria-label="${escapeHtml(t("preset.apply", { name: preset.name }))}">
-        <span class="background-preset-preview" data-pattern="${preset.backgroundPattern}" data-texture="${preset.backgroundTexture}" style="--preset-bg:${background.solid};--preset-ink:${background.pattern[0]};--preset-light:${background.pattern[1]}" aria-hidden="true"></span>
-        <span class="background-preset-copy"><strong>${escapeHtml(preset.name)}</strong><small>${escapeHtml(describeBackgroundSelection(preset))}</small></span>
-      </button>
-      <button class="background-preset-delete" type="button" data-background-preset-delete="${escapeHtml(preset.id)}" aria-label="${escapeHtml(t("preset.delete", { name: preset.name }))}"><span aria-hidden="true">×</span></button>
-    </article>`;
-  }).join("");
-  list.hidden = backgroundPresets.length === 0;
-  if (empty) empty.hidden = backgroundPresets.length > 0;
-  if (count) count.textContent = backgroundPresets.length ? `${backgroundPresets.length}` : "";
-}
-
-function setBackgroundPresetFormOpen(open) {
-  backgroundPresetCreateOpen = Boolean(open);
-  const form = $("#backgroundPresetForm");
-  const trigger = $("#saveBackgroundPresetButton");
-  if (form) form.hidden = !backgroundPresetCreateOpen;
-  if (trigger) {
-    trigger.setAttribute("aria-expanded", String(backgroundPresetCreateOpen));
-    trigger.textContent = backgroundPresetCreateOpen ? t("preset.cancel") : t("preset.save");
-  }
-  if (backgroundPresetCreateOpen) {
-    const input = $("#backgroundPresetName");
-    if (input) {
-      input.value = "";
-      window.requestAnimationFrame(() => input.focus());
-    }
-  }
-}
-
-function saveCurrentBackgroundPreset() {
-  const input = $("#backgroundPresetName");
-  const selection = getBackgroundSelection();
-  const name = input?.value.trim().slice(0, 28) || describeBackgroundSelection(selection);
-  const result = backgroundPresetModel.add(backgroundPresets, selection, name);
-  if (!result) {
-    showToast(t("toast.presetDuplicate"));
-    input?.focus();
-    return false;
-  }
-  backgroundPresets = result.list;
-  saveBackgroundPresets();
-  setBackgroundPresetFormOpen(false);
-  renderBackgroundPresets();
-  renderStyles({ refreshInfo: false, refreshPattern: false });
-  showToast(t("toast.presetSaved", { name }));
-  return true;
-}
-
-function applyBackgroundPreset(id) {
-  const preset = backgroundPresetModel.find(backgroundPresets, id);
-  if (!preset) return;
-  applyBackgroundSelection(preset);
-}
-
-function applyBackgroundSelection(preset) {
-  recordHistory();
-  state.background = preset.background;
-  state.customBackgroundColor = normaliseHexColor(preset.customBackgroundColor, customBackgroundDefault);
-  state.backgroundPattern = preset.backgroundPattern;
-  state.backgroundTexture = preset.backgroundTexture;
-  renderStyles();
-  saveState();
-  showToast(t("toast.presetApplied", { name: preset.name }));
-}
-
-function deleteBackgroundPreset(id) {
-  const preset = backgroundPresetModel.find(backgroundPresets, id);
-  if (!preset) return;
-  backgroundPresets = backgroundPresetModel.remove(backgroundPresets, id);
-  saveBackgroundPresets();
-  renderBackgroundPresets();
-  showToast(t("toast.presetDeleted", { name: preset.name }));
 }
 
 // The editor receives item records from the server search adapter. Keeping a
@@ -524,8 +608,19 @@ function createBlankLook(number = 1, id = `look-${number}`) {
     backgroundTexture: "none",
     titleFont: defaultTitleFont,
     titleWeight: defaultTitleWeight,
+    titleFontSize: defaultTitleFontSize,
+    titleItalic: false,
+    titleUnderline: false,
+    titleUppercase: false,
     titleAlign: "auto",
     titleColor: "",
+    subtitleFont: defaultTitleFont,
+    subtitleWeight: defaultSubtitleWeight,
+    subtitleFontSize: defaultSubtitleFontSize,
+    subtitleItalic: false,
+    subtitleUnderline: false,
+    subtitleUppercase: false,
+    subtitleColor: "",
     outline: { color: "#f1dfbb", width: 0 },
     titleOutline: { color: "#ffffff", width: 0 },
   };
@@ -548,8 +643,19 @@ function createLookResetSnapshot(look, index = 0) {
     customBackgroundColor: blank.customBackgroundColor,
     backgroundPattern: blank.backgroundPattern,
     backgroundTexture: blank.backgroundTexture,
+    titleFontSize: blank.titleFontSize,
+    titleItalic: blank.titleItalic,
+    titleUnderline: blank.titleUnderline,
+    titleUppercase: blank.titleUppercase,
     titleAlign: blank.titleAlign,
     titleColor: blank.titleColor,
+    subtitleFont: blank.subtitleFont,
+    subtitleWeight: blank.subtitleWeight,
+    subtitleFontSize: blank.subtitleFontSize,
+    subtitleItalic: blank.subtitleItalic,
+    subtitleUnderline: blank.subtitleUnderline,
+    subtitleUppercase: blank.subtitleUppercase,
+    subtitleColor: blank.subtitleColor,
   };
 }
 
@@ -617,9 +723,20 @@ const state = {
   multiInfoMode: "clear",
   titleFont: defaultTitleFont,
   titleWeight: defaultTitleWeight,
-  titleAlign: "auto",
-  titleColor: "",
-  singleRatio: "portrait",
+  titleFontSize: defaultTitleFontSize,
+  titleItalic: false,
+  titleUnderline: false,
+    titleUppercase: false,
+    titleAlign: "auto",
+    titleColor: "",
+    subtitleFont: defaultTitleFont,
+    subtitleWeight: defaultSubtitleWeight,
+    subtitleFontSize: defaultSubtitleFontSize,
+    subtitleItalic: false,
+    subtitleUnderline: false,
+    subtitleUppercase: false,
+    subtitleColor: "",
+    singleRatio: "portrait",
   singleLayout: "info-left",
   backgroundPattern: "none",
   backgroundTexture: "none",
@@ -650,6 +767,15 @@ const elements = {
   scenePattern: $("#scenePattern"),
   multiInfoLayer: $("#multiInfoLayer"),
   boardCopyCanvas: $("#boardCopyCanvas"),
+  stageComposition: document.querySelector(".stage-composition"),
+  textEditorFontSelect: $("#textEditorFontSelect"),
+  textEditorColorInput: $("#textEditorColorInput"),
+  canvasViewZoomRange: $("#canvasViewZoomRange"),
+  canvasViewZoomReadout: $("#canvasViewZoomReadout"),
+  canvasViewZoomOut: $("#canvasViewZoomOut"),
+  canvasViewZoomIn: $("#canvasViewZoomIn"),
+  canvasViewFitButton: $("#canvasViewFitButton"),
+  canvasViewFocusButton: $("#canvasViewFocusButton"),
   boardCopyright: $("#boardCopyright"),
   sourceThumb: $("#sourceThumb"),
   sourceThumbFrame: $("#sourceThumbFrame"),
@@ -707,6 +833,7 @@ function applyPageLanguage(language = state.language) {
   document.documentElement.lang = state.language;
   document.documentElement.dataset.language = state.language;
   if (elements.languageSelect) elements.languageSelect.value = state.language;
+  if (typeof syncCanvasFocusControls === "function") syncCanvasFocusControls(document.body.classList.contains("canvas-focus-mode"));
   syncLibraryPanel();
   if (typeof openPanel === "function") openPanel(state.activePanel);
   return state.language;
@@ -723,7 +850,11 @@ function setExportButtonLabel(key) {
 
 let toastTimer;
 let styleAdvancedOpen = false;
-const uiPreferences = { libraryCollapsed: true };
+const canvasViewZoomMin = 50;
+const canvasViewZoomMax = 150;
+const canvasViewZoomStep = 5;
+const canvasViewZoomDefault = 100;
+const uiPreferences = { libraryCollapsed: true, canvasViewZoom: canvasViewZoomDefault };
 let imageEditorOpen = false;
 let imageEditorSnapshot = null;
 let imageEditorDirty = false;
@@ -749,17 +880,72 @@ function restoreUiPreferences() {
   try {
     const saved = JSON.parse(localStorage.getItem(uiPreferencesStorageKey) || "null");
     uiPreferences.libraryCollapsed = saved ? Boolean(saved.libraryCollapsed) : true;
+    uiPreferences.canvasViewZoom = normaliseCanvasViewZoom(saved?.canvasViewZoom);
   } catch {
     uiPreferences.libraryCollapsed = true;
+    uiPreferences.canvasViewZoom = canvasViewZoomDefault;
   }
 }
 
 function saveUiPreferences() {
   try {
-    localStorage.setItem(uiPreferencesStorageKey, JSON.stringify({ libraryCollapsed: uiPreferences.libraryCollapsed }));
+    localStorage.setItem(uiPreferencesStorageKey, JSON.stringify({
+      libraryCollapsed: uiPreferences.libraryCollapsed,
+      canvasViewZoom: uiPreferences.canvasViewZoom,
+    }));
   } catch {
     // The workspace remains usable when browser storage is unavailable.
   }
+}
+
+function normaliseCanvasViewZoom(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return canvasViewZoomDefault;
+  const stepped = Math.round(numeric / canvasViewZoomStep) * canvasViewZoomStep;
+  return Math.min(canvasViewZoomMax, Math.max(canvasViewZoomMin, stepped));
+}
+
+function syncCanvasViewZoomControl() {
+  const zoom = normaliseCanvasViewZoom(uiPreferences.canvasViewZoom);
+  uiPreferences.canvasViewZoom = zoom;
+  if (elements.stageComposition) {
+    elements.stageComposition.style.zoom = String(zoom / 100);
+    elements.stageComposition.dataset.viewZoom = String(zoom);
+  }
+  if (elements.canvasViewZoomRange) {
+    elements.canvasViewZoomRange.value = String(zoom);
+    updateRangeProgress(elements.canvasViewZoomRange);
+    elements.canvasViewZoomRange.setAttribute("aria-valuetext", `${zoom}%`);
+  }
+  if (elements.canvasViewZoomReadout) elements.canvasViewZoomReadout.textContent = `${zoom}%`;
+  if (elements.canvasViewZoomOut) elements.canvasViewZoomOut.disabled = zoom <= canvasViewZoomMin;
+  if (elements.canvasViewZoomIn) elements.canvasViewZoomIn.disabled = zoom >= canvasViewZoomMax;
+}
+
+function setCanvasViewZoom(value, { persist = true } = {}) {
+  uiPreferences.canvasViewZoom = normaliseCanvasViewZoom(value);
+  syncCanvasViewZoomControl();
+  if (persist) saveUiPreferences();
+}
+
+function resetCanvasViewZoom() {
+  setCanvasViewZoom(canvasViewZoomDefault);
+}
+
+function syncCanvasFocusControls(focused) {
+  const label = t(focused ? "canvas.normal" : "canvas.focus");
+  [$("#focusCanvasButton"), elements.canvasViewFocusButton].forEach((button) => {
+    if (!button) return;
+    button.setAttribute("aria-pressed", String(focused));
+    button.setAttribute("aria-label", label);
+    button.title = label;
+    button.classList.toggle("is-active", focused);
+  });
+}
+
+function setCanvasFocusMode(focused) {
+  document.body.classList.toggle("canvas-focus-mode", focused);
+  syncCanvasFocusControls(focused);
 }
 
 function migrateLegacyStorage() {
@@ -826,8 +1012,19 @@ function syncStateIntoLook(look = getSelectedLook()) {
   look.backgroundTexture = backgroundTextureOptions.has(state.backgroundTexture) ? state.backgroundTexture : "none";
   look.titleFont = titleFonts[state.titleFont] ? state.titleFont : defaultTitleFont;
   look.titleWeight = normaliseTitleWeight(look.titleFont, state.titleWeight ?? defaultTitleWeight);
+  look.titleFontSize = normaliseTitleFontSize(state.titleFontSize);
+  look.titleItalic = normaliseTitleBoolean(state.titleItalic);
+  look.titleUnderline = normaliseTitleBoolean(state.titleUnderline);
+  look.titleUppercase = normaliseTitleBoolean(state.titleUppercase);
   look.titleAlign = normaliseTitleAlign(state.titleAlign);
   look.titleColor = normaliseOptionalHexColor(state.titleColor);
+  look.subtitleFont = titleFonts[state.subtitleFont] ? state.subtitleFont : defaultTitleFont;
+  look.subtitleWeight = normaliseTitleWeight(look.subtitleFont, state.subtitleWeight ?? defaultSubtitleWeight);
+  look.subtitleFontSize = normaliseSubtitleFontSize(state.subtitleFontSize);
+  look.subtitleItalic = normaliseTitleBoolean(state.subtitleItalic);
+  look.subtitleUnderline = normaliseTitleBoolean(state.subtitleUnderline);
+  look.subtitleUppercase = normaliseTitleBoolean(state.subtitleUppercase);
+  look.subtitleColor = normaliseOptionalHexColor(state.subtitleColor);
   look.outline = normaliseOutline(state.outline, "#f1dfbb", 8);
   look.titleOutline = normaliseOutline(state.titleOutline, "#ffffff", 6);
   look.outfits = cloneOutfits(getLookOutfits(look));
@@ -1332,8 +1529,19 @@ function serializeLook(look) {
     backgroundTexture: backgroundTextureOptions.has(look.backgroundTexture) ? look.backgroundTexture : "none",
     titleFont: titleFonts[look.titleFont] ? look.titleFont : defaultTitleFont,
     titleWeight: normaliseTitleWeight(look.titleFont || defaultTitleFont, look.titleWeight ?? defaultTitleWeight),
+    titleFontSize: normaliseTitleFontSize(look.titleFontSize),
+    titleItalic: normaliseTitleBoolean(look.titleItalic),
+    titleUnderline: normaliseTitleBoolean(look.titleUnderline),
+    titleUppercase: normaliseTitleBoolean(look.titleUppercase),
     titleAlign: normaliseTitleAlign(look.titleAlign),
     titleColor: normaliseOptionalHexColor(look.titleColor ?? look.subtitleColor),
+    subtitleFont: titleFonts[look.subtitleFont] ? look.subtitleFont : defaultTitleFont,
+    subtitleWeight: normaliseTitleWeight(look.subtitleFont || defaultTitleFont, look.subtitleWeight ?? defaultSubtitleWeight),
+    subtitleFontSize: normaliseSubtitleFontSize(look.subtitleFontSize),
+    subtitleItalic: normaliseTitleBoolean(look.subtitleItalic),
+    subtitleUnderline: normaliseTitleBoolean(look.subtitleUnderline),
+    subtitleUppercase: normaliseTitleBoolean(look.subtitleUppercase),
+    subtitleColor: normaliseOptionalHexColor(look.subtitleColor),
     outline: normaliseOutline(look.outline, "#f1dfbb", 8),
     titleOutline: normaliseOutline(look.titleOutline, "#ffffff", 6),
     editor: { ...editor, characters: editor.characters.map(serializeCharacter) },
@@ -1393,8 +1601,19 @@ function createDraftSnapshot() {
     multiInfoMode: state.multiInfoMode,
     titleFont: state.titleFont,
     titleWeight: state.titleWeight,
+    titleFontSize: normaliseTitleFontSize(state.titleFontSize),
+    titleItalic: normaliseTitleBoolean(state.titleItalic),
+    titleUnderline: normaliseTitleBoolean(state.titleUnderline),
+    titleUppercase: normaliseTitleBoolean(state.titleUppercase),
     titleAlign: normaliseTitleAlign(state.titleAlign),
     titleColor: normaliseOptionalHexColor(state.titleColor),
+    subtitleFont: titleFonts[state.subtitleFont] ? state.subtitleFont : defaultTitleFont,
+    subtitleWeight: normaliseTitleWeight(state.subtitleFont || defaultTitleFont, state.subtitleWeight ?? defaultSubtitleWeight),
+    subtitleFontSize: normaliseSubtitleFontSize(state.subtitleFontSize),
+    subtitleItalic: normaliseTitleBoolean(state.subtitleItalic),
+    subtitleUnderline: normaliseTitleBoolean(state.subtitleUnderline),
+    subtitleUppercase: normaliseTitleBoolean(state.subtitleUppercase),
+    subtitleColor: normaliseOptionalHexColor(state.subtitleColor),
     singleRatio: state.singleRatio,
     singleLayout: state.singleLayout,
     backgroundPattern: state.backgroundPattern,
@@ -1474,7 +1693,21 @@ function saveState({ immediate = false } = {}) {
 
 function setSaveStatus(message, failed = false) {
   const status = document.getElementById("saveStatus");
-  if (status) { status.textContent = message; status.dataset.failed = String(failed); }
+  if (status) {
+    status.textContent = message;
+    status.dataset.failed = String(failed);
+    status.title = message;
+  }
+  const statusGroup = document.getElementById("saveStatusGroup");
+  if (statusGroup) {
+    statusGroup.dataset.failed = String(failed);
+    statusGroup.dataset.state = failed
+      ? "failed"
+      : message === t("status.saving")
+        ? "saving"
+        : "saved";
+    statusGroup.title = message;
+  }
   const retry = elements.saveRetryButton;
   if (retry) {
     retry.hidden = !failed;
@@ -1520,8 +1753,19 @@ function createSnapshot() {
     multiInfoMode: state.multiInfoMode,
     titleFont: state.titleFont,
     titleWeight: state.titleWeight,
+    titleFontSize: normaliseTitleFontSize(state.titleFontSize),
+    titleItalic: normaliseTitleBoolean(state.titleItalic),
+    titleUnderline: normaliseTitleBoolean(state.titleUnderline),
+    titleUppercase: normaliseTitleBoolean(state.titleUppercase),
     titleAlign: normaliseTitleAlign(state.titleAlign),
     titleColor: normaliseOptionalHexColor(state.titleColor),
+    subtitleFont: titleFonts[state.subtitleFont] ? state.subtitleFont : defaultTitleFont,
+    subtitleWeight: normaliseTitleWeight(state.subtitleFont || defaultTitleFont, state.subtitleWeight ?? defaultSubtitleWeight),
+    subtitleFontSize: normaliseSubtitleFontSize(state.subtitleFontSize),
+    subtitleItalic: normaliseTitleBoolean(state.subtitleItalic),
+    subtitleUnderline: normaliseTitleBoolean(state.subtitleUnderline),
+    subtitleUppercase: normaliseTitleBoolean(state.subtitleUppercase),
+    subtitleColor: normaliseOptionalHexColor(state.subtitleColor),
     singleRatio: state.singleRatio,
     singleLayout: state.singleLayout,
     backgroundPattern: state.backgroundPattern,
@@ -1564,8 +1808,19 @@ function restoreSnapshot(snapshot) {
   if (["clear", "fade", "silhouette"].includes(snapshot.multiInfoMode)) state.multiInfoMode = snapshot.multiInfoMode;
   if (snapshot.titleFont && titleFonts[snapshot.titleFont]) state.titleFont = snapshot.titleFont;
   if (Number.isFinite(snapshot.titleWeight)) state.titleWeight = normaliseTitleWeight(state.titleFont, snapshot.titleWeight);
+  state.titleFontSize = normaliseTitleFontSize(snapshot.titleFontSize);
+  state.titleItalic = normaliseTitleBoolean(snapshot.titleItalic);
+  state.titleUnderline = normaliseTitleBoolean(snapshot.titleUnderline);
+  state.titleUppercase = normaliseTitleBoolean(snapshot.titleUppercase);
   state.titleAlign = normaliseTitleAlign(snapshot.titleAlign);
   state.titleColor = normaliseOptionalHexColor(snapshot.titleColor ?? snapshot.subtitleColor);
+  state.subtitleFont = titleFonts[snapshot.subtitleFont] ? snapshot.subtitleFont : defaultTitleFont;
+  state.subtitleWeight = normaliseTitleWeight(state.subtitleFont, snapshot.subtitleWeight ?? defaultSubtitleWeight);
+  state.subtitleFontSize = normaliseSubtitleFontSize(snapshot.subtitleFontSize);
+  state.subtitleItalic = normaliseTitleBoolean(snapshot.subtitleItalic);
+  state.subtitleUnderline = normaliseTitleBoolean(snapshot.subtitleUnderline);
+  state.subtitleUppercase = normaliseTitleBoolean(snapshot.subtitleUppercase);
+  state.subtitleColor = normaliseOptionalHexColor(snapshot.subtitleColor);
   if (["portrait", "landscape"].includes(snapshot.singleRatio)) state.singleRatio = snapshot.singleRatio;
   if (["info-left", "info-right"].includes(snapshot.singleLayout)) state.singleLayout = snapshot.singleLayout;
   restoreBackgroundStyle(snapshot.backgroundPattern, snapshot.backgroundMotif, snapshot.backgroundTexture);
@@ -1687,7 +1942,10 @@ function scheduleLiveStyleRender(options = {}) {
     liveStyleRenderFrame = 0;
     const nextOptions = liveStyleRenderOptions || {};
     liveStyleRenderOptions = null;
-    renderStyles(nextOptions);
+    // Keep the scheduled path on the public render boundary. The editor is a
+    // classic script, so an internal function binding would bypass any
+    // instrumentation or host integration attached to window.renderStyles.
+    (globalThis.renderStyles || renderStyles)(nextOptions);
   });
 }
 
@@ -1697,7 +1955,7 @@ function flushLiveStyleRender(overrides = {}) {
   liveStyleRenderFrame = 0;
   const nextOptions = { ...(liveStyleRenderOptions || {}), ...overrides };
   liveStyleRenderOptions = null;
-  renderStyles(nextOptions);
+  (globalThis.renderStyles || renderStyles)(nextOptions);
   return true;
 }
 
@@ -2020,7 +2278,7 @@ function renderBoardGear() {
     const characterNumber = String(characterIndex + 1).padStart(2, "0");
     const characterLabel = showCharacter ? `${t("item.summary", { number: characterNumber })} · ` : "";
     return `<button class="board-gear-item gear-slot-${item.slot}" data-character-index="${characterIndex}" data-gear-index="${index}" data-card-slot="${item.slot}" type="button" aria-label="${escapeHtml(t("item.gearEdit", { number: characterNumber, slot: slotName, name: primaryName }))}">
-      <span class="gear-note-surface" aria-hidden="true"></span><span class="gear-tile-tape" aria-hidden="true"></span>
+      <span class="gear-note-surface" aria-hidden="true"></span><span class="gear-tile-tape" aria-hidden="true"></span><span class="gear-note-stamp" aria-hidden="true"></span>
       <div class="gear-tile-copy"><span class="gear-slot-label">${characterLabel}${escapeHtml(slotName)}</span><strong>${escapeHtml(primaryName)}</strong>${secondaryName ? `<small class="gear-item-secondary">${escapeHtml(secondaryName)}</small>` : ""}</div>
     </button>`;
   };
@@ -2146,6 +2404,10 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
   elements.board.dataset.backgroundTexture = state.backgroundTexture;
   elements.board.removeAttribute("data-background-motif");
   const backgroundSurfaceAsset = backgroundSurfaceAssets[state.backgroundPattern];
+  const material = CardMaterials.get(state.backgroundPattern);
+  elements.board.style.setProperty("--material-surface", material ? `url(\"${material.asset}\")` : "none");
+  elements.board.style.setProperty("--material-ink", material?.ink || "var(--recipe-ink, #263238)");
+  elements.board.style.setProperty("--material-muted-ink", material?.mutedInk || "var(--recipe-muted, rgb(38 50 56 / .58))");
   elements.sceneBackground.style.background = backgroundSurfaceAsset
     ? `url("${backgroundSurfaceAsset}") center / cover no-repeat, ${backgroundCss}`
     : backgroundCss;
@@ -2168,8 +2430,8 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
   elements.board.dataset.infoMode = state.multiInfoMode;
   elements.board.dataset.sourceMode = sourceMode;
   elements.board.dataset.titleFont = state.titleFont;
-  // Background presets own only the three background axes. Keep card
-  // typography, geometry, and information notes on one stable visual system.
+  // Background choices own only the three direct axes. Keep card typography,
+  // geometry, and information notes on one stable visual system.
   elements.board.dataset.style = "custom";
   elements.board.dataset.ratio = getCanvasRatio();
   elements.board.dataset.singleLayout = state.singleLayout;
@@ -2194,8 +2456,39 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
     "important",
   );
   const titleFontConfig = getTitleFontConfig(state.titleFont);
+  if (!titleFonts[state.subtitleFont]) state.subtitleFont = defaultTitleFont;
+  const subtitleFontConfig = getTitleFontConfig(state.subtitleFont);
+  state.subtitleWeight = normaliseTitleWeight(state.subtitleFont, state.subtitleWeight ?? defaultSubtitleWeight);
+  state.subtitleFontSize = normaliseSubtitleFontSize(state.subtitleFontSize);
+  state.subtitleItalic = normaliseTitleBoolean(state.subtitleItalic);
+  state.subtitleUnderline = normaliseTitleBoolean(state.subtitleUnderline);
+  state.subtitleUppercase = normaliseTitleBoolean(state.subtitleUppercase);
+  state.subtitleColor = normaliseOptionalHexColor(state.subtitleColor);
   elements.board.style.setProperty("--card-title-font", titleFontConfig.family);
   elements.board.style.setProperty("--card-title-weight", String(state.titleWeight));
+  state.titleFontSize = normaliseTitleFontSize(state.titleFontSize);
+  state.titleItalic = normaliseTitleBoolean(state.titleItalic);
+  state.titleUnderline = normaliseTitleBoolean(state.titleUnderline);
+  state.titleUppercase = normaliseTitleBoolean(state.titleUppercase);
+  elements.board.style.setProperty("--card-title-font-size", String(state.titleFontSize));
+  elements.board.style.setProperty("--card-title-font-size-scale", `${(state.titleFontSize / defaultTitleFontSize) * 7.2}cqw`);
+  elements.board.style.setProperty("--card-title-font-size-scale-lineup", `${(state.titleFontSize / defaultTitleFontSize) * 4.5}cqw`);
+  elements.board.style.setProperty("--card-title-font-style", state.titleItalic ? "italic" : "normal");
+  elements.board.style.setProperty("--card-title-text-decoration", state.titleUnderline ? "underline" : "none");
+  elements.board.style.setProperty("--card-title-text-transform", state.titleUppercase ? "uppercase" : "none");
+  const subtitleScale = state.characterCount >= 3
+    ? 1.15
+    : state.characterCount === 1 && state.singleRatio === "portrait"
+      ? 1.5
+      : 1.2;
+  elements.board.style.setProperty("--card-subtitle-font", subtitleFontConfig.family);
+  elements.board.style.setProperty("--card-subtitle-weight", String(state.subtitleWeight));
+  elements.board.style.setProperty("--card-subtitle-font-size-scale", `${(state.subtitleFontSize / defaultSubtitleFontSize) * subtitleScale}cqw`);
+  elements.board.style.setProperty("--card-subtitle-font-style", state.subtitleItalic ? "italic" : "normal");
+  elements.board.style.setProperty("--card-subtitle-text-decoration", state.subtitleUnderline ? "underline" : "none");
+  elements.board.style.setProperty("--card-subtitle-text-transform", state.subtitleUppercase ? "uppercase" : "none");
+  elements.board.style.setProperty("--card-subtitle-color", state.subtitleColor || "var(--recipe-ink)");
+  elements.board.style.setProperty("--card-subtitle-opacity", state.subtitleColor ? "1" : ".68");
   const titleOutlineWidth = clamp(Number(state.titleOutline?.width), 0, 6, 0);
   const titleOutlineColor = normaliseHexColor(state.titleOutline?.color, "#ffffff");
   state.titleOutline = { color: titleOutlineColor, width: titleOutlineWidth };
@@ -2289,11 +2582,11 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
     syncTitleFontControls();
     syncTitleAlignmentControls();
     syncCopyColorControls();
+    syncTextEditorDock();
     const backgroundCurrentLabel = $("#backgroundCurrentLabel");
     if (backgroundCurrentLabel) {
-      const currentPreset = backgroundPresets.find((preset) => getBackgroundSelectionSignature(preset) === getBackgroundSelectionSignature());
-      backgroundCurrentLabel.textContent = currentPreset ? t("preset.current", { name: currentPreset.name }) : describeBackgroundSelection();
-      backgroundCurrentLabel.dataset.custom = String(!currentPreset);
+      backgroundCurrentLabel.textContent = describeBackgroundSelection();
+      backgroundCurrentLabel.dataset.custom = String(state.background === "custom");
     }
     const advancedToggle = $("#styleAdvancedToggle");
     if (advancedToggle) {
@@ -2340,9 +2633,6 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
     $$(".color-swatch, .direction-pad button").forEach((button) => {
       button.setAttribute("aria-pressed", String(button.classList.contains("is-selected")));
     });
-    renderBackgroundPresets();
-    const presetTrigger = $("#saveBackgroundPresetButton");
-    if (presetTrigger) presetTrigger.textContent = backgroundPresetCreateOpen ? t("preset.cancel") : t("preset.save");
     $("#multiCardControls").hidden = state.characterCount < 3;
     $("#cardDisplaySetting").hidden = state.characterCount < 3;
     const dimensions = getExportDimensions();
@@ -2541,8 +2831,19 @@ function normaliseSavedLook(value, index) {
   look.backgroundTexture = backgroundTextureOptions.has(value?.backgroundTexture) ? value.backgroundTexture : "none";
   look.titleFont = titleFonts[value?.titleFont] ? value.titleFont : defaultTitleFont;
   look.titleWeight = normaliseTitleWeight(look.titleFont, value?.titleWeight ?? defaultTitleWeight);
+  look.titleFontSize = normaliseTitleFontSize(value?.titleFontSize);
+  look.titleItalic = normaliseTitleBoolean(value?.titleItalic);
+  look.titleUnderline = normaliseTitleBoolean(value?.titleUnderline);
+  look.titleUppercase = normaliseTitleBoolean(value?.titleUppercase);
   look.titleAlign = normaliseTitleAlign(value?.titleAlign);
   look.titleColor = normaliseOptionalHexColor(value?.titleColor ?? value?.subtitleColor);
+  look.subtitleFont = titleFonts[value?.subtitleFont] ? value.subtitleFont : defaultTitleFont;
+  look.subtitleWeight = normaliseTitleWeight(look.subtitleFont, value?.subtitleWeight ?? defaultSubtitleWeight);
+  look.subtitleFontSize = normaliseSubtitleFontSize(value?.subtitleFontSize);
+  look.subtitleItalic = normaliseTitleBoolean(value?.subtitleItalic);
+  look.subtitleUnderline = normaliseTitleBoolean(value?.subtitleUnderline);
+  look.subtitleUppercase = normaliseTitleBoolean(value?.subtitleUppercase);
+  look.subtitleColor = normaliseOptionalHexColor(value?.subtitleColor);
   look.outline = normaliseOutline(value?.outline, "#f1dfbb", 8);
   look.titleOutline = normaliseOutline(value?.titleOutline, "#ffffff", 6);
   look.outfits = Array.isArray(value?.outfits) ? cloneOutfits(value.outfits) : createOutfits([]);
@@ -2608,8 +2909,19 @@ async function loadDraft() {
     else if (titleFonts[look.titleFont]) state.titleFont = look.titleFont;
     if (Number.isFinite(saved.titleWeight)) state.titleWeight = normaliseTitleWeight(state.titleFont, saved.titleWeight);
     else state.titleWeight = normaliseTitleWeight(state.titleFont, look.titleWeight);
+    state.titleFontSize = normaliseTitleFontSize(saved.titleFontSize ?? look.titleFontSize);
+    state.titleItalic = normaliseTitleBoolean(saved.titleItalic ?? look.titleItalic);
+    state.titleUnderline = normaliseTitleBoolean(saved.titleUnderline ?? look.titleUnderline);
+    state.titleUppercase = normaliseTitleBoolean(saved.titleUppercase ?? look.titleUppercase);
     state.titleAlign = normaliseTitleAlign(saved.titleAlign ?? look.titleAlign);
     state.titleColor = normaliseOptionalHexColor(saved.titleColor ?? saved.subtitleColor ?? look.titleColor ?? look.subtitleColor);
+    state.subtitleFont = titleFonts[saved.subtitleFont ?? look.subtitleFont] ? (saved.subtitleFont ?? look.subtitleFont) : defaultTitleFont;
+    state.subtitleWeight = normaliseTitleWeight(state.subtitleFont, saved.subtitleWeight ?? look.subtitleWeight ?? defaultSubtitleWeight);
+    state.subtitleFontSize = normaliseSubtitleFontSize(saved.subtitleFontSize ?? look.subtitleFontSize);
+    state.subtitleItalic = normaliseTitleBoolean(saved.subtitleItalic ?? look.subtitleItalic);
+    state.subtitleUnderline = normaliseTitleBoolean(saved.subtitleUnderline ?? look.subtitleUnderline);
+    state.subtitleUppercase = normaliseTitleBoolean(saved.subtitleUppercase ?? look.subtitleUppercase);
+    state.subtitleColor = normaliseOptionalHexColor(saved.subtitleColor ?? look.subtitleColor);
     if (["portrait", "landscape"].includes(saved.singleRatio)) state.singleRatio = saved.singleRatio;
     if (["info-left", "info-right"].includes(saved.singleLayout)) state.singleLayout = saved.singleLayout;
     restoreBackgroundStyle(
@@ -2688,8 +3000,19 @@ function selectLook(id) {
   restoreBackgroundStyle(nextLook.backgroundPattern, nextLook.backgroundMotif, nextLook.backgroundTexture);
   state.titleFont = titleFonts[nextLook.titleFont] ? nextLook.titleFont : defaultTitleFont;
   state.titleWeight = normaliseTitleWeight(state.titleFont, nextLook.titleWeight ?? defaultTitleWeight);
+  state.titleFontSize = normaliseTitleFontSize(nextLook.titleFontSize);
+  state.titleItalic = normaliseTitleBoolean(nextLook.titleItalic);
+  state.titleUnderline = normaliseTitleBoolean(nextLook.titleUnderline);
+  state.titleUppercase = normaliseTitleBoolean(nextLook.titleUppercase);
   state.titleAlign = normaliseTitleAlign(nextLook.titleAlign);
   state.titleColor = normaliseOptionalHexColor(nextLook.titleColor ?? nextLook.subtitleColor);
+  state.subtitleFont = titleFonts[nextLook.subtitleFont] ? nextLook.subtitleFont : defaultTitleFont;
+  state.subtitleWeight = normaliseTitleWeight(state.subtitleFont, nextLook.subtitleWeight ?? defaultSubtitleWeight);
+  state.subtitleFontSize = normaliseSubtitleFontSize(nextLook.subtitleFontSize);
+  state.subtitleItalic = normaliseTitleBoolean(nextLook.subtitleItalic);
+  state.subtitleUnderline = normaliseTitleBoolean(nextLook.subtitleUnderline);
+  state.subtitleUppercase = normaliseTitleBoolean(nextLook.subtitleUppercase);
+  state.subtitleColor = normaliseOptionalHexColor(nextLook.subtitleColor);
   state.outline = normaliseOutline(nextLook.outline, "#f1dfbb", 8);
   state.titleOutline = normaliseOutline(nextLook.titleOutline, "#ffffff", 6);
   styleAdvancedOpen = false;
@@ -3190,6 +3513,7 @@ function captureExportCopy() {
   }).map(element => {
     const style = getComputedStyle(element);
     const textAlign = ["left", "center", "right"].includes(style.textAlign) ? style.textAlign : "left";
+    const uppercaseCopy = style.textTransform === "uppercase";
     const lines = [];
     const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
     let node;
@@ -3206,7 +3530,8 @@ function captureExportCopy() {
           line.right = Math.max(line.right, rect.right);
           line.height = Math.max(line.height, rect.height * scale);
         }
-        line.text += node.textContent[index];
+        const character = node.textContent[index];
+        line.text += uppercaseCopy ? character.toUpperCase() : character;
       }
     }
     const positionedLines = lines.map(({ left, right, ...line }) => ({
@@ -3216,7 +3541,9 @@ function captureExportCopy() {
     return { lines: positionedLines, textAlign, font: `${style.fontWeight} ${parseFloat(style.fontSize) * scale}px ${style.fontFamily}`,
       color: style.color, opacity: Number.parseFloat(style.opacity) || 1,
       stroke: element === elements.boardTitle ? state.titleOutline.width * scale : 0,
-      strokeColor: state.titleOutline.color, letterSpacing: (parseFloat(style.letterSpacing) || 0) * scale };
+      strokeColor: state.titleOutline.color, letterSpacing: (parseFloat(style.letterSpacing) || 0) * scale,
+      fontStyle: style.fontStyle === "italic" ? "italic" : "normal",
+      textDecoration: style.textDecorationLine.includes("underline") ? "underline" : "none" };
   });
 }
 
@@ -3349,8 +3676,19 @@ function resetStyles() {
   state.multiInfoMode = "clear";
   state.titleFont = defaultTitleFont;
   state.titleWeight = defaultTitleWeight;
+  state.titleFontSize = defaultTitleFontSize;
+  state.titleItalic = false;
+  state.titleUnderline = false;
+  state.titleUppercase = false;
   state.titleAlign = "auto";
   state.titleColor = "";
+  state.subtitleFont = defaultTitleFont;
+  state.subtitleWeight = defaultSubtitleWeight;
+  state.subtitleFontSize = defaultSubtitleFontSize;
+  state.subtitleItalic = false;
+  state.subtitleUnderline = false;
+  state.subtitleUppercase = false;
+  state.subtitleColor = "";
   state.singleRatio = "portrait";
   state.singleLayout = "info-left";
   styleAdvancedOpen = false;
@@ -3386,8 +3724,19 @@ function resetCardData() {
   state.multiInfoMode = "clear";
   state.titleFont = defaultTitleFont;
   state.titleWeight = defaultTitleWeight;
+  state.titleFontSize = normaliseTitleFontSize(defaults.titleFontSize);
+  state.titleItalic = normaliseTitleBoolean(defaults.titleItalic);
+  state.titleUnderline = normaliseTitleBoolean(defaults.titleUnderline);
+  state.titleUppercase = normaliseTitleBoolean(defaults.titleUppercase);
   state.titleAlign = normaliseTitleAlign(defaults.titleAlign);
   state.titleColor = normaliseOptionalHexColor(defaults.titleColor ?? defaults.subtitleColor);
+  state.subtitleFont = titleFonts[defaults.subtitleFont] ? defaults.subtitleFont : defaultTitleFont;
+  state.subtitleWeight = normaliseTitleWeight(state.subtitleFont, defaults.subtitleWeight ?? defaultSubtitleWeight);
+  state.subtitleFontSize = normaliseSubtitleFontSize(defaults.subtitleFontSize);
+  state.subtitleItalic = normaliseTitleBoolean(defaults.subtitleItalic);
+  state.subtitleUnderline = normaliseTitleBoolean(defaults.subtitleUnderline);
+  state.subtitleUppercase = normaliseTitleBoolean(defaults.subtitleUppercase);
+  state.subtitleColor = normaliseOptionalHexColor(defaults.subtitleColor);
   state.singleRatio = "portrait";
   state.singleLayout = "info-left";
   state.characterCount = 1;
@@ -3440,7 +3789,7 @@ async function resetWorkspace() {
   } catch {
     storageFailed = true;
   }
-  [...legacyStorageKeys, uiPreferencesStorageKey, backgroundPresetStorageKey, languagePreferenceStorageKey].forEach((key) => {
+  [...legacyStorageKeys, uiPreferencesStorageKey, languagePreferenceStorageKey].forEach((key) => {
     try {
       localStorage.removeItem(key);
     } catch {
@@ -3453,8 +3802,6 @@ async function resetWorkspace() {
   elements.itemSearch.value = "";
   clearCatalogResults();
   $("#lookSearch").value = "";
-  backgroundPresets = [];
-  backgroundPresetCreateOpen = false;
   looks = [createBlankLook(1, "look-1")];
   deletedLooks.length = 0;
   looks.forEach(ensureLookOutfits);
@@ -3471,8 +3818,19 @@ async function resetWorkspace() {
     multiInfoMode: "clear",
     titleFont: defaultTitleFont,
     titleWeight: defaultTitleWeight,
+    titleFontSize: defaultTitleFontSize,
+    titleItalic: false,
+    titleUnderline: false,
+    titleUppercase: false,
     titleAlign: "auto",
     titleColor: "",
+    subtitleFont: defaultTitleFont,
+    subtitleWeight: defaultSubtitleWeight,
+    subtitleFontSize: defaultSubtitleFontSize,
+    subtitleItalic: false,
+    subtitleUnderline: false,
+    subtitleUppercase: false,
+    subtitleColor: "",
     singleRatio: "portrait",
     singleLayout: "info-left",
     backgroundPattern: "none",
@@ -3493,12 +3851,14 @@ async function resetWorkspace() {
     redo: [],
   });
   uiPreferences.libraryCollapsed = true;
+  uiPreferences.canvasViewZoom = canvasViewZoomDefault;
   styleAdvancedOpen = false;
   applyPageLanguage(state.language);
   syncLibraryPanel();
   saveUiPreferences();
   syncSelectedCharacter();
   renderAll();
+  syncCanvasViewZoomControl();
   openPanel(activePanel);
   if (storageFailed) {
     setSaveStatus(t("status.partialDelete"), true);
@@ -3558,6 +3918,7 @@ function openPanel(panelId) {
     panel.hidden = !active;
   });
   if (elements.inspectorTitle) elements.inspectorTitle.textContent = t(panelLabels[nextPanel]);
+  syncTextEditorDock();
   if (nextPanel === "itemsPanel") ensureMobileControlVisible(elements.itemSearch);
 }
 
@@ -3605,39 +3966,11 @@ function initialiseInteractions() {
   });
   $$('button[data-pattern]').forEach((button) => button.addEventListener("click", () => { recordHistory(); state.backgroundPattern = button.dataset.pattern; renderStyles(); saveState(); }));
   $$('button[data-texture]').forEach((button) => button.addEventListener("click", () => { recordHistory(); state.backgroundTexture = button.dataset.texture; renderStyles(); saveState(); }));
-  $("#saveBackgroundPresetButton").addEventListener("click", () => setBackgroundPresetFormOpen(!backgroundPresetCreateOpen));
-  $("#scrapbookPreset").addEventListener("click", () => applyBackgroundSelection({
-    name: t("preset.scrapbook"),
-    background: "paper", backgroundPattern: "scrapbook", backgroundTexture: "grain",
-  }));
-  $("#collagePreset").addEventListener("click", () => applyBackgroundSelection({
-    name: t("preset.collage"),
-    background: "linen", backgroundPattern: "collage", backgroundTexture: "grain",
-  }));
-  $("#backgroundPresetCancel").addEventListener("click", () => setBackgroundPresetFormOpen(false));
-  $("#backgroundPresetForm").addEventListener("submit", (event) => {
-    event.preventDefault();
-    saveCurrentBackgroundPreset();
-  });
-  $("#backgroundPresetList").addEventListener("click", (event) => {
-    const deleteButton = event.target.closest("[data-background-preset-delete]");
-    if (deleteButton) {
-      deleteBackgroundPreset(deleteButton.dataset.backgroundPresetDelete);
-      return;
-    }
-    const applyButton = event.target.closest("[data-background-preset-id]");
-    if (applyButton) applyBackgroundPreset(applyButton.dataset.backgroundPresetId);
-  });
   $$('button[data-single-ratio]').forEach((button) => button.addEventListener("click", () => { recordHistory(); state.singleRatio = button.dataset.singleRatio; renderStyles(); saveState(); showToast(t(button.dataset.singleRatio === "portrait" ? "toast.ratioPortrait" : "toast.ratioLandscape")); }));
   $$('button[data-single-layout]').forEach((button) => button.addEventListener("click", () => { recordHistory(); state.singleLayout = button.dataset.singleLayout; renderStyles(); saveState(); }));
-  $("#titleFontSelect").addEventListener("change", (event) => {
-    recordHistory();
-    state.titleFont = titleFonts[event.target.value] ? event.target.value : defaultTitleFont;
-    state.titleWeight = getTitleFontConfig(state.titleFont).weights.at(-1);
-    renderStyles({ refreshInfo: false, refreshPattern: false });
-    saveState();
-  });
-  $("#titleWeightOptions").addEventListener("click", (event) => {
+  $("#titleFontSelect")?.addEventListener("change", (event) => setTitleFont(event.target.value));
+  elements.textEditorFontSelect?.addEventListener("change", (event) => setTextEditorFont(event.target.value));
+  $("#titleWeightOptions")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-title-weight]");
     if (!button || Number(button.dataset.titleWeight) === state.titleWeight) return;
     recordHistory();
@@ -3657,6 +3990,26 @@ function initialiseInteractions() {
     setCopyEditorTarget("title");
     elements.boardTitle?.focus({ preventScroll: true });
   });
+  $("#textEditorFontSizeDown")?.addEventListener("click", () => {
+    const style = getCopyEditorStyle();
+    setTextEditorFontSize(style.fontSize - (style.target === "subtitle" ? subtitleFontSizeStep : titleFontSizeStep));
+  });
+  $("#textEditorFontSizeUp")?.addEventListener("click", () => {
+    const style = getCopyEditorStyle();
+    setTextEditorFontSize(style.fontSize + (style.target === "subtitle" ? subtitleFontSizeStep : titleFontSizeStep));
+  });
+  $("#textEditorBoldButton")?.addEventListener("click", toggleTextEditorBold);
+  $("#textEditorItalicButton")?.addEventListener("click", () => toggleTextEditorInlineStyle("italic"));
+  $("#textEditorUnderlineButton")?.addEventListener("click", () => toggleTextEditorInlineStyle("underline"));
+  $("#textEditorUppercaseButton")?.addEventListener("click", () => toggleTextEditorInlineStyle("uppercase"));
+  $$('[data-floating-align]').forEach((button) => button.addEventListener("click", () => {
+    const nextAlignment = normaliseTitleAlign(button.dataset.floatingAlign);
+    if (nextAlignment === state.titleAlign) return;
+    recordHistory();
+    state.titleAlign = nextAlignment;
+    renderStyles({ refreshInfo: false, refreshPattern: false });
+    saveState();
+  }));
   document.addEventListener("keydown", (event) => {
     const radio = event.target.closest('[role="radio"]');
     const group = radio?.closest('[role="radiogroup"]');
@@ -3761,6 +4114,7 @@ function initialiseInteractions() {
   }));
   $$('[data-image-nudge]').forEach((button) => button.addEventListener("click", () => nudgeSelectedImage(button.dataset.imageNudge)));
   const bindHistoryRange = (input, update) => {
+    if (!input) return;
     let editing = false;
     input.addEventListener("input", () => {
       if (!editing) {
@@ -3819,17 +4173,16 @@ function initialiseInteractions() {
   bindColorInput($("#titleColorInput"), (value) => {
     state.titleColor = normaliseHexColor(value, defaultTitleColor());
   });
+  bindColorInput(elements.textEditorColorInput, (value) => {
+    const style = getCopyEditorStyle();
+    state[style.fields.color] = normaliseHexColor(value, defaultTitleColor());
+  });
   bindColorInput($("#customBackgroundColorInput"), (value) => {
     state.background = "custom";
     state.customBackgroundColor = normaliseHexColor(value, customBackgroundDefault);
   });
-  $("#titleColorAutoButton")?.addEventListener("click", () => {
-    if (!state.titleColor) return;
-    recordHistory();
-    state.titleColor = "";
-    renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
-    saveState();
-  });
+  $("#titleColorAutoButton")?.addEventListener("click", resetTitleColorToAuto);
+  $("#textEditorColorAutoButton")?.addEventListener("click", resetTextEditorColorToAuto);
   $$(".color-swatch").forEach((swatch) => swatch.addEventListener("click", () => { recordHistory(); state.outline.color = swatch.dataset.color; renderStyles(); saveState(); }));
   $$(".title-outline-swatch").forEach((swatch) => swatch.addEventListener("click", () => {
     if (swatch.dataset.titleOutlineColor === state.titleOutline.color) return;
@@ -3861,12 +4214,12 @@ function initialiseInteractions() {
   elements.closeImageEditorButton.addEventListener("click", () => finishImageEditor(false));
   elements.cancelImageEditorButton.addEventListener("click", () => finishImageEditor(false));
   elements.applyImageEditorButton.addEventListener("click", () => finishImageEditor(true));
-  $("#focusCanvasButton").addEventListener("click", (event) => {
-    const focused = document.body.classList.toggle("canvas-focus-mode");
-    event.currentTarget.setAttribute("aria-pressed", String(focused));
-    event.currentTarget.setAttribute("aria-label", t(focused ? "canvas.normal" : "canvas.focus"));
-    event.currentTarget.title = t(focused ? "canvas.normal" : "canvas.focus");
-  });
+  elements.canvasViewZoomRange?.addEventListener("input", (event) => setCanvasViewZoom(event.currentTarget.value, { persist: false }));
+  elements.canvasViewZoomRange?.addEventListener("change", () => saveUiPreferences());
+  elements.canvasViewZoomOut?.addEventListener("click", () => setCanvasViewZoom(uiPreferences.canvasViewZoom - canvasViewZoomStep));
+  elements.canvasViewZoomIn?.addEventListener("click", () => setCanvasViewZoom(uiPreferences.canvasViewZoom + canvasViewZoomStep));
+  elements.canvasViewFitButton?.addEventListener("click", resetCanvasViewZoom);
+  elements.canvasViewFocusButton?.addEventListener("click", () => setCanvasFocusMode(!document.body.classList.contains("canvas-focus-mode")));
   $("#undoButton").addEventListener("click", undo);
   $("#redoButton").addEventListener("click", redo);
   $("#resetButton").addEventListener("click", () => {
@@ -3902,6 +4255,7 @@ function initialiseInteractions() {
     if (!(event.target instanceof Element)) return;
     if (!event.target.closest(".reset-control") && !$("#resetMenu")?.hidden) setResetMenuOpen(false);
     if (!event.target.closest(".look-search-control") && $("#lookSearchField")?.classList.contains("is-mobile-open")) setMobileLookSearchOpen(false);
+    if (!event.target.closest(".text-editor-dock") && !$("#textEditorMoreMenu")?.hidden) closeTextEditorMoreMenu();
   });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
@@ -4081,7 +4435,7 @@ function initialiseInteractions() {
     if (!editingCardCopy && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") { event.preventDefault(); event.shiftKey ? redo() : undo(); }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
       event.preventDefault();
-      if (document.body.classList.contains("canvas-focus-mode")) $("#focusCanvasButton").click();
+      if (document.body.classList.contains("canvas-focus-mode")) setCanvasFocusMode(false);
       uiPreferences.libraryCollapsed = false;
       syncLibraryPanel();
       saveUiPreferences();
@@ -4229,7 +4583,6 @@ async function bootstrap() {
   purgeLegacyStorage();
   restoreUiPreferences();
   syncLibraryPanel();
-  loadBackgroundPresets();
   await loadDraft();
   applyPageLanguage(state.language);
   const selectedLook = getSelectedLook();
@@ -4245,6 +4598,8 @@ async function bootstrap() {
   const preview = document.querySelector(".canvas-column");
   new ResizeObserver(() => document.documentElement.style.setProperty("--preview-height", `${preview.getBoundingClientRect().height}px`)).observe(preview);
   renderAll();
+  syncCanvasViewZoomControl();
+  syncCanvasFocusControls(document.body.classList.contains("canvas-focus-mode"));
   openPanel(state.activePanel);
   scheduleAssetCleanup();
 }

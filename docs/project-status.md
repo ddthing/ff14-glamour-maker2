@@ -4,9 +4,9 @@
 
 ## 현재 단계
 
-공통 편집 규칙 후속 분리: models/card-png.js가 확정된 편집 데이터·장비 문구·디코딩된 사진으로 PNG를 만들고, models/editor-navigation.js·background-presets.js·title-typography.js가 키보드·배경·서체 규칙을 공유한다. app.js는 DOM 조작·서체 준비·제목 측정·편집 변경 감지·다운로드 UI를 담당한다. 5개 구성에서 변경 전후 실제 PNG 픽셀 해시 일치를 확인했다. CSS 전면 통합과 실제 기기 검수는 남아 있다.
+공통 편집 규칙 후속 분리: models/card-png.js가 확정된 편집 데이터·장비 문구·디코딩된 사진으로 PNG를 만들고, models/editor-navigation.js·title-typography.js가 키보드·서체 규칙을 공유한다. 배경은 app.js의 단색·패턴·질감 직접 선택만 사용한다. app.js는 DOM 조작·서체 준비·제목 측정·편집 변경 감지·다운로드 UI를 담당한다. 5개 구성에서 변경 전후 실제 PNG 픽셀 해시 일치를 확인했다. CSS 전면 통합과 실제 기기 검수는 남아 있다.
 
-최신 정리: IndexedDB 이미지 저장을 models/image-assets.js로, 검색 요청 취소·응답 순서·캐시를 models/item-search.js로, PNG 그리기와 공통 키보드 규칙을 각각 models/card-png.js·models/editor-navigation.js로, 배경 선택 검증·프리셋 중복 제거·이름 정리를 models/background-presets.js로, 제목 서체 목록·굵기 정규화·선택지 생성을 models/title-typography.js로 분리했다. 사라진 이미지 편집 팝업 미리보기 CSS 및 반복 도크 규칙을 제거했다. 전체 삭제 시 검색어도 비운다. 이것은 전체 CSS/앱 분리의 일부이며, 추가 UI 제어 분리는 남아 있다.
+최신 정리: IndexedDB 이미지 저장을 models/image-assets.js로, 검색 요청 취소·응답 순서·캐시를 models/item-search.js로, PNG 그리기와 공통 키보드 규칙을 각각 models/card-png.js·models/editor-navigation.js로, 제목 서체 목록·굵기 정규화·선택지 생성을 models/title-typography.js로 분리했다. 중복된 배경 프리셋 저장 레이어는 제거하고 직접 선택 축만 남겼다. 사라진 이미지 편집 팝업 미리보기 CSS 및 반복 도크 규칙을 제거했다. 전체 삭제 시 검색어도 비운다. 이것은 전체 CSS/앱 분리의 일부이며, 추가 UI 제어 분리는 남아 있다.
 
 이번 재개 검수에서는 이미지 편집 도크의 레거시 대화상자·중간 도크·최종 도크 덮어쓰기를 하나의 반응형 규칙으로 통합했다. 모바일에서 위치 제목과 `중앙` 버튼이 같은 행에 남고, 방향키·취소·적용 버튼의 조작 영역이 유지되는지 `check-image-editor-dock.cjs`에서 실제 875px·320px Edge 레이아웃으로 확인한다. 브라우저 BiRefNet 모듈은 공개 Pages 경로에 연결했고, API 장애 시 브라우저 폴백 적용 흐름을 자동 검증했다. 외부 CDN 가중치 다운로드가 차단된 환경에서는 실제 모델 추론·품질을 아직 판정하지 않았다.
 
@@ -32,7 +32,7 @@
 - `scripts/test-cloudflare-functions.mjs`: 외부 GPU 서버 없이 프록시 계약을 검증하는 테스트
 - GitHub 업로드에서 제외할 모델·가상환경·QA 산출물 규칙과 로컬 Git 저장소
 - 배포 번들에서 고정 데모 룩·스크린샷 자산을 제거하고, 첫 화면을 빈 LOOK BOOK로 고정
-- `모든 로컬 데이터 삭제`에서 LOOK BOOK·IndexedDB 이미지·프리셋·레거시 저장 키를 함께 제거
+- `모든 로컬 데이터 삭제`에서 LOOK BOOK·IndexedDB 이미지·폐기된 레거시 저장 키를 함께 제거
 - 전체 삭제가 진행 중인 뒤늦은 아이템명 요청이 초안을 다시 저장하지 않도록 작업공간 세대와 선택 룩을 검증한다. 삭제 경합 회귀 검사는 `scripts/check-reset-async-race.cjs`에서 실제 지연 응답으로 확인한다.
 - 모바일 뷰포트가 바뀌는 첫 프레임에도 제목 맞춤을 동기 실행해 이전 데스크톱 크기의 말줄임이 잠깐 나타나지 않게 한다. 고급 스타일 토글의 `aria-controls`도 실제 테두리·그림자 섹션을 가리키도록 정리했다.
 

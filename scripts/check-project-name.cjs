@@ -5,12 +5,10 @@ const baseUrl = process.env.TEST_BASE_URL || "http://localhost:4173";
 const oldKeys = {
   draft: "glamour-atelier-draft-v3",
   ui: "glamour-atelier-ui-v2",
-  presets: "glamour-atelier-background-presets-v2",
 };
 const currentKeys = {
   draft: "tuyeong-set-maker2-draft-v3",
   ui: "tuyeong-set-maker2-ui-v2",
-  presets: "tuyeong-set-maker2-background-presets-v2",
 };
 
 (async () => {
@@ -21,7 +19,6 @@ const currentKeys = {
       localStorage.clear();
       localStorage.setItem(oldKeys.draft, JSON.stringify({ version: 3, looks: [{ id: "legacy-look", title: "이전 룩" }] }));
       localStorage.setItem(oldKeys.ui, JSON.stringify({ libraryCollapsed: false }));
-      localStorage.setItem(oldKeys.presets, JSON.stringify([{ id: "legacy-preset", name: "이전 프리셋" }]));
     }, { oldKeys });
     await page.goto(`${baseUrl}/?project-name-check=1`, { waitUntil: "domcontentloaded" });
     await page.waitForSelector("#canvasBoard");
@@ -43,9 +40,8 @@ const currentKeys = {
     assert.equal(branding.siteName, "투영세트메이커2");
     assert.equal(branding.favicon, null, "the rejected favicon must not be linked");
     assert.deepEqual(branding.currentStorage[currentKeys.ui], JSON.stringify({ libraryCollapsed: false }));
-    assert.deepEqual(JSON.parse(branding.currentStorage[currentKeys.presets]), [{ id: "legacy-preset", name: "이전 프리셋" }]);
     assert.ok(branding.currentStorage[currentKeys.draft]);
-    assert.deepEqual(Object.values(branding.oldStorage), [null, null, null]);
+    assert.deepEqual(Object.values(branding.oldStorage), [null, null]);
 
     await page.locator("#languageSelect").selectOption("en");
     await page.waitForFunction(() => document.documentElement.lang === "en" && document.querySelector(".wordmark-copy strong")?.textContent === "FF14 Glamour Maker 2");

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <symbol id="canvas-view" viewBox="0 0 24 24">
+    <rect x="4" y="5" width="16" height="14" rx="1.5" />
+    <path d="M8 9h3M13 9h3M8 13h8M8 16h5" />
+  </symbol>
+  <symbol id="pages" viewBox="0 0 24 24">
+    <rect x="5" y="4" width="11" height="15" rx="1.5" />
+    <path d="M8 7h5M8 10h5M8 13h3M9 20h10V8" />
+  </symbol>
+  <symbol id="minus" viewBox="0 0 24 24">
+    <path d="M6 12h12" />
+  </symbol>
+  <symbol id="plus" viewBox="0 0 24 24">
+    <path d="M12 6v12M6 12h12" />
+  </symbol>
+  <symbol id="fit" viewBox="0 0 24 24">
+    <path d="M8 4H4v4M16 4h4v4M20 16v4h-4M4 16v4h4" />
+    <path d="M9 9h6v6H9z" />
+  </symbol>
+  <symbol id="expand" viewBox="0 0 24 24">
+    <path d="M9 4H4v5M15 4h5v5M20 15v5h-5M4 15v5h5" />
+  </symbol>
+</svg>

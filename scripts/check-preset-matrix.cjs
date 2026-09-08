@@ -13,8 +13,8 @@ for (const characterCount of [1, 2, 3, 4, 5]) {
   }
 }
 
-function caseLabel(preset, combination) {
-  return `${preset} / ${combination.characterCount}인 / ${combination.singleRatio} / ${combination.singleLayout}`;
+function caseLabel(backgroundName, combination) {
+  return `${backgroundName} / ${combination.characterCount}인 / ${combination.singleRatio} / ${combination.singleLayout}`;
 }
 
 function readPngDimensions(filePath) {
@@ -53,8 +53,8 @@ function maxDrift(actual, expected) {
         ...LookEditor.emptyCharacter(),
         src: image,
         originalSrc: image,
-        fileName: "preset-matrix.png",
-        fileMeta: "preset matrix fixture",
+        fileName: "background-matrix.png",
+        fileMeta: "background matrix fixture",
       }));
       state.characterCount = 1;
       state.selectedCharacter = 0;
@@ -74,10 +74,10 @@ function maxDrift(actual, expected) {
 
     await page.evaluate(() => {
       const originalRender = CardPng.render;
-      window.__presetMatrixRenders = [];
-      window.__presetMatrixOriginalRender = originalRender;
+      window.__backgroundMatrixRenders = [];
+      window.__backgroundMatrixOriginalRender = originalRender;
       CardPng.render = async (args) => {
-        window.__presetMatrixRenders.push({
+        window.__backgroundMatrixRenders.push({
           background: args.state.background,
           pattern: args.state.backgroundPattern,
           texture: args.state.backgroundTexture,
@@ -91,41 +91,25 @@ function maxDrift(actual, expected) {
       };
     });
 
-    await page.evaluate(() => {
-      state.background = "mist";
-      state.backgroundPattern = "dots";
-      state.backgroundTexture = "grain";
-      renderStyles();
-    });
-    await page.locator("#saveBackgroundPresetButton").click();
-    await page.locator("#backgroundPresetName").fill("행렬 사용자 프리셋");
-    await page.locator("#backgroundPresetForm button[type=submit]").click();
-    await page.waitForFunction(() => document.querySelectorAll("#backgroundPresetList [data-background-preset-id]").length === 1);
-    const savedPresetId = await page.locator("#backgroundPresetList [data-background-preset-id]").first().getAttribute("data-background-preset-id");
-    assert.ok(savedPresetId, "user preset must be addressable after it is saved");
-
-    const presets = [
+    const backgroundCases = [
       {
         name: "vintage scrapbook",
-        selector: "#scrapbookPreset",
         expected: { background: "paper", pattern: "scrapbook", texture: "grain", hasBackgroundImage: true },
       },
       {
         name: "paper collage",
-        selector: "#collagePreset",
         expected: { background: "linen", pattern: "collage", texture: "grain", hasBackgroundImage: true },
       },
       {
-        name: "saved user preset",
-        selector: `[data-background-preset-id="${savedPresetId}"]`,
+        name: "mist dots",
         expected: { background: "mist", pattern: "dots", texture: "grain", hasBackgroundImage: false },
       },
     ];
     let exportCount = 0;
 
-    for (const preset of presets) {
+    for (const backgroundCase of backgroundCases) {
       for (const combination of matrix) {
-        const label = caseLabel(preset.name, combination);
+        const label = caseLabel(backgroundCase.name, combination);
         await page.evaluate((value) => {
           state.characterCount = value.characterCount;
           state.selectedCharacter = value.selectedCharacter;
@@ -165,14 +149,19 @@ function maxDrift(actual, expected) {
           outfits: getSelectedLook().outfits.map((outfit) => ({ ...outfit })),
         }));
 
-        await page.locator(preset.selector).evaluate((button) => button.click());
+        await page.evaluate((selection) => {
+          state.background = selection.background;
+          state.backgroundPattern = selection.pattern;
+          state.backgroundTexture = selection.texture;
+          renderStyles();
+        }, backgroundCase.expected);
         await page.waitForFunction((expected) => {
           const board = document.querySelector("#canvasBoard");
           return state.background === expected.background
             && state.backgroundPattern === expected.pattern
             && state.backgroundTexture === expected.texture
             && board?.dataset.backgroundPattern === expected.pattern;
-        }, preset.expected);
+        }, backgroundCase.expected);
 
         const after = await page.evaluate(() => ({
           characterCount: state.characterCount,
@@ -195,7 +184,7 @@ function maxDrift(actual, expected) {
           })),
           outfits: getSelectedLook().outfits.map((outfit) => ({ ...outfit })),
         }));
-        assert.deepEqual(after, before, `${label}: applying a background preset must preserve card state outside the three background axes`);
+        assert.deepEqual(after, before, `${label}: changing the direct background axes must preserve the rest of the card state`);
 
         const ui = await page.evaluate(() => {
           const board = document.querySelector("#canvasBoard");
@@ -278,25 +267,25 @@ function maxDrift(actual, expected) {
         const expectedExport = await page.evaluate((value) => CardLayout.dimensionsFor(value.characterCount, value.singleRatio), combination);
         assert.deepEqual(outputDimensions, { width: expectedExport.exportWidth, height: expectedExport.exportHeight }, `${label}: PNG dimensions drifted from the effective ratio`);
         await page.waitForFunction(() => !document.querySelector("#exportButton").hasAttribute("aria-busy"));
-        const renderTrace = await page.evaluate(() => window.__presetMatrixRenders.at(-1));
+        const renderTrace = await page.evaluate(() => window.__backgroundMatrixRenders.at(-1));
         assert.deepEqual(renderTrace, {
-          background: preset.expected.background,
-          pattern: preset.expected.pattern,
-          texture: preset.expected.texture,
+          background: backgroundCase.expected.background,
+          pattern: backgroundCase.expected.pattern,
+          texture: backgroundCase.expected.texture,
           layoutWidth: expectedExport.layoutWidth,
           layoutHeight: expectedExport.layoutHeight,
           exportWidth: expectedExport.exportWidth,
           exportHeight: expectedExport.exportHeight,
-          hasBackgroundImage: preset.expected.hasBackgroundImage,
-        }, `${label}: PNG renderer did not receive the selected preset and effective ratio`);
+          hasBackgroundImage: backgroundCase.expected.hasBackgroundImage,
+        }, `${label}: PNG renderer did not receive the selected background axes and effective ratio`);
         exportCount += 1;
       }
     }
 
     await page.evaluate(() => {
-      CardPng.render = window.__presetMatrixOriginalRender;
+      CardPng.render = window.__backgroundMatrixOriginalRender;
     });
-    console.log(`PASS: ${presets.length} presets × ${matrix.length} cast/ratio/layout states verified in preview and PNG export (${exportCount} exports).`);
+    console.log(`PASS: ${backgroundCases.length} direct background recipes × ${matrix.length} cast/ratio/layout states verified in preview and PNG export (${exportCount} exports).`);
   } finally {
     await browser.close();
   }

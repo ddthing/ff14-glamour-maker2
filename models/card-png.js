@@ -163,6 +163,39 @@ function traceScrapbookNote(context, x, y, width, height) {
   context.closePath();
 }
 
+function traceArchivePaper(context, x, y, width, height, variant = 0) {
+  const edgeJitter = [0, 0.018, -0.012, 0.012, -0.008, 0.016, -0.014, 0.006];
+  const top = [0.035, 0.012, 0.028, 0.004, 0.024, 0.008, 0.03, 0.014];
+  const bottom = [0.978, 0.994, 0.982, 0.998, 0.976, 0.99, 0.98, 0.996];
+  const right = [0.98, 0.996, 0.984, 0.998, 0.978, 0.992, 0.982, 0.995];
+  const left = [0.02, 0.004, 0.018, 0.002, 0.022, 0.008, 0.018, 0.005];
+  const points = [];
+  for (let index = 0; index < 8; index += 1) {
+    const offset = (index + variant) % edgeJitter.length;
+    points.push([index / 7, top[index] + edgeJitter[offset]]);
+  }
+  for (let index = 7; index >= 0; index -= 1) {
+    const offset = (index + variant + 2) % edgeJitter.length;
+    points.push([right[index] + edgeJitter[offset], (index + 1) / 8]);
+  }
+  for (let index = 7; index >= 0; index -= 1) {
+    const offset = (index + variant + 4) % edgeJitter.length;
+    points.push([index / 7, bottom[index] + edgeJitter[offset]]);
+  }
+  for (let index = 0; index < 8; index += 1) {
+    const offset = (index + variant + 6) % edgeJitter.length;
+    points.push([left[index] + edgeJitter[offset], (7 - index) / 8]);
+  }
+  context.beginPath();
+  points.forEach(([pointX, pointY], index) => {
+    const resolvedX = x + pointX * width;
+    const resolvedY = y + pointY * height;
+    if (index === 0) context.moveTo(resolvedX, resolvedY);
+    else context.lineTo(resolvedX, resolvedY);
+  });
+  context.closePath();
+}
+
 function traceScrapbookTape(context, x, y, width, height) {
   context.beginPath();
   context.moveTo(x + width * 0.01, y + height * 0.08);
@@ -170,6 +203,101 @@ function traceScrapbookTape(context, x, y, width, height) {
   context.lineTo(x + width, y + height * 0.91);
   context.lineTo(x + width * 0.03, y + height);
   context.closePath();
+}
+
+function drawMaterialNote(context, image, pathBuilder, x, y, width, height, tint, shadowColor, borderColor) {
+  context.save();
+  context.shadowColor = shadowColor;
+  context.shadowBlur = Math.max(3, Math.round(width * 0.018));
+  context.shadowOffsetX = Math.max(2, Math.round(width * 0.014));
+  context.shadowOffsetY = Math.max(3, Math.round(height * 0.035));
+  pathBuilder();
+  context.fillStyle = tint;
+  context.fill();
+  context.shadowColor = "transparent";
+  context.shadowBlur = 0;
+  context.shadowOffsetX = 0;
+  context.shadowOffsetY = 0;
+  pathBuilder();
+  context.clip();
+  if (image) {
+    context.globalAlpha = 0.68;
+    drawCoverImage(context, image, x, y, width, height);
+    context.globalAlpha = 0.24;
+    context.fillStyle = tint;
+    context.fillRect(x, y, width, height);
+  }
+  context.restore();
+  context.save();
+  pathBuilder();
+  context.strokeStyle = borderColor;
+  context.lineWidth = Math.max(1, width * 0.002);
+  context.stroke();
+  context.restore();
+}
+
+function drawMaterialTape(context, x, y, width, height, color, rotation = 0) {
+  context.save();
+  context.translate(x + width / 2, y + height / 2);
+  context.rotate(rotation);
+  context.translate(-(x + width / 2), -(y + height / 2));
+  traceScrapbookTape(context, x, y, width, height);
+  context.fillStyle = color;
+  context.fill();
+  context.strokeStyle = "rgba(78, 67, 55, .12)";
+  context.lineWidth = Math.max(0.5, width * 0.0015);
+  context.stroke();
+  context.strokeStyle = "rgba(255, 255, 255, .16)";
+  context.lineWidth = Math.max(0.5, height * 0.08);
+  for (let index = 1; index < 5; index += 1) {
+    const lineX = x + (width * index) / 5;
+    context.beginPath();
+    context.moveTo(lineX, y + height * 0.17);
+    context.lineTo(lineX + width * 0.015, y + height * 0.83);
+    context.stroke();
+  }
+  context.restore();
+}
+
+function drawArchiveStamp(context, x, y, size, color, rotation = 0) {
+  context.save();
+  context.translate(x, y);
+  context.rotate(rotation);
+  context.globalAlpha = 0.68;
+  context.strokeStyle = color;
+  context.lineWidth = Math.max(1, size * 0.035);
+  context.setLineDash([size * 0.08, size * 0.055]);
+  context.beginPath();
+  context.arc(0, 0, size / 2, 0, Math.PI * 2);
+  context.stroke();
+  context.setLineDash([]);
+  context.lineWidth = Math.max(0.8, size * 0.018);
+  context.beginPath();
+  context.arc(0, 0, size * 0.32, 0, Math.PI * 2);
+  context.stroke();
+  context.beginPath();
+  context.moveTo(-size * 0.26, 0);
+  context.lineTo(size * 0.26, 0);
+  context.moveTo(-size * 0.2, size * 0.12);
+  context.lineTo(size * 0.2, size * 0.12);
+  context.stroke();
+  context.restore();
+}
+
+function drawEditorialMark(context, x, y, width, color, rotation = 0) {
+  context.save();
+  context.translate(x, y);
+  context.rotate(rotation);
+  context.globalAlpha = 0.52;
+  context.strokeStyle = color;
+  context.lineWidth = Math.max(0.8, width * 0.025);
+  context.beginPath();
+  context.moveTo(-width / 2, 0);
+  context.lineTo(width / 2, 0);
+  context.moveTo(-width * 0.27, width * 0.22);
+  context.lineTo(width * 0.27, width * 0.22);
+  context.stroke();
+  context.restore();
 }
 
 function drawExportBackground(context, width, height, background, backgroundImage) {
@@ -293,60 +421,74 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       const collageTheme = state.backgroundPattern === "collage";
       const scrapbookTheme = state.backgroundPattern === "scrapbook";
       const paperNoteTheme = collageTheme || scrapbookTheme;
+      const material = typeof CardMaterials !== "undefined" ? CardMaterials.get(state.backgroundPattern) : null;
+      const noteTints = material?.noteTints || (collageTheme
+        ? ["#f4e8d7", "#e7ddd0", "#e9d7d0", "#e0e5d9"]
+        : ["#f7f0e3", "#e7eef0", "#edf0e7", "#eef2f3"]);
+      const tapeTints = material?.tapeTints || (collageTheme
+        ? ["rgba(211, 181, 137, .78)", "rgba(165, 184, 181, .76)", "rgba(220, 193, 157, .74)"]
+        : ["rgba(198, 213, 217, .72)", "rgba(219, 196, 164, .68)", "rgba(190, 205, 193, .72)"]);
+      const pathBuilder = () => {
+        if (collageTheme) traceArchivePaper(context, x, y, width, height, noteIndex);
+        else traceScrapbookNote(context, x, y, width, height);
+      };
       context.save();
-      if (collageTheme) {
-        roundRect(x + 4, y + 5, width, height, 4);
-        context.fillStyle = "rgba(65, 52, 40, .13)";
-        context.fill();
-        roundRect(x, y, width, height, 4);
-        context.fillStyle = "#fffaf1";
-      } else if (scrapbookTheme) {
-        traceScrapbookNote(context, x + 5, y + 6, width, height);
-        context.fillStyle = "rgba(48, 69, 75, .14)";
-        context.fill();
-        traceScrapbookNote(context, x, y, width, height);
-        context.fillStyle = noteIndex % 3 === 1 ? "#eef1ed" : noteIndex % 3 === 2 ? "#f2e5d7" : "#f7f0e3";
+      if (paperNoteTheme) {
+        drawMaterialNote(
+          context,
+          backgroundImage,
+          pathBuilder,
+          x,
+          y,
+          width,
+          height,
+          noteTints[noteIndex % noteTints.length],
+          collageTheme ? "rgba(67, 55, 43, .16)" : "rgba(48, 69, 75, .13)",
+          collageTheme ? "rgba(67, 55, 43, .24)" : "rgba(48, 69, 75, .22)",
+        );
       } else {
         roundRect(x, y, width, height, exportTheme.radius);
         context.fillStyle = exportTheme.panel;
+        context.fill();
+        context.strokeStyle = exportTheme.panelBorder;
+        context.lineWidth = 2;
+        context.stroke();
       }
-      context.fill();
-      context.strokeStyle = paperNoteTheme ? "rgba(48, 69, 75, .25)" : exportTheme.panelBorder;
-      context.lineWidth = 2;
-      context.stroke();
       if (paperNoteTheme) {
-        context.fillStyle = scrapbookTheme
-          ? scrapbookSlotColors[item.slot] || "#6f8790"
-          : collageSlotColors[item.slot] || "#82909a";
-        if (scrapbookTheme) {
-          context.fillRect(x, y, Math.max(5, Math.round(width * 0.016)), height);
-        } else {
-          context.fillRect(x, y, width, Math.max(4, Math.round(height * 0.045)));
-        }
-      }
-      if (collageTheme) {
-        const tapeX = x + Math.round(width * 0.37);
-        const tapeY = y - Math.max(2, Math.round(height * 0.03));
-        const tapeWidth = Math.max(18, Math.round(width * 0.25));
-        const tapeHeight = Math.max(4, Math.round(height * 0.1));
-        context.fillStyle = "rgba(215, 196, 164, .72)";
-        context.fillRect(tapeX, tapeY, tapeWidth, tapeHeight);
-        context.strokeStyle = "rgba(92, 74, 54, .08)";
-        context.lineWidth = 1;
-        context.strokeRect(tapeX + 0.5, tapeY + 0.5, tapeWidth - 1, tapeHeight - 1);
-      }
-      if (scrapbookTheme) {
         const tapeLeft = noteIndex % 3 === 1 ? 0.64 : noteIndex % 3 === 2 ? 0.52 : 0.16;
         const tapeWidthRatio = noteIndex % 3 === 1 ? 0.21 : noteIndex % 3 === 2 ? 0.27 : 0.24;
-        context.fillStyle = noteIndex % 2 === 1 ? "rgba(194, 205, 195, .78)" : "rgba(215, 187, 141, .72)";
         const tapeX = x + Math.round(width * tapeLeft);
-        // Let the tape cross the paper edge: part of it is above the note and
-        // the rest visibly presses onto the surface, matching the live CSS.
         const tapeY = y - Math.max(8, Math.round(height * 0.07));
         const tapeWidth = Math.max(18, Math.round(width * tapeWidthRatio));
         const tapeHeight = Math.max(5, Math.round(height * 0.12));
-        traceScrapbookTape(context, tapeX, tapeY, tapeWidth, tapeHeight);
-        context.fill();
+        drawMaterialTape(
+          context,
+          tapeX,
+          tapeY,
+          tapeWidth,
+          tapeHeight,
+          tapeTints[noteIndex % tapeTints.length],
+          (noteIndex % 2 ? 1 : -1) * Math.PI / 180,
+        );
+        if (collageTheme) {
+          drawArchiveStamp(
+            context,
+            x + width * 0.84,
+            y + height * 0.24,
+            Math.max(12, Math.min(width, height) * 0.2),
+            material?.stampInk || "rgba(77, 70, 62, .64)",
+            (noteIndex % 3 - 1) * 0.12,
+          );
+        } else {
+          drawEditorialMark(
+            context,
+            x + width * 0.82,
+            y + height * 0.26,
+            Math.max(12, width * 0.16),
+            material?.stampInk || "rgba(52, 82, 91, .48)",
+            (noteIndex % 2 ? 1 : -1) * 0.08,
+          );
+        }
       }
       context.fillStyle = paperNoteTheme ? "rgba(59, 64, 64, .68)" : exportTheme.muted;
       context.font = `600 ${slotSize}px "Pretendard Variable", sans-serif`;

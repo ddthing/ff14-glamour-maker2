@@ -16,7 +16,7 @@ const viewports = [
       await page.waitForSelector("#castSelector button");
 
       const visited = new Set();
-      const requiredIds = ["exportButton", "styleTab", "libraryToggleButton", "cardTitleInput", "cardSubtitleInput", "titleFontSelect", "resetButton"];
+      const requiredIds = ["exportButton", "styleTab", "libraryToggleButton", "cardTitleInput", "cardSubtitleInput", "textEditorFontSelect", "resetButton"];
       let firstNamedTarget = "";
       let cycleDetected = false;
       let focusedCount = 0;

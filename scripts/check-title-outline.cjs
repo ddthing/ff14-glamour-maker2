@@ -30,29 +30,11 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.match(initial.stroke, /0px/, `default title outline should be disabled: ${initial.stroke}`);
     assert.equal(initial.boardHaloToken, "", "legacy title halo token leaked into the card");
 
-    await page.locator("#copyEditorAdvanced summary").click();
-    await page.locator('[data-title-outline-color="#263238"]').scrollIntoViewIfNeeded();
-    await page.locator('[data-title-outline-color="#263238"]').click();
-    await page.locator("#titleOutlineRange").scrollIntoViewIfNeeded();
-    await page.locator("#titleOutlineRange").fill("3");
-    const applied = await page.evaluate(() => ({
-      stroke: getComputedStyle(document.querySelector("#boardTitle")).webkitTextStroke,
-      value: document.querySelector("#titleOutlineValue").textContent,
-      saved: JSON.parse(localStorage.getItem("tuyeong-set-maker2-draft-v3"))?.titleOutline,
-    }));
-    assert.match(applied.stroke, /3px/, `title outline width did not reach the preview: ${applied.stroke}`);
-    assert.equal(applied.value, "3 px");
-    assert.deepEqual(applied.saved, { color: "#263238", width: 3 });
-
-    await page.locator("#libraryToggleButton").click();
-    await page.locator("#addLookButton").click();
-    assert.equal(await page.locator("#titleOutlineRange").inputValue(), "0", "a new LOOK BOOK card should start without the previous card's outline");
-    await page.locator('[data-look-id="look-1"]').click();
-    assert.equal(await page.locator("#titleOutlineRange").inputValue(), "3", "LOOK BOOK switching should restore each card's title outline");
-    await page.locator('[data-look-id^="look-"]').filter({ hasText: "새로운 룩" }).last().click();
-    assert.equal(await page.locator("#titleOutlineRange").inputValue(), "0", "switching back should restore the blank card outline");
+    assert.equal(await page.locator("#copyEditorSection .copy-editor-toolbar").isVisible(), false, "duplicate right-side text formatting controls should be hidden");
+    assert.equal(await page.locator("#copyEditorAdvanced").isVisible(), false, "legacy title outline controls should not clutter the copy inspector");
+    assert.match(initial.stroke, /0px/, `default title outline should remain disabled: ${initial.stroke}`);
     await page.screenshot({ path: "artifacts/ui-title-outline-after.png", fullPage: false });
-    console.log("PASS: title halo is removed and the configurable glyph outline reaches preview and persistence.");
+    console.log("PASS: title halo is removed and outline-only legacy controls stay out of the copy inspector.");
   } finally {
     await browser.close();
   }
