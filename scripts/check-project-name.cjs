@@ -31,6 +31,8 @@ const currentKeys = {
       wordmark: document.querySelector(".wordmark-copy strong")?.textContent,
       wordmarkLabel: document.querySelector(".wordmark")?.getAttribute("aria-label"),
       mainLabel: document.querySelector("main")?.getAttribute("aria-label"),
+      siteName: document.querySelector('meta[property="og:site_name"]')?.getAttribute("content"),
+      favicon: document.querySelector('link[rel="icon"]')?.getAttribute("href") ?? null,
       oldStorage: Object.fromEntries(Object.values(oldKeys).map((key) => [key, localStorage.getItem(key)])),
       currentStorage: Object.fromEntries(Object.values(currentKeys).map((key) => [key, localStorage.getItem(key)])),
     }), { oldKeys, currentKeys });
@@ -38,10 +40,42 @@ const currentKeys = {
     assert.equal(branding.wordmark, "투영세트메이커2");
     assert.equal(branding.wordmarkLabel, "투영세트메이커2 홈");
     assert.equal(branding.mainLabel, "투영세트메이커2 편집기");
+    assert.equal(branding.siteName, "투영세트메이커2");
+    assert.equal(branding.favicon, null, "the rejected favicon must not be linked");
     assert.deepEqual(branding.currentStorage[currentKeys.ui], JSON.stringify({ libraryCollapsed: false }));
     assert.deepEqual(JSON.parse(branding.currentStorage[currentKeys.presets]), [{ id: "legacy-preset", name: "이전 프리셋" }]);
     assert.ok(branding.currentStorage[currentKeys.draft]);
     assert.deepEqual(Object.values(branding.oldStorage), [null, null, null]);
+
+    await page.locator("#languageSelect").selectOption("en");
+    await page.waitForFunction(() => document.documentElement.lang === "en" && document.querySelector(".wordmark-copy strong")?.textContent === "FF14 Glamour Maker 2");
+    const englishBranding = await page.evaluate(() => ({
+      title: document.title,
+      wordmark: document.querySelector(".wordmark-copy strong")?.textContent,
+      wordmarkLabel: document.querySelector(".wordmark")?.getAttribute("aria-label"),
+      mainLabel: document.querySelector("main")?.getAttribute("aria-label"),
+      siteName: document.querySelector('meta[property="og:site_name"]')?.getAttribute("content"),
+    }));
+    assert.equal(englishBranding.wordmark, "FF14 Glamour Maker 2");
+    assert.equal(englishBranding.wordmarkLabel, "FF14 Glamour Maker 2 home");
+    assert.equal(englishBranding.mainLabel, "FF14 Glamour Maker 2 editor");
+    assert.equal(englishBranding.siteName, "FF14 Glamour Maker 2");
+    assert.match(englishBranding.title, /^FF14 Glamour Maker 2 \|/);
+
+    await page.locator("#languageSelect").selectOption("ja");
+    await page.waitForFunction(() => document.documentElement.lang === "ja" && document.querySelector(".wordmark-copy strong")?.textContent === "FF14ミラプリメーカー2");
+    const japaneseBranding = await page.evaluate(() => ({
+      title: document.title,
+      wordmark: document.querySelector(".wordmark-copy strong")?.textContent,
+      wordmarkLabel: document.querySelector(".wordmark")?.getAttribute("aria-label"),
+      mainLabel: document.querySelector("main")?.getAttribute("aria-label"),
+      siteName: document.querySelector('meta[property="og:site_name"]')?.getAttribute("content"),
+    }));
+    assert.equal(japaneseBranding.wordmark, "FF14ミラプリメーカー2");
+    assert.equal(japaneseBranding.wordmarkLabel, "FF14ミラプリメーカー2 ホーム");
+    assert.equal(japaneseBranding.mainLabel, "FF14ミラプリメーカー2 エディター");
+    assert.equal(japaneseBranding.siteName, "FF14ミラプリメーカー2");
+    assert.match(japaneseBranding.title, /^FF14ミラプリメーカー2 \|/);
 
     const databaseMigration = await page.evaluate(async () => {
       const oldDatabaseName = "glamour-atelier-assets-v1";

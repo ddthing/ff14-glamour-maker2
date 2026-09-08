@@ -5,18 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#ffffff" />
     <meta name="robots" content="index,follow" />
-    <meta name="description" content="파이널판타지 XIV 캐릭터 스크린샷에 장비와 문구를 더해 코디 카드를 만들어 보세요. 여러 캐릭터를 한 장에 배치하고 완성한 룩을 PNG로 저장할 수 있습니다." />
+    <meta name="description" data-i18n-content="meta.description" content="파이널판타지 XIV 캐릭터 스크린샷에 장비와 문구를 더해 코디 카드를 만들어 보세요. 여러 캐릭터를 한 장에 배치하고 완성한 룩을 PNG로 저장할 수 있습니다." />
     <link rel="canonical" href="https://ff14-glamour-maker2.pages.dev/" />
-    <meta property="og:locale" content="ko_KR" />
+    <meta property="og:locale" data-i18n-content="meta.locale" content="ko_KR" />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="투영세트메이커2" />
-    <meta property="og:title" content="투영세트메이커2 | FFXIV 코디 카드 만들기" />
-    <meta property="og:description" content="파이널판타지 XIV 캐릭터 스크린샷에 장비와 문구를 더해 코디 카드를 만들어 보세요. 여러 캐릭터를 한 장에 배치하고 완성한 룩을 PNG로 저장할 수 있습니다." />
+    <meta property="og:site_name" data-i18n-content="project.name" content="투영세트메이커2" />
+    <meta property="og:title" data-i18n-content="meta.title" content="투영세트메이커2 | FFXIV 코디 카드 만들기" />
+    <meta property="og:description" data-i18n-content="meta.description" content="파이널판타지 XIV 캐릭터 스크린샷에 장비와 문구를 더해 코디 카드를 만들어 보세요. 여러 캐릭터를 한 장에 배치하고 완성한 룩을 PNG로 저장할 수 있습니다." />
     <meta property="og:url" content="https://ff14-glamour-maker2.pages.dev/" />
     <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="투영세트메이커2 | FFXIV 코디 카드 만들기" />
-    <meta name="twitter:description" content="파이널판타지 XIV 캐릭터 스크린샷에 장비와 문구를 더해 코디 카드를 만들어 보세요. 여러 캐릭터를 한 장에 배치하고 완성한 룩을 PNG로 저장할 수 있습니다." />
-    <title>투영세트메이커2 | FFXIV 코디 카드 만들기</title>
+    <meta name="twitter:title" data-i18n-content="meta.title" content="투영세트메이커2 | FFXIV 코디 카드 만들기" />
+    <meta name="twitter:description" data-i18n-content="meta.description" content="파이널판타지 XIV 캐릭터 스크린샷에 장비와 문구를 더해 코디 카드를 만들어 보세요. 여러 캐릭터를 한 장에 배치하고 완성한 룩을 PNG로 저장할 수 있습니다." />
+    <title data-i18n="meta.title">투영세트메이커2 | FFXIV 코디 카드 만들기</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <!-- Optional enhancement: the local fallback stack keeps the editor usable while the font downloads. -->
     <link
@@ -33,48 +33,49 @@
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
       />
     </noscript>
-    <link rel="stylesheet" href="styles.css?v=20260907-parity-1" />
+    <link rel="stylesheet" href="styles/tokens.css?v=20260908-shared-tokens-1" />
+    <link rel="stylesheet" href="styles.css?v=20260908-legacy-seams-1" />
     <link rel="stylesheet" href="styles/card-composer.css?v=20260907-title-controls-1" />
-    <link rel="stylesheet" href="styles/editor-controls.css?v=20260907-inspector-categories-3" />
-    <link rel="stylesheet" href="styles/card-readability.css?v=20260907-silhouette-contrast-1" />
+    <link rel="stylesheet" href="styles/editor-controls.css?v=20260908-mobile-flow-1" />
+    <link rel="stylesheet" href="styles/card-readability.css?v=20260908-card-copyright-1" />
   </head>
   <body>
-    <a class="skip-link" href="#canvas">편집 영역으로 건너뛰기</a>
+    <a class="skip-link" data-i18n="skip.editor" href="#canvas">편집 영역으로 건너뛰기</a>
     <div class="app-shell">
       <header class="topbar">
-        <a class="wordmark" href="#canvas" aria-label="투영세트메이커2 홈">
-          <span class="wordmark-mark">투2</span>
-          <span class="wordmark-copy"><strong>투영세트메이커2</strong><small>FFXIV LOOKBOOK</small></span>
+        <a class="wordmark" href="#canvas" data-i18n-aria-label="project.home" aria-label="투영세트메이커2 홈">
+          <span class="wordmark-copy"><strong data-i18n="project.name">투영세트메이커2</strong><small data-i18n="project.tagline">FFXIV LOOKBOOK</small></span>
         </a>
 
         <div class="topbar-actions">
-          <span id="saveStatus" class="save-status" role="status" aria-live="polite">이 브라우저에 자동 저장</span>
+          <span id="saveStatus" class="save-status" data-i18n="status.autosave" role="status" aria-live="polite">이 브라우저에 자동 저장</span>
+          <button class="save-retry-button" id="saveRetryButton" type="button" data-i18n-aria-label="status.retry" data-i18n-title="status.retry" aria-label="다시 저장" title="다시 저장" hidden aria-hidden="true">↻</button>
           <label class="language-select-control" for="languageSelect">
-            <span class="language-select-label">장비 언어</span>
+            <span class="language-select-label" data-i18n="language.label">언어</span>
             <span class="language-select-wrap">
-              <select id="languageSelect" aria-label="카드와 아이템 언어">
+              <select id="languageSelect" data-i18n-aria-label="language.aria" aria-label="페이지와 아이템 언어">
                 <option value="ko">한국어</option>
                 <option value="en">English</option>
                 <option value="ja">日本語</option>
               </select>
             </span>
           </label>
-          <button class="primary-button" id="exportButton" type="button" aria-label="PNG 내보내기" title="이미지를 모두 추가하면 PNG로 저장할 수 있습니다">PNG 내보내기 <span aria-hidden="true">↗</span></button>
+          <button class="primary-button" id="exportButton" type="button" data-i18n-aria-label="export.label" data-i18n-title="export.titleMissing" aria-label="PNG 내보내기" title="이미지를 모두 추가하면 PNG로 저장할 수 있습니다"><span data-i18n="export.label">PNG 내보내기</span> <span aria-hidden="true">↗</span></button>
         </div>
       </header>
 
-      <aside class="rail" aria-label="작업 모드">
-        <div class="rail-nav rail-mode-nav" role="tablist" aria-label="작업 모드" aria-orientation="vertical">
+      <aside class="rail" data-i18n-aria-label="mode.aria" aria-label="작업 모드">
+        <div class="rail-nav rail-mode-nav" role="tablist" data-i18n-aria-label="mode.aria" aria-label="작업 모드" aria-orientation="vertical">
           <button class="rail-button rail-mode-button mode-tab is-active" id="styleTab" data-panel="stylePanel" role="tab" aria-selected="true" aria-controls="stylePanel" type="button">
-            <span class="tool-key" aria-hidden="true">01</span><small>꾸미기</small>
+            <span class="tool-key" aria-hidden="true">01</span><small data-i18n="mode.style">꾸미기</small>
           </button>
           <button class="rail-button rail-mode-button mode-tab" id="itemsTab" data-panel="itemsPanel" role="tab" aria-selected="false" aria-controls="itemsPanel" type="button" tabindex="-1">
-            <span class="tool-key" aria-hidden="true">02</span><small>장비</small>
+            <span class="tool-key" aria-hidden="true">02</span><small data-i18n="mode.items">장비</small>
           </button>
         </div>
         <div class="rail-bottom">
-          <button class="rail-button rail-collapse-button" id="libraryToggleButton" type="button" aria-expanded="false" aria-controls="lookLibrary" aria-label="LOOK BOOK 펼치기" title="LOOK BOOK 펼치기">
-            <span class="tool-key" aria-hidden="true">›</span><small class="sr-only">LOOK BOOK 펼치기</small>
+          <button class="rail-button rail-collapse-button" id="libraryToggleButton" type="button" data-i18n-aria-label="library.expand" data-i18n-title="library.expand" aria-expanded="false" aria-controls="lookLibrary" aria-label="LOOK BOOK 펼치기" title="LOOK BOOK 펼치기">
+            <span class="tool-key" aria-hidden="true">›</span><small class="sr-only" data-i18n="library.expand">LOOK BOOK 펼치기</small>
           </button>
         </div>
       </aside>
@@ -88,31 +89,31 @@
 
         <div class="ribbon-actions">
           <div class="look-search-control">
-            <button class="mobile-search-toggle" id="mobileLookSearchToggle" type="button" aria-expanded="false" aria-controls="lookSearchField">검색</button>
+            <button class="mobile-search-toggle" id="mobileLookSearchToggle" type="button" data-i18n="search.label" aria-expanded="false" aria-controls="lookSearchField">검색</button>
             <label class="search-field sidebar-search" id="lookSearchField" for="lookSearch">
-              <span class="field-label">LOOK BOOK 검색 <kbd>Ctrl K</kbd></span>
-              <input id="lookSearch" type="search" placeholder="룩 이름 검색" autocomplete="off" />
+              <span class="field-label"><span data-i18n="look.searchLabel">LOOK BOOK 검색</span> <kbd>Ctrl K</kbd></span>
+              <input id="lookSearch" type="search" data-i18n-placeholder="look.searchPlaceholder" placeholder="룩 이름 검색" autocomplete="off" />
             </label>
           </div>
-          <button class="add-look-button" id="addLookButton" type="button" aria-label="새 룩"><span aria-hidden="true">+</span> 새 룩</button>
-          <button class="manage-look-button" id="manageLookButton" type="button" aria-label="룩 관리" aria-haspopup="dialog" aria-controls="lookManagerDialog">관리</button>
+          <button class="add-look-button" id="addLookButton" type="button" data-i18n-aria-label="look.new" aria-label="새 룩"><span aria-hidden="true">+</span> <span data-i18n="look.new">새 룩</span></button>
+          <button class="manage-look-button" id="manageLookButton" type="button" data-i18n="look.manage" data-i18n-aria-label="look.manage" aria-label="룩 관리" aria-haspopup="dialog" aria-controls="lookManagerDialog">관리</button>
         </div>
       </aside>
 
-      <main class="workspace" id="canvas" tabindex="-1" aria-label="투영세트메이커2 편집기">
+      <main class="workspace" id="canvas" tabindex="-1" data-i18n-aria-label="project.editor" aria-label="투영세트메이커2 편집기">
         <div class="workspace-grid">
-          <section class="canvas-column" aria-label="룩 캔버스">
+          <section class="canvas-column" data-i18n-aria-label="canvas.aria" aria-label="룩 캔버스">
             <div class="canvas-heading">
-              <div class="canvas-toolbar" role="group" aria-label="캔버스 도구">
+              <div class="canvas-toolbar" role="group" data-i18n-aria-label="canvas.tools" aria-label="캔버스 도구">
                 <div class="toolbar-cluster">
-                  <button class="toolbar-button" id="previousLook" type="button" aria-label="이전 룩" title="이전 룩"><span aria-hidden="true">←</span> 이전</button>
-                  <button class="toolbar-button" id="nextLook" type="button" aria-label="다음 룩" title="다음 룩">다음 <span aria-hidden="true">→</span></button>
+                  <button class="toolbar-button" id="previousLook" type="button" data-i18n-aria-label="canvas.previous" data-i18n-title="canvas.previous" aria-label="이전 룩" title="이전 룩"><span aria-hidden="true">←</span> <span data-i18n="canvas.previous">이전</span></button>
+                  <button class="toolbar-button" id="nextLook" type="button" data-i18n-aria-label="canvas.next" data-i18n-title="canvas.next" aria-label="다음 룩" title="다음 룩"><span data-i18n="canvas.next">다음</span> <span aria-hidden="true">→</span></button>
                 </div>
                 <div class="toolbar-cluster toolbar-cluster--right">
-                  <button class="toolbar-icon" id="undoButton" type="button" aria-label="실행 취소" title="실행 취소">되돌리기</button>
-                  <button class="toolbar-icon is-muted" id="redoButton" type="button" aria-label="다시 실행" title="다시 실행">다시 실행</button>
+                  <button class="toolbar-icon" id="undoButton" type="button" data-i18n="canvas.undo" data-i18n-aria-label="canvas.undo" data-i18n-title="canvas.undo" aria-label="실행 취소" title="실행 취소">되돌리기</button>
+                  <button class="toolbar-icon is-muted" id="redoButton" type="button" data-i18n="canvas.redo" data-i18n-aria-label="canvas.redo" data-i18n-title="canvas.redo" aria-label="다시 실행" title="다시 실행">다시 실행</button>
                   <span class="toolbar-divider"></span>
-                  <button class="toolbar-icon canvas-focus-button" id="focusCanvasButton" type="button" aria-label="캔버스 크게 보기" aria-pressed="false" title="캔버스 크게 보기">⛶</button>
+                  <button class="toolbar-icon canvas-focus-button" id="focusCanvasButton" type="button" data-i18n-aria-label="canvas.focus" data-i18n-title="canvas.focus" aria-label="캔버스 크게 보기" aria-pressed="false" title="캔버스 크게 보기">⛶</button>
                 </div>
               </div>
             </div>
@@ -126,32 +127,43 @@
                   <span class="prism prism--one" aria-hidden="true"></span>
                   <span class="prism prism--two" aria-hidden="true"></span>
                   <span class="prism prism--three" aria-hidden="true"></span>
-                  <div class="portrait-wrap" id="portraitWrap" role="group" aria-label="캐릭터 배치 영역"></div>
-                  <div class="multi-info-layer" id="multiInfoLayer" role="group" aria-label="캐릭터별 아이템 정보"></div>
+                  <div class="portrait-wrap" id="portraitWrap" role="group" data-i18n-aria-label="canvas.characters" aria-label="캐릭터 배치 영역"></div>
+                  <div class="multi-info-layer" id="multiInfoLayer" role="group" data-i18n-aria-label="canvas.charactersInfo" aria-label="캐릭터별 아이템 정보"></div>
                   <canvas id="boardCopyCanvas" class="board-copy-canvas" aria-hidden="true"></canvas>
                   <div class="board-editorial-header">
                     <div class="board-title-block">
-                      <strong id="boardTitle" contenteditable="true" role="textbox" aria-label="카드 제목" aria-describedby="copyEditorHint" title="클릭해서 카드 제목 편집 · Enter 저장 · Esc 취소" spellcheck="false">새로운 룩</strong>
-                      <span class="caption-description" id="boardSubtitle" contenteditable="true" role="textbox" aria-label="룩 설명" aria-describedby="copyEditorHint" title="클릭해서 룩 설명 편집 · Esc 취소" spellcheck="true"></span>
+                      <strong id="boardTitle" contenteditable="true" role="textbox" data-i18n="look.defaultTitle" data-i18n-aria-label="copy.cardTitle" data-i18n-title="copy.editTitle" aria-label="카드 제목" aria-describedby="copyEditorHint" title="클릭해서 카드 제목 편집 · Enter 저장 · Esc 취소" spellcheck="false">새로운 룩</strong>
+                      <span class="caption-description" id="boardSubtitle" contenteditable="true" role="textbox" data-i18n-aria-label="copy.cardDescription" data-i18n-title="copy.editDescription" aria-label="룩 설명" aria-describedby="copyEditorHint" title="클릭해서 룩 설명 편집 · Esc 취소" spellcheck="true"></span>
                     </div>
                   </div>
-                  <div class="board-gear-list board-gear-tiles" id="boardGearList" role="group" aria-label="룩 장비 정보"></div>
+                  <div class="board-gear-list board-gear-tiles" id="boardGearList" role="group" data-i18n-aria-label="canvas.gearInfo" aria-label="룩 장비 정보"></div>
+                  <small class="board-copyright" id="boardCopyright" data-i18n="card.copyright">© SQUARE ENIX</small>
                 </div>
               </div>
             </div>
+            <footer class="app-site-footer">
+              <nav class="app-site-footer-nav" data-i18n-aria-label="site.aria" aria-label="사이트 안내">
+                <a href="terms/" data-i18n="site.terms">이용약관</a>
+                <a href="privacy/" data-i18n="site.privacy">개인정보처리방침</a>
+                <a href="guide/" data-i18n="site.guide">가이드</a>
+                <a href="contact/" data-i18n="site.contact">문의</a>
+                <a href="support/" data-i18n="site.support">후원</a>
+              </nav>
+              <p data-i18n="site.disclaimer">투영세트메이커2는 스퀘어 에닉스와 관계없는 비공식 팬 도구입니다. FINAL FANTASY XIV 및 관련 자산의 권리는 각 권리자에게 있습니다.</p>
+            </footer>
           </section>
 
-          <aside class="inspector" aria-label="편집 속성">
+          <aside class="inspector" data-i18n-aria-label="inspector.aria" aria-label="편집 속성">
             <div class="inspector-header">
               <div class="inspector-title-row">
-                <div><span>상세 편집</span><h1 id="inspectorTitle">꾸미기</h1></div>
+                <div><span data-i18n="inspector.detail">상세 편집</span><h1 id="inspectorTitle" data-i18n="mode.style">꾸미기</h1></div>
                 <div class="reset-control">
-                  <button class="reset-button" id="resetButton" type="button" aria-expanded="false" aria-controls="resetMenu" aria-haspopup="menu">초기화</button>
+                  <button class="reset-button" id="resetButton" type="button" data-i18n="reset.label" aria-expanded="false" aria-controls="resetMenu" aria-haspopup="menu">초기화</button>
                   <div class="reset-menu" id="resetMenu" role="menu" aria-labelledby="resetButton" hidden>
-                    <p id="resetMenuDescription">스타일과 카드 데이터를 구분해 비웁니다. 모든 로컬 데이터 삭제는 이 브라우저의 LOOK BOOK·이미지·프리셋을 지웁니다.</p>
-                    <button type="button" role="menuitem" id="resetStylesButton">스타일만 초기화</button>
-                    <button type="button" role="menuitem" id="resetCardButton">현재 카드 비우기</button>
-                    <button type="button" role="menuitem" id="resetWorkspaceButton">모든 로컬 데이터 삭제</button>
+                    <p id="resetMenuDescription" data-i18n="reset.description">스타일과 카드 데이터를 구분해 비웁니다. 모든 로컬 데이터 삭제는 이 브라우저의 LOOK BOOK·이미지·프리셋을 지웁니다.</p>
+                    <button type="button" role="menuitem" id="resetStylesButton" data-i18n="reset.styles">스타일만 초기화</button>
+                    <button type="button" role="menuitem" id="resetCardButton" data-i18n="reset.card">현재 카드 비우기</button>
+                    <button type="button" role="menuitem" id="resetWorkspaceButton" data-i18n="reset.workspace">모든 로컬 데이터 삭제</button>
                   </div>
                 </div>
               </div>
@@ -160,175 +172,191 @@
             <div class="inspector-panel" id="stylePanel" role="tabpanel" aria-labelledby="styleTab">
               <section class="inspector-section cast-section">
                 <div class="panel-section-head">
-                  <div class="panel-section-head-copy"><span class="panel-eyebrow">선택 대상</span><h2>캐릭터 구성</h2></div>
+                  <div class="panel-section-head-copy"><span class="panel-eyebrow" data-i18n="cast.eyebrow">선택 대상</span><h2 data-i18n="cast.title">캐릭터 구성</h2></div>
                   <span class="panel-selection-summary" id="castSelectionSummary" aria-live="polite" aria-atomic="true">캐릭터 01 · 1인</span>
                 </div>
-                <div class="cast-count-control" id="castCountControl" role="radiogroup" aria-label="캐릭터 인원수">
+                <div class="cast-count-control" id="castCountControl" role="radiogroup" data-i18n-aria-label="cast.aria" aria-label="캐릭터 인원수">
                   <button class="is-selected" type="button" data-cast-count="1">1</button>
                   <button type="button" data-cast-count="2">2</button>
                   <button type="button" data-cast-count="3">3</button>
                   <button type="button" data-cast-count="4">4</button>
                   <button type="button" data-cast-count="5">5</button>
                 </div>
-                <div class="cast-selector" id="castSelector" role="group" aria-label="편집할 캐릭터"></div>
+                <div class="cast-selector" id="castSelector" role="group" data-i18n-aria-label="cast.selector" aria-label="편집할 캐릭터"></div>
               </section>
 
               <section class="inspector-section card-compose-section multi-info-section" id="multiCardControls" aria-labelledby="multiCardControlsTitle">
                 <div class="panel-section-head">
-                  <div class="panel-section-head-copy"><span class="panel-eyebrow">라인업</span><h2 id="multiCardControlsTitle">3~5인 이미지</h2></div>
+                  <div class="panel-section-head-copy"><span class="panel-eyebrow" data-i18n="lineup.eyebrow">라인업</span><h2 id="multiCardControlsTitle" data-i18n="lineup.title">3~5인 이미지</h2></div>
                 </div>
-                <div class="compact-option-row"><span>표현</span><div class="compact-segments" id="infoModeControls" role="group" aria-label="라인업 이미지 표현" aria-describedby="infoModeHint"><button class="is-selected" data-info-mode="clear" type="button">선명</button><button data-info-mode="fade" type="button">흐림</button><button data-info-mode="silhouette" type="button">실루엣</button></div></div>
-                <p class="compact-control-hint" id="infoModeHint">실루엣은 모든 캐릭터의 배경 제거가 끝나면 사용할 수 있어요.</p>
+                <div class="compact-option-row"><span data-i18n="lineup.expression">표현</span><div class="compact-segments" id="infoModeControls" role="group" data-i18n-aria-label="lineup.expressionAria" aria-label="라인업 이미지 표현" aria-describedby="infoModeHint"><button class="is-selected" data-info-mode="clear" data-i18n="lineup.clear" type="button">선명</button><button data-info-mode="fade" data-i18n="lineup.fade" type="button">흐림</button><button data-info-mode="silhouette" data-i18n="lineup.silhouette" type="button">실루엣</button></div></div>
+                <p class="compact-control-hint" id="infoModeHint" data-i18n="lineup.hintWait">실루엣은 모든 캐릭터의 배경 제거가 끝나면 사용할 수 있어요.</p>
               </section>
 
               <section class="inspector-section portrait-section editor-category-section" id="imageSection">
-                <div class="panel-section-head"><h2>이미지</h2><span class="image-state" id="imageState" aria-live="polite">이미지 없음</span></div>
+                <div class="panel-section-head"><h2 data-i18n="image.title">이미지</h2><span class="image-state" id="imageState" data-i18n="image.none" aria-live="polite">이미지 없음</span></div>
                 <div class="image-workflow-group image-import-group" aria-labelledby="imageImportGroupTitle">
-                  <div class="image-workflow-head"><span id="imageImportGroupTitle">사진 가져오기</span><small>원본은 브라우저에 안전하게 보관합니다</small></div>
+                  <div class="image-workflow-head"><span id="imageImportGroupTitle" data-i18n="image.import">사진 가져오기</span><details class="control-help"><summary data-i18n-aria-label="help.open" aria-label="도움말"><span class="control-help-icon" aria-hidden="true">?</span></summary><div class="control-help-popover"><p data-i18n="image.importHint">원본은 브라우저에 안전하게 보관합니다</p></div></details></div>
                   <div class="portrait-source-card is-empty" id="portraitSourceCard">
-                    <div class="source-thumb is-empty" id="sourceThumbFrame"><img id="sourceThumb" alt="사진 미선택" /></div>
-                    <div class="source-copy"><strong id="sourceFileName" aria-live="polite">사진 미선택</strong><span id="sourceFileMeta" aria-live="polite">PNG · JPG · WebP · 여러 장 선택 가능</span></div>
+                    <div class="source-thumb is-empty" id="sourceThumbFrame"><img id="sourceThumb" data-i18n-alt="image.notSelected" alt="사진 미선택" /></div>
+                    <div class="source-copy"><strong id="sourceFileName" data-i18n="image.notSelected" aria-live="polite">사진 미선택</strong><span id="sourceFileMeta" data-i18n="image.fileTypes" aria-live="polite">PNG · JPG · WebP · 여러 장 선택 가능</span></div>
                   </div>
                 </div>
                 <div class="image-workflow-group image-placement-group" aria-labelledby="imagePlacementGroupTitle">
-                  <div class="image-workflow-head"><span id="imagePlacementGroupTitle">프레임과 배치</span><small>카드에서 보이는 이미지 영역을 조정합니다</small></div>
-                  <div class="compact-option-row image-fit-row"><span>프레임</span><div class="compact-segments" role="group" aria-label="이미지 프레임 표시"><button class="is-selected" data-image-fit="contain" type="button">전체 보기</button><button data-image-fit="cover" type="button">채우기</button></div></div>
-                  <div class="image-transform-row image-placement-launch-row"><span>배치</span><div class="image-placement-summary"><output id="imagePlacementSummary" aria-live="polite">100% · 기본 위치</output><button class="image-placement-launch" id="openImageEditorButton" type="button" aria-controls="canvasBoard" aria-expanded="false">크기·위치 편집</button></div></div>
-                  <div class="image-position-row image-placement-tip-row"><span>안내</span><div class="image-editor-hint"><span class="image-editor-hint-key">카드에서 직접</span><span>편집을 열면 카드 위에서 드래그해 위치를 맞춥니다.</span></div></div>
+                  <div class="image-workflow-head"><span id="imagePlacementGroupTitle" data-i18n="image.placement">프레임과 배치</span><details class="control-help"><summary data-i18n-aria-label="help.open" aria-label="도움말"><span class="control-help-icon" aria-hidden="true">?</span></summary><div class="control-help-popover"><p data-i18n="image.placementHint">카드에서 보이는 이미지 영역을 조정합니다</p><p data-i18n="image.directHint">편집을 열면 카드 위에서 드래그해 위치를 맞춥니다.</p></div></details></div>
+                  <div class="compact-option-row image-fit-row"><span data-i18n="image.frame">프레임</span><div class="compact-segments" role="group" data-i18n-aria-label="image.frameAria" aria-label="이미지 프레임 표시"><button class="is-selected" data-image-fit="contain" data-i18n="image.contain" type="button">전체 보기</button><button data-image-fit="cover" data-i18n="image.cover" type="button">채우기</button></div></div>
+                  <div class="image-transform-row image-placement-launch-row"><span data-i18n="image.position">배치</span><div class="image-placement-summary"><output id="imagePlacementSummary" aria-live="polite">100% · 기본 위치</output><button class="image-placement-launch" id="openImageEditorButton" type="button" data-i18n="image.editPlacement" data-i18n-aria-label="image.editPlacement" data-i18n-title="image.editPlacementReady" aria-controls="canvasBoard" aria-expanded="false">크기·위치 편집</button></div></div>
                 </div>
                 <div class="image-workflow-group image-treatment-group" aria-labelledby="imageTreatmentGroupTitle">
-                  <div class="image-workflow-head"><span id="imageTreatmentGroupTitle">이미지 처리</span><small>원본 복원과 배경 제거는 언제든 되돌릴 수 있어요</small></div>
-                  <button class="secondary-button cutout-action" id="cutoutButton" type="button"><span>배경 제거</span><small>원본 보존 · 첫 실행은 준비 필요</small><span class="cutout-progress" aria-hidden="true"></span></button>
-                  <button class="style-advanced-toggle image-style-toggle" id="styleAdvancedToggle" type="button" aria-expanded="false" aria-controls="outlineAdvancedSection shadowAdvancedSection"><span>이미지 테두리와 그림자</span><span class="style-advanced-icon" aria-hidden="true">＋</span></button>
+                  <div class="image-workflow-head"><span id="imageTreatmentGroupTitle" data-i18n="image.treatment">이미지 처리</span><details class="control-help"><summary data-i18n-aria-label="help.open" aria-label="도움말"><span class="control-help-icon" aria-hidden="true">?</span></summary><div class="control-help-popover"><p data-i18n="image.treatmentHint">원본 복원과 배경 제거는 언제든 되돌릴 수 있어요</p></div></details></div>
+                  <button class="secondary-button cutout-action" id="cutoutButton" type="button"><span data-i18n="cutout.remove">배경 제거</span><span class="cutout-progress" aria-hidden="true"></span></button>
+                  <button class="style-advanced-toggle image-style-toggle" id="styleAdvancedToggle" type="button" aria-expanded="false" aria-controls="outlineAdvancedSection shadowAdvancedSection"><span data-i18n="cutout.advanced">이미지 테두리와 그림자</span><span class="style-advanced-icon" aria-hidden="true">＋</span></button>
                   <div class="image-style-control" id="outlineAdvancedSection" data-style-advanced>
-                    <div class="image-style-control-head"><h3>테두리</h3><span class="value-readout" id="outlineValue">00 px</span></div>
-                    <div class="control-line"><span class="control-label">색상</span><div class="swatch-row" id="outlineSwatches"><button class="color-swatch is-selected" data-color="#f1dfbb" style="--swatch:#f1dfbb" type="button" aria-label="웜 아이보리"></button><button class="color-swatch" data-color="#b9d4d5" style="--swatch:#b9d4d5" type="button" aria-label="미스트 블루"></button><button class="color-swatch" data-color="#171820" style="--swatch:#171820" type="button" aria-label="잉크"></button><button class="color-swatch" data-color="#b87663" style="--swatch:#b87663" type="button" aria-label="테라코타"></button></div></div>
-                    <div class="range-line"><input id="outlineRange" type="range" min="0" max="8" value="0" step="1" aria-label="이미지 외곽선 두께" /><div class="range-labels"><span>없음</span><span>굵게</span></div></div>
+                    <div class="image-style-control-head"><h3 data-i18n="outline.title">테두리</h3><span class="value-readout" id="outlineValue">00 px</span></div>
+                    <div class="control-line"><span class="control-label" data-i18n="outline.color">색상</span><div class="swatch-row" id="outlineSwatches"><button class="color-swatch is-selected" data-color="#f1dfbb" style="--swatch:#f1dfbb" type="button" data-i18n-aria-label="outline.warmIvory" aria-label="웜 아이보리"></button><button class="color-swatch" data-color="#b9d4d5" style="--swatch:#b9d4d5" type="button" data-i18n-aria-label="outline.mistBlue" aria-label="미스트 블루"></button><button class="color-swatch" data-color="#171820" style="--swatch:#171820" type="button" data-i18n-aria-label="outline.ink" aria-label="잉크"></button><button class="color-swatch" data-color="#b87663" style="--swatch:#b87663" type="button" data-i18n-aria-label="outline.terracotta" aria-label="테라코타"></button></div></div>
+                    <div class="range-line"><input id="outlineRange" type="range" min="0" max="8" value="0" step="1" aria-label="이미지 외곽선 두께" data-i18n-aria-label="outline.width" /><div class="range-labels"><span data-i18n="range.none">없음</span><span data-i18n="range.bold">굵게</span></div></div>
                   </div>
                   <div class="image-style-control" id="shadowAdvancedSection" data-style-advanced>
-                    <div class="image-style-control-head"><h3>그림자</h3><span class="value-readout" id="shadowValue">20%</span></div>
-                    <div class="range-line"><input id="shadowRange" type="range" min="0" max="70" value="20" step="1" aria-label="이미지 그림자 강도" /><div class="range-labels"><span>부드럽게</span><span>진하게</span></div></div>
-                    <div class="shadow-controls"><span class="control-label">방향</span><div class="direction-pad" role="group" aria-label="그림자 방향"><button data-shadow="nw" type="button" aria-label="왼쪽 위">↖</button><button data-shadow="n" type="button" aria-label="위">↑</button><button data-shadow="ne" type="button" aria-label="오른쪽 위">↗</button><button data-shadow="w" type="button" aria-label="왼쪽">←</button><span class="direction-center" aria-hidden="true"></span><button data-shadow="e" type="button" aria-label="오른쪽">→</button><button data-shadow="sw" type="button" aria-label="왼쪽 아래">↙</button><button data-shadow="s" type="button" aria-label="아래">↓</button><button data-shadow="se" type="button" aria-label="오른쪽 아래">↘</button></div></div>
+                    <div class="image-style-control-head"><h3 data-i18n="shadow.title">그림자</h3><span class="value-readout" id="shadowValue">20%</span></div>
+                    <div class="range-line"><input id="shadowRange" type="range" min="0" max="70" value="20" step="1" aria-label="이미지 그림자 강도" data-i18n-aria-label="shadow.strength" /><div class="range-labels"><span data-i18n="shadow.soft">부드럽게</span><span data-i18n="shadow.strong">진하게</span></div></div>
+                    <div class="shadow-controls"><span class="control-label" data-i18n="shadow.direction">방향</span><div class="direction-pad" role="group" data-i18n-aria-label="shadow.directionAria" aria-label="그림자 방향"><button data-shadow="nw" type="button" data-i18n-aria-label="direction.nw" aria-label="왼쪽 위">↖</button><button data-shadow="n" type="button" data-i18n-aria-label="direction.n" aria-label="위">↑</button><button data-shadow="ne" type="button" data-i18n-aria-label="direction.ne" aria-label="오른쪽 위">↗</button><button data-shadow="w" type="button" data-i18n-aria-label="direction.w" aria-label="왼쪽">←</button><span class="direction-center" aria-hidden="true"></span><button data-shadow="e" type="button" data-i18n-aria-label="direction.e" aria-label="오른쪽">→</button><button data-shadow="sw" type="button" data-i18n-aria-label="direction.sw" aria-label="왼쪽 아래">↙</button><button data-shadow="s" type="button" data-i18n-aria-label="direction.s" aria-label="아래">↓</button><button data-shadow="se" type="button" data-i18n-aria-label="direction.se" aria-label="오른쪽 아래">↘</button></div></div>
                   </div>
                 </div>
               </section>
 
               <section class="inspector-section copy-editor-section editor-category-section" id="copyEditorSection" aria-labelledby="copyEditorTitle">
-                <div class="panel-section-head"><h2 id="copyEditorTitle">문구</h2><span class="panel-state">입력 즉시 반영</span></div>
+                <div class="panel-section-head"><h2 id="copyEditorTitle" data-i18n="copy.title">문구</h2></div>
+                <div class="copy-editor-contextbar" id="copyEditorContextbar">
+                  <div class="copy-editor-contextbar-head">
+                    <div class="copy-editor-context-title"><span class="copy-editor-context-kicker" data-i18n="copy.quick">빠른 편집</span><strong id="copyEditorTarget" data-i18n="copy.cardTitle">카드 제목</strong></div>
+                    <button class="copy-editor-card-focus" id="focusCardTitleButton" type="button" data-i18n="copy.selectOnCard" data-i18n-aria-label="copy.selectOnCard" aria-label="카드에서 제목 선택">카드에서 제목 선택</button>
+                  </div>
+                  <div class="copy-editor-toolbar" role="toolbar" data-i18n-aria-label="copy.toolbar" aria-label="제목 빠른 편집 도구">
+                    <div class="copy-editor-style-grid">
+                      <div class="copy-editor-style-field">
+                        <div class="copy-editor-typography-head"><span data-i18n="copy.alignment">카드 제목 정렬</span></div>
+                        <div class="compact-segments title-alignment-controls" id="titleAlignmentControls" role="radiogroup" data-i18n-aria-label="copy.alignment" aria-label="카드 제목 정렬">
+                          <button data-title-align="left" type="button" role="radio" aria-checked="false"><span class="alignment-glyph alignment-glyph--left" aria-hidden="true"></span><span data-i18n="copy.left">왼쪽</span></button>
+                          <button data-title-align="center" type="button" role="radio" aria-checked="false"><span class="alignment-glyph alignment-glyph--center" aria-hidden="true"></span><span data-i18n="copy.center">가운데</span></button>
+                          <button data-title-align="right" type="button" role="radio" aria-checked="false"><span class="alignment-glyph alignment-glyph--right" aria-hidden="true"></span><span data-i18n="copy.right">오른쪽</span></button>
+                        </div>
+                      </div>
+                      <div class="copy-editor-style-field">
+                        <div class="copy-editor-typography-head"><span data-i18n="copy.titleColor">제목 색상</span></div>
+                        <div class="copy-editor-color-row">
+                          <label class="inspector-color-picker copy-editor-color-picker" for="titleColorInput"><input id="titleColorInput" type="color" value="#263238" data-i18n-aria-label="copy.titleTextColor" aria-label="제목 텍스트 색상" /><span data-i18n="copy.direct">직접 선택</span></label>
+                          <button class="copy-editor-color-reset" id="titleColorAutoButton" data-i18n="copy.auto" type="button">자동</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="copy-editor-typography title-font-option-row" aria-labelledby="copyTypographyTitle">
+                      <div class="copy-editor-typography-head"><span id="copyTypographyTitle" data-i18n="copy.font">제목 서체</span></div>
+                      <div class="title-font-control"><select id="titleFontSelect" data-i18n-aria-label="copy.fontAria" aria-label="카드 제목 글꼴"></select><div class="title-weight-row" id="titleWeightRow"><span class="title-weight-label" data-i18n="copy.weight">굵기</span><div class="title-weight-options" id="titleWeightOptions" role="radiogroup" data-i18n-aria-label="copy.weightAria" aria-label="제목 굵기"></div></div></div>
+                    </div>
+                  </div>
+                  <details class="copy-editor-advanced" id="copyEditorAdvanced">
+                    <summary><span data-i18n="copy.advanced">세부 스타일</span></summary>
+                    <div class="copy-editor-title-outline" aria-labelledby="titleOutlineTitle">
+                      <div class="copy-editor-typography-head"><span id="titleOutlineTitle" data-i18n="copy.outline">제목 외곽선</span><small id="titleOutlineValue" aria-live="polite">없음</small></div>
+                      <div class="title-outline-controls">
+                        <div class="title-outline-swatches" role="radiogroup" data-i18n-aria-label="copy.titleOutlineColorAria" aria-label="제목 외곽선 색상">
+                          <button class="title-outline-swatch is-selected" data-title-outline-color="#ffffff" style="--swatch:#ffffff" type="button" role="radio" aria-checked="true" data-i18n-aria-label="copy.white" aria-label="흰색"></button>
+                          <button class="title-outline-swatch" data-title-outline-color="#263238" style="--swatch:#263238" type="button" role="radio" aria-checked="false" data-i18n-aria-label="copy.ink" aria-label="먹색"></button>
+                          <button class="title-outline-swatch" data-title-outline-color="#b9d4d5" style="--swatch:#b9d4d5" type="button" role="radio" aria-checked="false" data-i18n-aria-label="outline.mistBlue" aria-label="미스트 블루"></button>
+                        </div>
+                        <label class="inspector-color-picker title-outline-color-picker" for="titleOutlineColorInput"><input id="titleOutlineColorInput" type="color" value="#ffffff" data-i18n-aria-label="copy.titleOutlineDirect" aria-label="제목 외곽선 직접 선택" /><span data-i18n="copy.direct">직접 선택</span></label>
+                        <label class="title-outline-range" for="titleOutlineRange"><span data-i18n="copy.weight">두께</span><input id="titleOutlineRange" type="range" min="0" max="6" value="0" step="1" data-i18n-aria-label="copy.titleOutlineWidth" aria-label="제목 외곽선 두께" /></label>
+                      </div>
+                    </div>
+                  </details>
+                </div>
                 <div class="copy-editor-fields">
                   <label class="copy-editor-field" for="cardTitleInput">
-                    <span>제목</span>
+                    <span data-i18n="copy.fieldTitle">제목</span>
                     <textarea id="cardTitleInput" rows="2" maxlength="64" autocomplete="off" spellcheck="false" aria-describedby="copyEditorHint cardTitleCount"></textarea>
                     <small class="copy-editor-count" id="cardTitleCount" aria-live="polite">0 / 64</small>
                   </label>
                   <label class="copy-editor-field" for="cardSubtitleInput">
-                    <span>설명 <em class="field-optional">선택 입력</em></span>
+                    <span><span data-i18n="copy.fieldDescription">설명</span> <em class="field-optional" data-i18n="copy.optional">선택 입력</em></span>
                     <textarea id="cardSubtitleInput" rows="2" maxlength="160" spellcheck="true" aria-describedby="copyEditorHint cardSubtitleCount"></textarea>
                     <small class="copy-editor-count" id="cardSubtitleCount" aria-live="polite">0 / 160</small>
                   </label>
                 </div>
-                <p class="copy-editor-hint" id="copyEditorHint">카드에서 문구를 직접 눌러도 편집할 수 있어요.</p>
-                <div class="copy-editor-style-grid">
-                  <div class="copy-editor-style-field">
-                    <div class="copy-editor-typography-head"><span>카드 제목 정렬</span><small>미리보기 · PNG</small></div>
-                    <div class="compact-segments title-alignment-controls" id="titleAlignmentControls" role="radiogroup" aria-label="카드 제목 정렬">
-                      <button data-title-align="left" type="button" role="radio" aria-checked="false">왼쪽</button>
-                      <button data-title-align="center" type="button" role="radio" aria-checked="false">가운데</button>
-                      <button data-title-align="right" type="button" role="radio" aria-checked="false">오른쪽</button>
-                    </div>
-                  </div>
-                  <div class="copy-editor-style-field">
-                    <div class="copy-editor-typography-head"><span>제목 색상</span><small>자동 · 직접 선택</small></div>
-                    <div class="copy-editor-color-row">
-                      <label class="inspector-color-picker copy-editor-color-picker" for="titleColorInput"><input id="titleColorInput" type="color" value="#263238" aria-label="제목 텍스트 색상" /><span>직접 선택</span></label>
-                      <button class="copy-editor-color-reset" id="titleColorAutoButton" type="button">자동</button>
-                    </div>
-                  </div>
-                </div>
-                <div class="copy-editor-typography title-font-option-row" aria-labelledby="copyTypographyTitle">
-                  <div class="copy-editor-typography-head"><span id="copyTypographyTitle">제목 서체</span><small>카드 제목만</small></div>
-                  <div class="title-font-control"><select id="titleFontSelect" aria-label="카드 제목 글꼴"></select><div class="title-weight-row" id="titleWeightRow"><span class="title-weight-label">굵기</span><div class="title-weight-options" id="titleWeightOptions" role="radiogroup" aria-label="제목 굵기"></div></div></div>
-                </div>
-                <div class="copy-editor-title-outline" aria-labelledby="titleOutlineTitle">
-                  <div class="copy-editor-typography-head"><span id="titleOutlineTitle">제목 외곽선</span><small id="titleOutlineValue" aria-live="polite">없음</small></div>
-                  <div class="title-outline-controls">
-                    <div class="title-outline-swatches" role="radiogroup" aria-label="제목 외곽선 색상">
-                      <button class="title-outline-swatch is-selected" data-title-outline-color="#ffffff" style="--swatch:#ffffff" type="button" role="radio" aria-checked="true" aria-label="흰색"></button>
-                      <button class="title-outline-swatch" data-title-outline-color="#263238" style="--swatch:#263238" type="button" role="radio" aria-checked="false" aria-label="먹색"></button>
-                      <button class="title-outline-swatch" data-title-outline-color="#b9d4d5" style="--swatch:#b9d4d5" type="button" role="radio" aria-checked="false" aria-label="미스트 블루"></button>
-                    </div>
-                    <label class="inspector-color-picker title-outline-color-picker" for="titleOutlineColorInput"><input id="titleOutlineColorInput" type="color" value="#ffffff" aria-label="제목 외곽선 직접 선택" /><span>직접 선택</span></label>
-                    <label class="title-outline-range" for="titleOutlineRange"><span>두께</span><input id="titleOutlineRange" type="range" min="0" max="6" value="0" step="1" aria-label="제목 외곽선 두께" /></label>
-                  </div>
-                </div>
+                <p class="copy-editor-hint sr-only" id="copyEditorHint" data-i18n="copy.hint">카드에서 제목을 선택하면 이 도구가 바로 적용됩니다.</p>
               </section>
 
               <section class="inspector-section card-compose-section card-style-section editor-category-section" id="cardStyleSection">
-                <div class="panel-section-head"><h2>배경</h2><span class="style-current-label" id="backgroundCurrentLabel" aria-live="polite">종이 · 패턴 없음 · 질감 없음</span></div>
+                <div class="panel-section-head"><h2 data-i18n="background.title">배경</h2><span class="style-current-label" id="backgroundCurrentLabel" aria-live="polite">종이 · 패턴 없음 · 질감 없음</span></div>
                 <div class="card-display-control" id="cardDisplaySetting">
-                  <div class="card-display-copy"><span>장비 정보</span><small>3인 이상 카드에 아이템 이름을 모두 표시합니다.</small></div>
-                  <label class="compact-switch card-display-switch"><input id="multiInfoToggle" type="checkbox" checked aria-label="카드에 장비 정보 표시" /><span></span><b>표시</b></label>
+                  <div class="card-display-copy"><span data-i18n="background.info">장비 정보</span></div><details class="control-help"><summary data-i18n-aria-label="help.open" aria-label="도움말"><span class="control-help-icon" aria-hidden="true">?</span></summary><div class="control-help-popover"><p data-i18n="background.infoHint">3인 이상 카드에 아이템 이름을 모두 표시합니다.</p></div></details>
+                  <label class="compact-switch card-display-switch"><input id="multiInfoToggle" type="checkbox" checked data-i18n-aria-label="background.displayAria" aria-label="카드에 장비 정보 표시" /><span></span><b data-i18n="background.display">표시</b></label>
                 </div>
-                <div class="compact-option-row" id="singleRatioRow"><span>1인 비율</span><div class="compact-segments" role="group" aria-label="1인 카드 비율"><button class="is-selected" data-single-ratio="portrait" type="button">세로 4:5</button><button data-single-ratio="landscape" type="button">가로 16:9</button></div></div>
-                <div class="compact-option-row" id="singleLayoutRow"><span>1인 배치</span><div class="compact-segments" role="group" aria-label="1인 카드 배치"><button class="is-selected" data-single-layout="info-left" type="button">정보 왼쪽</button><button data-single-layout="info-right" type="button">정보 오른쪽</button></div></div>
+                <div class="compact-option-row" id="singleRatioRow"><span data-i18n="background.ratio">1인 비율</span><div class="compact-segments" role="group" data-i18n-aria-label="background.ratioAria" aria-label="1인 카드 비율"><button class="is-selected" data-single-ratio="portrait" data-i18n="background.portrait" type="button">세로 4:5</button><button data-single-ratio="landscape" data-i18n="background.landscape" type="button">가로 16:9</button></div></div>
+                <div class="compact-option-row" id="singleLayoutRow"><span data-i18n="background.layout">1인 배치</span><div class="compact-segments" role="group" data-i18n-aria-label="background.layoutAria" aria-label="1인 카드 배치"><button class="is-selected" data-single-layout="info-left" data-i18n="background.infoLeft" type="button">정보 왼쪽</button><button data-single-layout="info-right" data-i18n="background.infoRight" type="button">정보 오른쪽</button></div></div>
                 <div class="background-art-panel" id="backgroundArtPanel">
-                  <div class="background-art-panel-head"><span>배경</span><small>단색 · 패턴 · 질감</small></div>
+                  <div class="background-art-panel-head"><span data-i18n="background.panel">배경</span><details class="control-help"><summary data-i18n-aria-label="help.open" aria-label="도움말"><span class="control-help-icon" aria-hidden="true">?</span></summary><div class="control-help-popover"><p data-i18n="background.panelHint">단색, 패턴, 질감을 조합해 배경을 꾸밉니다.</p></div></details></div>
                   <div class="background-art-group">
-                    <div class="background-art-heading"><span>단색</span><small>바탕색 하나 선택</small></div>
-                    <div class="backdrop-grid background-solid-grid" id="backdropGrid" role="radiogroup" aria-label="배경 단색">
-                      <button class="backdrop-swatch is-selected" data-background="paper" style="--backdrop:#f7f5f0" type="button" role="radio" aria-checked="true" aria-label="종이"><span class="background-art-preview background-art-preview--solid" aria-hidden="true"></span><span>종이</span></button>
-                      <button class="backdrop-swatch" data-background="mist" style="--backdrop:#e7eff2" type="button" role="radio" aria-checked="false" aria-label="미스트"><span class="background-art-preview background-art-preview--solid" aria-hidden="true"></span><span>미스트</span></button>
-                      <button class="backdrop-swatch" data-background="pearl" style="--backdrop:#f8f3ef" type="button" role="radio" aria-checked="false" aria-label="진주빛"><span class="background-art-preview background-art-preview--solid" aria-hidden="true"></span><span>진주</span></button>
-                      <button class="backdrop-swatch" data-background="rose" style="--backdrop:#e5cbc7" type="button" role="radio" aria-checked="false" aria-label="장미"><span class="background-art-preview background-art-preview--solid" aria-hidden="true"></span><span>장미</span></button>
-                      <button class="backdrop-swatch" data-background="tide" style="--backdrop:#b2ccd0" type="button" role="radio" aria-checked="false" aria-label="물빛"><span class="background-art-preview background-art-preview--solid" aria-hidden="true"></span><span>물빛</span></button>
-                      <button class="backdrop-swatch" data-background="dusk" style="--backdrop:#eee5d7" type="button" role="radio" aria-checked="false" aria-label="황혼"><span class="background-art-preview background-art-preview--solid" aria-hidden="true"></span><span>황혼</span></button>
-                      <button class="backdrop-swatch" data-background="ink" style="--backdrop:#343543" type="button" role="radio" aria-checked="false" aria-label="먹빛"><span class="background-art-preview background-art-preview--solid" aria-hidden="true"></span><span>먹빛</span></button>
-                      <button class="backdrop-swatch" data-background="charcoal" style="--backdrop:#25262b" type="button" role="radio" aria-checked="false" aria-label="차콜"><span class="background-art-preview background-art-preview--solid" aria-hidden="true"></span><span>차콜</span></button>
+                    <div class="background-art-heading"><span data-i18n="background.solid">단색</span></div>
+                    <div class="backdrop-grid background-solid-grid" id="backdropGrid" role="radiogroup" data-i18n-aria-label="background.solidAria" aria-label="배경 단색">
+                      <button class="backdrop-swatch is-selected" data-background="paper" style="--backdrop:#f7f5f0" type="button" role="radio" aria-checked="true" data-i18n-aria-label="background.paper" aria-label="종이"><span class="background-art-preview background-art-preview--solid" aria-hidden="true"></span><span data-i18n="background.paper">종이</span></button>
+                      <button class="backdrop-swatch" data-background="mist" style="--backdrop:#e7eff2" type="button" role="radio" aria-checked="false" data-i18n-aria-label="background.mist" aria-label="미스트"><span class="background-art-preview background-art-preview--solid" aria-hidden="true"></span><span data-i18n="background.mist">미스트</span></button>
+                      <button class="backdrop-swatch" data-background="pearl" style="--backdrop:#f8f3ef" type="button" role="radio" aria-checked="false" data-i18n-aria-label="background.pearl" aria-label="진주빛"><span class="background-art-preview background-art-preview--solid" aria-hidden="true"></span><span data-i18n="background.pearl">진주빛</span></button>
+                      <button class="backdrop-swatch" data-background="rose" style="--backdrop:#e5cbc7" type="button" role="radio" aria-checked="false" data-i18n-aria-label="background.rose" aria-label="장미"><span class="background-art-preview background-art-preview--solid" aria-hidden="true"></span><span data-i18n="background.rose">장미</span></button>
+                      <button class="backdrop-swatch" data-background="tide" style="--backdrop:#b2ccd0" type="button" role="radio" aria-checked="false" data-i18n-aria-label="background.tide" aria-label="물빛"><span class="background-art-preview background-art-preview--solid" aria-hidden="true"></span><span data-i18n="background.tide">물빛</span></button>
+                      <button class="backdrop-swatch" data-background="dusk" style="--backdrop:#eee5d7" type="button" role="radio" aria-checked="false" data-i18n-aria-label="background.dusk" aria-label="황혼"><span class="background-art-preview background-art-preview--solid" aria-hidden="true"></span><span data-i18n="background.dusk">황혼</span></button>
+                      <button class="backdrop-swatch" data-background="ink" style="--backdrop:#343543" type="button" role="radio" aria-checked="false" data-i18n-aria-label="background.ink" aria-label="먹빛"><span class="background-art-preview background-art-preview--solid" aria-hidden="true"></span><span data-i18n="background.ink">먹빛</span></button>
+                      <button class="backdrop-swatch" data-background="charcoal" style="--backdrop:#25262b" type="button" role="radio" aria-checked="false" data-i18n-aria-label="background.charcoal" aria-label="차콜"><span class="background-art-preview background-art-preview--solid" aria-hidden="true"></span><span data-i18n="background.charcoal">차콜</span></button>
+                      <button class="backdrop-swatch" data-background="custom" style="--backdrop:#f7f5f0" type="button" role="radio" aria-checked="false" data-i18n-aria-label="background.custom" aria-label="직접 지정"><span class="background-art-preview background-art-preview--solid" id="customBackgroundPreview" aria-hidden="true"></span><span data-i18n="background.custom">직접 지정</span></button>
+                    </div>
+                    <div class="custom-background-control" id="customBackgroundControl" hidden>
+                      <label for="customBackgroundColorInput" data-i18n="background.customColorLabel">색상</label>
+                      <input id="customBackgroundColorInput" type="color" value="#f7f5f0" data-i18n-aria-label="background.customColorAria" aria-label="직접 지정 배경 색상" />
+                      <output id="customBackgroundColorValue" for="customBackgroundColorInput">#F7F5F0</output>
                     </div>
                   </div>
                   <div class="background-art-group">
-                    <div class="background-art-heading"><span>패턴</span><small>한 가지 패턴 선택</small></div>
-                    <div class="background-art-grid" role="radiogroup" aria-label="배경 패턴">
+                    <div class="background-art-heading"><span data-i18n="background.pattern">패턴</span></div>
+                    <div class="background-art-grid" role="radiogroup" data-i18n-aria-label="background.patternAria" aria-label="배경 패턴">
                       <button class="background-art-choice is-selected" data-pattern="none" type="button" role="radio" aria-checked="true">
-                        <span class="background-art-preview background-art-preview--solid" aria-hidden="true"></span><span>없음</span>
+                        <span class="background-art-preview background-art-preview--solid" aria-hidden="true"></span><span data-i18n="pattern.none">없음</span>
                       </button>
                       <button class="background-art-choice" data-pattern="dots" type="button" role="radio" aria-checked="false">
-                        <span class="background-art-preview background-art-preview--dots" aria-hidden="true"></span><span>도트</span>
+                        <span class="background-art-preview background-art-preview--dots" aria-hidden="true"></span><span data-i18n="pattern.dots">도트</span>
                       </button>
                       <button class="background-art-choice" data-pattern="stars" type="button" role="radio" aria-checked="false">
-                        <span class="background-art-preview background-art-preview--stars" aria-hidden="true"></span><span>별</span>
+                        <span class="background-art-preview background-art-preview--stars" aria-hidden="true"></span><span data-i18n="pattern.stars">별</span>
                       </button>
                       <button class="background-art-choice" data-pattern="halftone" type="button" role="radio" aria-checked="false">
-                        <span class="background-art-preview background-art-preview--halftone" aria-hidden="true"></span><span>하프톤</span>
+                        <span class="background-art-preview background-art-preview--halftone" aria-hidden="true"></span><span data-i18n="pattern.halftone">하프톤</span>
                       </button>
                       <button class="background-art-choice" data-pattern="bitmap" type="button" role="radio" aria-checked="false">
-                        <span class="background-art-preview background-art-preview--bitmap" aria-hidden="true"></span><span>비트맵</span>
+                        <span class="background-art-preview background-art-preview--bitmap" aria-hidden="true"></span><span data-i18n="pattern.bitmap">체커보드</span>
                       </button>
                     </div>
                   </div>
                   <div class="background-art-group">
-                    <div class="background-art-heading"><span>질감</span><small>인쇄 질감 하나 선택</small></div>
-                    <div class="background-art-grid background-texture-grid" role="radiogroup" aria-label="배경 질감">
+                    <div class="background-art-heading"><span data-i18n="background.texture">질감</span></div>
+                    <div class="background-art-grid background-texture-grid" role="radiogroup" data-i18n-aria-label="background.textureAria" aria-label="배경 질감">
                       <button class="background-art-choice background-texture-choice is-selected" data-texture="none" type="button" role="radio" aria-checked="true">
-                        <span class="background-art-preview background-art-preview--texture-none" aria-hidden="true"></span><span>없음</span>
+                        <span class="background-art-preview background-art-preview--texture-none" aria-hidden="true"></span><span data-i18n="texture.none">없음</span>
                       </button>
                       <button class="background-art-choice background-texture-choice" data-texture="grain" type="button" role="radio" aria-checked="false">
-                        <span class="background-art-preview background-art-preview--texture-grain" aria-hidden="true"></span><span>그레인</span>
+                        <span class="background-art-preview background-art-preview--texture-grain" aria-hidden="true"></span><span data-i18n="texture.grain">그레인</span>
                       </button>
                     </div>
                   </div>
                 </div>
                 <div class="background-preset-panel" id="backgroundPresetPanel">
                   <div class="background-preset-panel-head">
-                    <div><span>내 프리셋</span><small id="backgroundPresetCount" aria-live="polite"></small></div>
-                    <button class="background-preset-save-button" id="saveBackgroundPresetButton" type="button" aria-expanded="false">＋ 저장</button>
+                    <div><span data-i18n="preset.title">내 프리셋</span><small id="backgroundPresetCount" aria-live="polite"></small></div>
+                    <button class="background-preset-save-button" id="saveBackgroundPresetButton" type="button" data-i18n="preset.save" aria-expanded="false">＋ 저장</button>
                   </div>
                   <form class="background-preset-form" id="backgroundPresetForm" hidden>
-                    <label class="background-preset-name-field" for="backgroundPresetName"><span>프리셋 이름</span><input id="backgroundPresetName" type="text" maxlength="28" placeholder="예: 분홍 별" autocomplete="off" /></label>
-                    <div class="background-preset-form-actions"><button class="secondary-button" id="backgroundPresetCancel" type="button">취소</button><button class="primary-button" type="submit">저장</button></div>
+                    <label class="background-preset-name-field" for="backgroundPresetName"><span data-i18n="preset.name">프리셋 이름</span><input id="backgroundPresetName" type="text" maxlength="28" data-i18n-placeholder="preset.namePlaceholder" placeholder="예: 분홍 별" autocomplete="off" /></label>
+                    <div class="background-preset-form-actions"><button class="secondary-button" id="backgroundPresetCancel" data-i18n="preset.cancel" type="button">취소</button><button class="primary-button" data-i18n="preset.savePlain" type="submit">저장</button></div>
                   </form>
                   <div class="background-preset-list" id="backgroundPresetList" role="list" hidden></div>
-                  <p class="background-preset-empty" id="backgroundPresetEmpty">단색·패턴·질감을 고른 뒤 저장하면 여기에서 다시 사용할 수 있습니다.</p>
+                  <p class="background-preset-empty" id="backgroundPresetEmpty" data-i18n="preset.empty">단색·패턴·질감을 고른 뒤 저장하면 여기에서 다시 사용할 수 있습니다.</p>
                 </div>
               </section>
 
@@ -339,15 +367,15 @@
                 <div class="items-summary"><h2 id="itemsSummaryTitle" aria-live="polite" aria-atomic="true">캐릭터 01</h2></div>
               </section>
               <section class="inspector-section item-character-section">
-                <div class="item-character-selector" id="itemCharacterSelector" role="group" aria-label="장비를 편집할 캐릭터"></div>
+                <div class="item-character-selector" id="itemCharacterSelector" role="group" data-i18n-aria-label="item.selector" aria-label="장비를 편집할 캐릭터"></div>
               </section>
               <section class="inspector-section catalog-section">
-                <label class="search-field catalog-search" for="itemSearch"><span class="field-label">아이템 검색</span><input id="itemSearch" type="search" placeholder="한국어·영문·일문 이름 또는 ID" autocomplete="off" /></label>
+                <label class="search-field catalog-search" for="itemSearch"><span class="field-label" data-i18n="item.searchLabel">아이템 검색</span><input id="itemSearch" type="search" data-i18n-placeholder="item.searchPlaceholder" placeholder="한국어·영문·일문 이름 또는 ID" autocomplete="off" /></label>
                 <p id="catalogStatus" class="sr-only" role="status" aria-atomic="true"></p>
                 <div class="catalog-results" id="catalogResults"></div>
               </section>
               <section class="inspector-section equipment-section">
-                <div class="section-kicker"><span>장비</span></div>
+                <div class="section-kicker"><span data-i18n="item.section">장비</span></div>
                 <div class="equipment-list" id="equipmentList"></div>
               </section>
             </div>
@@ -359,60 +387,64 @@
     <div class="image-editor-dialog image-editor-modebar" id="imageEditorDialog" role="region" aria-labelledby="imageEditorTitle" aria-describedby="imageEditorDescription" hidden>
       <div class="image-editor-dialog-shell">
         <header class="image-editor-dialog-header">
-          <div><span class="dialog-kicker">카드에서 직접 편집</span><h2 id="imageEditorTitle">크기와 위치 맞추기</h2><p id="imageEditorDescription">선택한 캐릭터만 강조됩니다. 카드에서 드래그하거나 방향키로 이동하세요.</p></div>
-          <button class="image-editor-close" id="closeImageEditorButton" type="button" aria-label="이미지 배치 편집 닫기">×</button>
+          <div><span class="dialog-kicker" data-i18n="imageEditor.kicker">카드에서 직접 편집</span><h2 id="imageEditorTitle" data-i18n="imageEditor.title">크기와 위치 맞추기</h2><p id="imageEditorDescription" data-i18n="imageEditor.description">선택한 캐릭터만 강조됩니다. 카드에서 드래그하거나 방향키로 이동하세요.</p></div>
+          <button class="image-editor-close" id="closeImageEditorButton" type="button" data-i18n-aria-label="imageEditor.close" aria-label="이미지 배치 편집 닫기">×</button>
         </header>
         <div class="image-editor-dialog-body">
           <div class="image-editor-dialog-controls">
             <section class="image-editor-control-group" aria-labelledby="imageEditorSizeTitle">
-              <div class="image-editor-control-head"><h3 id="imageEditorSizeTitle">크기</h3><output class="zoom-readout" id="zoomReadout" aria-live="polite" aria-atomic="true">100%</output></div>
-              <div class="image-zoom-controls"><button id="zoomOut" type="button" aria-label="선택한 이미지 축소">−</button><button id="zoomIn" type="button" aria-label="선택한 이미지 확대">＋</button><button class="image-fit-button" id="fitImageButton" type="button" aria-label="이미지를 프레임에 맞춤" title="이미지를 프레임에 맞춤">맞춤</button></div>
-              <label class="image-editor-range-label" for="zoomRange"><span class="sr-only">이미지 크기</span><input id="zoomRange" type="range" min="70" max="180" value="100" step="1" aria-label="선택한 이미지 크기" /></label>
+              <div class="image-editor-control-head"><h3 id="imageEditorSizeTitle" data-i18n="imageEditor.size">크기</h3><output class="zoom-readout" id="zoomReadout" aria-live="polite" aria-atomic="true">100%</output></div>
+              <div class="image-zoom-controls"><button id="zoomOut" type="button" data-i18n-aria-label="imageEditor.zoomOut" aria-label="선택한 이미지 축소">−</button><button id="zoomIn" type="button" data-i18n-aria-label="imageEditor.zoomIn" aria-label="선택한 이미지 확대">＋</button><button class="image-fit-button" id="fitImageButton" type="button" data-i18n="imageEditor.fit" data-i18n-aria-label="imageEditor.fitLabel" data-i18n-title="imageEditor.fitLabel" aria-label="이미지를 프레임에 맞춤" title="이미지를 프레임에 맞춤">맞춤</button></div>
+              <label class="image-editor-range-label" for="zoomRange"><span class="sr-only" data-i18n="imageEditor.imageSize">이미지 크기</span><input id="zoomRange" type="range" min="70" max="180" value="100" data-i18n-aria-label="imageEditor.imageSizeLabel" aria-label="선택한 이미지 크기" /></label>
             </section>
             <section class="image-editor-control-group" aria-labelledby="imageEditorPositionTitle">
-              <div class="image-editor-control-head"><h3 id="imageEditorPositionTitle">위치</h3><button class="image-center-button" id="centerImageButton" type="button" aria-label="이미지를 카드 중앙으로 복원" title="이미지를 카드 중앙으로 복원">중앙</button></div>
-              <details class="image-editor-precision"><summary>위치 미세 조정</summary><div class="image-position-sliders">
-                <label class="image-position-slider" for="panXRange"><span>가로</span><input id="panXRange" type="range" min="-260" max="260" value="0" step="1" aria-label="이미지 가로 위치" /><output id="panXReadout">중앙</output></label>
-                <label class="image-position-slider" for="panYRange"><span>세로</span><input id="panYRange" type="range" min="-260" max="260" value="0" step="1" aria-label="이미지 세로 위치" /><output id="panYReadout">중앙</output></label>
+              <div class="image-editor-control-head"><h3 id="imageEditorPositionTitle" data-i18n="imageEditor.position">위치</h3><button class="image-center-button" id="centerImageButton" type="button" data-i18n="imageEditor.centerLabel" data-i18n-aria-label="imageEditor.center" data-i18n-title="imageEditor.center" aria-label="이미지를 카드 중앙으로 복원" title="이미지를 카드 중앙으로 복원">중앙</button></div>
+              <details class="image-editor-precision"><summary data-i18n="imageEditor.precision">위치 미세 조정</summary><div class="image-position-sliders">
+                <label class="image-position-slider" for="panXRange"><span data-i18n="imageEditor.horizontal">가로</span><input id="panXRange" type="range" min="-260" max="260" value="0" step="1" data-i18n-aria-label="imageEditor.imageHorizontal" aria-label="이미지 가로 위치" /><output id="panXReadout">중앙</output></label>
+                <label class="image-position-slider" for="panYRange"><span data-i18n="imageEditor.vertical">세로</span><input id="panYRange" type="range" min="-260" max="260" value="0" step="1" data-i18n-aria-label="imageEditor.imageVertical" aria-label="이미지 세로 위치" /><output id="panYReadout">중앙</output></label>
               </div>
-              <div class="image-nudge-grid" role="group" aria-label="이미지 위치 미세 조정"><button data-image-nudge="up" type="button" aria-label="위로 이동">↑</button><button data-image-nudge="left" type="button" aria-label="왼쪽으로 이동">←</button><button data-image-nudge="right" type="button" aria-label="오른쪽으로 이동">→</button><button data-image-nudge="down" type="button" aria-label="아래로 이동">↓</button></div></details>
+              <div class="image-nudge-grid" role="group" data-i18n-aria-label="imageEditor.nudge" aria-label="이미지 위치 미세 조정"><button data-image-nudge="up" type="button" data-i18n-aria-label="imageEditor.up" aria-label="위로 이동">↑</button><button data-image-nudge="left" type="button" data-i18n-aria-label="imageEditor.left" aria-label="왼쪽으로 이동">←</button><button data-image-nudge="right" type="button" data-i18n-aria-label="imageEditor.right" aria-label="오른쪽으로 이동">→</button><button data-image-nudge="down" type="button" data-i18n-aria-label="imageEditor.down" aria-label="아래로 이동">↓</button></div></details>
             </section>
           </div>
         </div>
-        <footer class="image-editor-dialog-footer"><button class="secondary-button" id="cancelImageEditorButton" type="button">취소</button><button class="primary-button" id="applyImageEditorButton" type="button">적용</button></footer>
+        <footer class="image-editor-dialog-footer"><button class="secondary-button" id="cancelImageEditorButton" data-i18n="imageEditor.cancel" type="button">취소</button><button class="primary-button" id="applyImageEditorButton" data-i18n="imageEditor.apply" type="button">적용</button></footer>
       </div>
     </div>
 
     <dialog id="deleteWorkspaceDialog" class="delete-workspace-dialog" aria-labelledby="deleteWorkspaceTitle" aria-describedby="deleteWorkspaceDescription">
-      <h2 id="deleteWorkspaceTitle">이 브라우저의 작업을 모두 삭제할까요?</h2>
-      <p id="deleteWorkspaceDescription">LOOK BOOK, 원본 사진, 배경 제거 이미지와 배경 프리셋을 모두 삭제합니다. 삭제한 데이터는 되돌릴 수 없습니다.</p>
-      <div class="delete-workspace-actions"><button id="cancelWorkspaceDelete" type="button" autofocus>취소</button><button id="confirmWorkspaceDelete" type="button">모두 삭제</button></div>
+      <h2 id="deleteWorkspaceTitle" data-i18n="dialog.deleteTitle">이 브라우저의 작업을 모두 삭제할까요?</h2>
+      <p id="deleteWorkspaceDescription" data-i18n="dialog.deleteDescription">LOOK BOOK, 원본 사진, 배경 제거 이미지와 배경 프리셋을 모두 삭제합니다. 삭제한 데이터는 되돌릴 수 없습니다.</p>
+      <div class="delete-workspace-actions"><button id="cancelWorkspaceDelete" data-i18n="dialog.deleteCancel" type="button" autofocus>취소</button><button id="confirmWorkspaceDelete" data-i18n="dialog.deleteConfirm" type="button">모두 삭제</button></div>
     </dialog>
     <dialog id="lookManagerDialog" class="look-manager-dialog" aria-labelledby="lookManagerTitle">
-      <header><h2 id="lookManagerTitle">룩 관리</h2><button id="closeLookManager" type="button" aria-label="룩 관리 닫기">×</button></header>
+      <header><h2 id="lookManagerTitle" data-i18n="manager.title">룩 관리</h2><button id="closeLookManager" type="button" data-i18n-aria-label="manager.close" aria-label="룩 관리 닫기">×</button></header>
       <form id="renameLookForm">
-        <label for="lookNameInput">룩 이름</label>
-        <p id="lookNameHelp">카드 제목에도 함께 반영됩니다.</p>
-        <div class="look-rename-row"><input id="lookNameInput" type="text" maxlength="64" required aria-describedby="lookNameHelp" autocomplete="off" /><button type="submit">이름 저장</button></div>
+        <label for="lookNameInput" data-i18n="manager.name">룩 이름</label>
+        <p id="lookNameHelp" data-i18n="manager.nameHelp">카드 제목에도 함께 반영됩니다.</p>
+        <div class="look-rename-row"><input id="lookNameInput" type="text" maxlength="64" required aria-describedby="lookNameHelp" autocomplete="off" /><button data-i18n="manager.nameSave" type="submit">이름 저장</button></div>
       </form>
-      <div class="look-manager-action"><div><strong>이 룩 복제</strong><p>사진·장비·꾸미기를 복사해 새 룩을 만듭니다.</p></div><button id="duplicateLookButton" type="button">복제</button></div>
-      <div class="look-manager-action"><div><strong>이 룩 삭제</strong><p>새로고침 전까지 아래에서 삭제를 취소할 수 있습니다.</p></div><button id="deleteLookButton" type="button">삭제</button></div>
-      <footer><button id="restoreDeletedLookButton" type="button" disabled>삭제 취소</button><span id="lookManagerStatus" role="status" aria-live="polite"></span></footer>
+      <div class="look-manager-action"><div><strong data-i18n="manager.duplicateTitle">이 룩 복제</strong><p data-i18n="manager.duplicateDescription">사진·장비·꾸미기를 복사해 새 룩을 만듭니다.</p></div><button id="duplicateLookButton" data-i18n="manager.duplicate" type="button">복제</button></div>
+      <div class="look-manager-action"><div><strong data-i18n="manager.deleteTitle">이 룩 삭제</strong><p data-i18n="manager.deleteDescription">새로고침 전까지 아래에서 삭제를 취소할 수 있습니다.</p></div><button id="deleteLookButton" data-i18n="manager.delete" type="button">삭제</button></div>
+      <footer><button id="restoreDeletedLookButton" data-i18n="manager.restore" type="button" disabled>삭제 취소</button><span id="lookManagerStatus" role="status" aria-live="polite"></span></footer>
     </dialog>
     <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden />
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="models/look-editor.js?v=20260906-redesign-1"></script>
     <script src="models/look-book.js?v=20260906-management-1"></script>
     <script src="models/image-assets.js?v=20260907-project-name-1"></script>
+    <script src="models/image-validation.js?v=20260908-image-validation-1"></script>
+    <script src="models/draft-storage.js?v=20260908-draft-storage-3"></script>
+    <script src="models/i18n.js?v=20260908-i18n-4"></script>
+    <script src="models/item-records.js?v=20260908-item-records-1"></script>
     <script src="models/item-search.js?v=20260906-search-1"></script>
-    <script src="models/card-layout.js?v=20260907-two-person-rails-1"></script>
+    <script src="models/card-layout.js?v=20260908-image-rect-1"></script>
     <script src="models/card-copy.js?v=20260907-render-parity-1"></script>
     <script src="models/color-contrast.js?v=20260907-silhouette-contrast-1"></script>
-    <script src="models/card-png.js?v=20260907-silhouette-contrast-1"></script>
+    <script src="models/card-png.js?v=20260908-image-rect-1"></script>
     <script src="models/editor-navigation.js?v=20260906-navigation-1"></script>
     <script src="models/background-presets.js?v=20260907-background-presets-1"></script>
-    <script src="models/title-typography.js?v=20260907-typography-1"></script>
+    <script src="models/title-typography.js?v=20260908-typography-1"></script>
     <script src="models/background-removal.js?v=20260907-browser-birefnet-3"></script>
-    <script src="app.js?v=20260907-silhouette-contrast-1"></script>
+    <script src="app.js?v=20260908-localized-brand-1"></script>
   </body>
 </html>

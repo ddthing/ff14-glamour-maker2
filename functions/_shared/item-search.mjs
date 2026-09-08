@@ -1,3 +1,8 @@
+import {
+  resolveItemSlotFromEquipSlotCategory,
+  supportedItemSlots,
+} from "./item-slots.mjs";
+
 const itemSlotLabels = {
   head: { ko: "머리", en: "Head", ja: "頭" },
   body: { ko: "몸통", en: "Body", ja: "胴" },
@@ -7,19 +12,8 @@ const itemSlotLabels = {
   weapon: { ko: "무기", en: "Weapon", ja: "武器" },
 };
 
-const itemSlotByEquipSlotCategory = {
-  1: "weapon",
-  2: "weapon",
-  3: "head",
-  4: "body",
-  5: "hands",
-  7: "legs",
-  8: "feet",
-  13: "weapon",
-};
-
 export const supportedLanguages = ["ko", "en", "ja"];
-export const supportedSlots = Object.keys(itemSlotLabels);
+export const supportedSlots = supportedItemSlots;
 
 export function normaliseItemSearchText(value) {
   return String(value || "")
@@ -85,15 +79,46 @@ export function normaliseKoreanRecord(record) {
   };
 }
 
+// The Pages Function reuses the same immutable index for the lifetime of an
+// isolate. Normalising 23k records for every keystroke made search cost scale
+// with the catalog instead of the query. WeakMap keeps this cache scoped to
+// the exact index instance without retaining replaced/test indexes forever.
+const normalizedKoreanIndexCache = new WeakMap();
+
+function getNormalizedKoreanIndex(index) {
+  if (!Array.isArray(index)) return { all: [], bySlot: new Map() };
+  const cached = normalizedKoreanIndexCache.get(index);
+  if (cached) return cached;
+  const normalized = index.map(normaliseKoreanRecord).filter(Boolean);
+  const bySlot = new Map();
+  normalized.forEach((item) => {
+    const records = bySlot.get(item.slot) || [];
+    records.push(item);
+    bySlot.set(item.slot, records);
+  });
+  const searchable = { all: normalized, bySlot };
+  normalizedKoreanIndexCache.set(index, searchable);
+  return searchable;
+}
+
 export function searchKoreanItems(index, query, slot, limit = 8) {
   const queryNormalized = normaliseItemSearchText(query);
-  return index
-    .map(normaliseKoreanRecord)
-    .filter(Boolean)
-    .filter((item) => (!slot || item.slot === slot) && scoreItem(item, query, queryNormalized) >= 0)
-    .sort((left, right) => scoreItem(right, query, queryNormalized) - scoreItem(left, query, queryNormalized))
+  const normalized = getNormalizedKoreanIndex(index);
+  const candidates = slot ? normalized.bySlot.get(slot) || [] : normalized.all;
+  const matches = [];
+  candidates.forEach((item, order) => {
+    const score = scoreItem(item, query, queryNormalized);
+    if (score >= 0) matches.push({ item, score, order });
+  });
+  return matches
+    .sort((left, right) => right.score - left.score || left.order - right.order)
     .slice(0, limit)
-    .map(({ searchName, ...item }) => item);
+    .map(({ item }) => {
+      const { searchName, ...publicItem } = item;
+      // Do not expose the cached record's nested objects to callers that may
+      // enrich or otherwise mutate a result before it is registered.
+      return { ...publicItem, names: { ...publicItem.names }, meta: { ...publicItem.meta } };
+    });
 }
 
 function scoreItem(item, query, queryNormalized) {
@@ -113,7 +138,7 @@ function inferItemSlot(fields) {
   if (Number(equipSlotFields.Legs) > 0) return "legs";
   if (Number(equipSlotFields.Feet) > 0) return "feet";
   if (Number(equipSlotFields.MainHand) > 0 || Number(equipSlotFields.OffHand) > 0) return "weapon";
-  return itemSlotByEquipSlotCategory[Number(fields?.EquipSlotCategory?.value)] || "";
+  return resolveItemSlotFromEquipSlotCategory(fields?.EquipSlotCategory?.value);
 }
 
 function getIconUrl(icon) {

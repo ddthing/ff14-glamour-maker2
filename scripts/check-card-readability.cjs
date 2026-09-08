@@ -71,6 +71,9 @@ const castCounts = [1, 2, 3, 5];
       const boardButtons = [...board.querySelectorAll("button")].filter(visible);
       const title = document.querySelector("#boardTitle");
       const subtitle = document.querySelector("#boardSubtitle");
+      const copyright = document.querySelector("#boardCopyright");
+      const boardRect = board.getBoundingClientRect();
+      const copyrightRect = copyright?.getBoundingClientRect();
       const sourceMode = board.dataset.sourceMode;
       const infoEnabled = board.dataset.info === "true";
       return {
@@ -97,6 +100,17 @@ const castCounts = [1, 2, 3, 5];
           text: subtitle?.textContent?.trim() || "",
           color: subtitle ? getComputedStyle(subtitle).color : "",
         },
+        copyright: {
+          text: copyright?.textContent?.trim() || "",
+          color: copyright ? getComputedStyle(copyright).color : "",
+          display: copyright ? getComputedStyle(copyright).display : "none",
+          visibility: copyright ? getComputedStyle(copyright).visibility : "hidden",
+          width: copyrightRect?.width || 0,
+          height: copyrightRect?.height || 0,
+          leftInset: copyrightRect ? copyrightRect.left - boardRect.left : -1,
+          rightInset: copyrightRect ? boardRect.right - copyrightRect.right : -1,
+          bottomInset: copyrightRect ? boardRect.bottom - copyrightRect.bottom : -1,
+        },
         overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
       };
     });
@@ -111,6 +125,11 @@ const castCounts = [1, 2, 3, 5];
         assert.equal(snapshot.cast, String(count), `board cast did not settle for ${count}`);
         assert.equal(snapshot.background, background, `board background did not settle for ${background}`);
         assert.equal(snapshot.overflow, false, `card overflows viewport for ${count}/${background}`);
+        assert.equal(snapshot.copyright.text, "© SQUARE ENIX", `copyright notice missing for ${count}/${background}`);
+        assert.equal(snapshot.copyright.display, "block", `copyright notice is not rendered for ${count}/${background}`);
+        assert.equal(snapshot.copyright.visibility, "visible", `copyright notice is not visible for ${count}/${background}`);
+        assert.ok(snapshot.copyright.width > 0 && snapshot.copyright.height > 0, `copyright notice has no layout box for ${count}/${background}`);
+        assert.ok(snapshot.copyright.leftInset >= -1 && snapshot.copyright.rightInset >= -1 && snapshot.copyright.bottomInset >= -1, `copyright notice escapes the card for ${count}/${background}`);
         assert.ok(snapshot.title.name && snapshot.title.text && snapshot.title.color !== "rgba(0, 0, 0, 0)", `title layer lost semantics for ${count}/${background}`);
         assert.ok(snapshot.subtitle.name && snapshot.subtitle.color !== "rgba(0, 0, 0, 0)", `subtitle layer lost semantics for ${count}/${background}`);
         assert.equal(snapshot.titleHalo, "", `legacy title halo token leaked into ${count}/${background}`);

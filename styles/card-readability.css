@@ -81,7 +81,7 @@
   text-overflow: clip;
   white-space: normal !important;
   word-break: break-word;
-  background: color-mix(in srgb, currentColor 8%, transparent);
+  background: transparent;
 }
 
 /* Readability is never borrowed from the character beneath the copy. */
@@ -564,7 +564,8 @@ body.image-placement-mode .character-image-actions {
 }
 
 .canvas-board[data-copy-rendered="true"] .board-title-block > strong,
-.canvas-board[data-copy-rendered="true"] .board-title-block > .caption-description {
+.canvas-board[data-copy-rendered="true"] .board-title-block > .caption-description,
+.canvas-board[data-copy-rendered="true"] .board-copyright {
   filter: opacity(0) !important;
 }
 
@@ -573,8 +574,32 @@ body.image-placement-mode .character-image-actions {
 }
 
 .canvas-board[data-copy-editing="true"] .board-title-block > strong,
-.canvas-board[data-copy-editing="true"] .board-title-block > .caption-description {
+.canvas-board[data-copy-editing="true"] .board-title-block > .caption-description,
+.canvas-board[data-copy-editing="true"] .board-copyright {
   filter: none !important;
+}
+
+/* Every saved card carries the same unobtrusive rights notice. It is a
+   measured member of the shared copy layer, so its position and typography
+   stay identical in the live preview and PNG export. */
+.canvas-board .board-copyright {
+  position: absolute;
+  right: 5%;
+  bottom: 1.6%;
+  left: 5%;
+  z-index: 18;
+  display: block;
+  overflow: hidden;
+  color: var(--recipe-muted, var(--recipe-ink, currentColor));
+  font-family: var(--mono, var(--sans));
+  font-size: clamp(7px, 1.05cqw, 10px);
+  font-weight: 650;
+  letter-spacing: .04em;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 /* Material 3 state treatment, kept in the app's neutral visual language. */
@@ -773,6 +798,15 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
   text-align: left !important;
 }
 
+/* Keep the active copy target visible while the inspector is being used. This
+   is editor-only chrome: the PNG renderer receives the same copy values and
+   never receives this outline. */
+.canvas-board[data-copy-target="title"] .board-editorial-header .board-title-block > strong,
+.canvas-board[data-copy-target="subtitle"] .board-editorial-header .board-title-block > .caption-description {
+  outline: 1px dashed color-mix(in oklch, var(--primary) 72%, transparent);
+  outline-offset: clamp(3px, .5cqw, 7px);
+}
+
 /* Give the title block a real local width so left/center/right changes are
    visible even when the current title is short. Both preview and PNG use
    this same layer. */
@@ -878,4 +912,24 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
   width: 100% !important;
   height: 100% !important;
   max-width: none !important;
+}
+
+/* Keep the preview frame identical to CardPng's canvas frame. These legacy
+   borders were part of layout, so every image became smaller than its export
+   counterpart. Paint the same affordances without consuming image pixels. */
+.canvas-board {
+  border: 0;
+}
+
+.canvas-board[data-cutout="false"][data-cast="3"] .portrait-wrap .character-figure,
+.canvas-board[data-cutout="false"][data-cast="4"] .portrait-wrap .character-figure,
+.canvas-board[data-cutout="false"][data-cast="5"] .portrait-wrap .character-figure {
+  border-right: 0;
+  box-shadow: inset -1px 0 0 rgba(242, 244, 239, 0.42);
+}
+
+.canvas-board[data-cutout="false"][data-cast="3"] .portrait-wrap .character-figure:last-child,
+.canvas-board[data-cutout="false"][data-cast="4"] .portrait-wrap .character-figure:last-child,
+.canvas-board[data-cutout="false"][data-cast="5"] .portrait-wrap .character-figure:last-child {
+  box-shadow: none;
 }

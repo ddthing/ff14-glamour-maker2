@@ -4,6 +4,13 @@ const BackgroundPresets = (() => {
   const DEFAULT_LIMIT = 18;
   const MAX_NAME_LENGTH = 28;
   const MAX_ID_LENGTH = 80;
+  const DEFAULT_CUSTOM_BACKGROUND = "#f7f5f0";
+
+  function normaliseHexColor(value, fallback = "") {
+    return /^#[0-9a-f]{6}$/i.test(String(value || ""))
+      ? String(value).toLowerCase()
+      : fallback;
+  }
 
   function create({
     backgrounds = {},
@@ -26,8 +33,12 @@ const BackgroundPresets = (() => {
 
     function selection(source = {}) {
       const value = source && typeof source === "object" ? source : {};
+      const background = backgroundKeys.has(value.background) ? value.background : "paper";
       return {
-        background: backgroundKeys.has(value.background) ? value.background : "paper",
+        background,
+        customBackgroundColor: background === "custom"
+          ? normaliseHexColor(value.customBackgroundColor, DEFAULT_CUSTOM_BACKGROUND)
+          : "",
         backgroundPattern: patternKeys.has(value.backgroundPattern) ? value.backgroundPattern : "none",
         backgroundTexture: textureKeys.has(value.backgroundTexture) ? value.backgroundTexture : "none",
       };
@@ -35,7 +46,12 @@ const BackgroundPresets = (() => {
 
     function signature(source = {}) {
       const value = selection(source);
-      return [value.background, value.backgroundPattern, value.backgroundTexture].join("|");
+      return [
+        value.background,
+        ...(value.background === "custom" ? [value.customBackgroundColor] : []),
+        value.backgroundPattern,
+        value.backgroundTexture,
+      ].join("|");
     }
 
     function describe(source = {}) {

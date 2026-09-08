@@ -1,6 +1,260 @@
+/* Equipment and item search workspace ------------------------------------
+   Character selection, slot editing, and catalog results are inspector
+   concerns. Keeping their complete base recipe here prevents the core shell
+   stylesheet from accumulating late editor overrides. */
+.items-intro-section .items-summary {
+  align-items: flex-start;
+}
+
+.items-intro-section .items-summary > div {
+  display: grid;
+  gap: 4px;
+}
+
+.item-character-section .item-character-selector {
+  margin-top: 0;
+}
+
+.item-source-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 36px;
+  margin-top: 12px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted-foreground);
+  background: var(--muted);
+}
+
+.item-source-mark {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: var(--primary-foreground);
+  background: var(--primary);
+  font-family: var(--sans);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+.item-source-row > span:last-child {
+  display: grid;
+  gap: 1px;
+}
+
+.item-source-row strong {
+  color: var(--foreground);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.item-source-row small {
+  color: var(--muted-foreground);
+  font-family: var(--sans);
+  font-size: 9px;
+}
+
+.item-character-section {
+  padding-top: 15px;
+  padding-bottom: 15px;
+  background: color-mix(in oklch, var(--background) 96%, var(--muted));
+}
+
+.item-character-selector {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.item-character-button {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted-foreground);
+  background: var(--background);
+  text-align: left;
+  cursor: pointer;
+}
+
+.item-character-button:hover {
+  color: var(--foreground);
+  border-color: var(--line-strong);
+  background: var(--muted);
+}
+
+.item-character-button.is-selected {
+  color: var(--foreground);
+  border-color: var(--foreground);
+  box-shadow: 0 0 0 1px var(--foreground);
+}
+
+.item-character-thumb {
+  display: block;
+  width: 28px;
+  height: 32px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: var(--muted);
+}
+
+.item-character-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 28%;
+}
+
+.item-character-copy {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.item-character-copy strong {
+  overflow-wrap: anywhere;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.equipment-section .equipment-list {
+  gap: 5px;
+  margin-top: 11px;
+}
+
+.equipment-section .equipment-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+}
+
+.equipment-section .equipment-row:hover {
+  border-color: var(--line-strong);
+  background: var(--muted);
+}
+
+.equipment-section .equipment-row.is-selected {
+  border-color: var(--foreground);
+  box-shadow: 0 0 0 1px var(--foreground);
+}
+
+.equipment-section .equipment-row.is-empty {
+  color: var(--muted-foreground);
+  background: color-mix(in oklch, var(--background) 86%, var(--muted));
+}
+
+.equipment-section .equipment-icon {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--foreground);
+  background: var(--muted);
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.equipment-section .equipment-row.is-selected .equipment-icon {
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.equipment-section .equipment-copy {
+  gap: 2px;
+}
+
+.equipment-section .equipment-copy strong {
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 650;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.5;
+}
+
+.equipment-section .equipment-copy span {
+  overflow-wrap: anywhere;
+  color: var(--muted-foreground);
+  font-family: var(--sans);
+  font-size: 12px;
+  white-space: normal;
+  line-height: 1.5;
+}
+
+.equipment-section .equipment-check {
+  min-width: 27px;
+  color: var(--muted-foreground);
+  font-family: var(--sans);
+  font-size: 9px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.equipment-section .equipment-row.is-selected .equipment-check {
+  color: var(--foreground);
+}
+
+.catalog-section .catalog-search {
+  margin-top: 0;
+}
+
+.catalog-section .catalog-result {
+  min-height: 48px;
+  padding: 7px 4px;
+}
+
+.catalog-result-action {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--foreground);
+  background: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.catalog-result:hover .catalog-result-action {
+  border-color: var(--foreground);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+@media (max-width: 920px) {
+  .item-character-selector {
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    padding-bottom: 2px;
+  }
+
+  .item-character-button {
+    min-width: 76px;
+  }
+}
+
 /* Image editing workspace --------------------------------------------------
-   Import, placement and cutout are one compact task. These rules intentionally
-   live at the end of the cascade while the prototype is being consolidated. */
+   Import, placement and cutout are one compact inspector task. */
 .portrait-section {
   display: grid;
   gap: 14px;
@@ -136,40 +390,12 @@
   gap: 4px;
 }
 
-.image-editor-hint {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--muted-foreground);
-  font-size: 9px;
-  line-height: 1.45;
-}
-
-.image-editor-hint-key {
-  flex: 0 0 auto;
-  padding: 3px 5px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  color: var(--foreground);
-  background: var(--background);
-  font-weight: 700;
-}
-
 .cutout-action {
   display: flex;
   min-height: 42px;
   align-items: center;
   justify-content: space-between;
   padding-inline: 12px;
-}
-
-.cutout-action small {
-  color: var(--muted-foreground);
-  max-width: 62%;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.35;
-  text-align: end;
 }
 
 /* Discrete weights communicate what will happen better than a numeric slider. */
@@ -291,11 +517,6 @@
   color: var(--foreground);
   font-size: 10px;
   font-weight: 750;
-}
-
-.background-art-heading > small {
-  color: var(--muted-foreground);
-  font-size: 12px;
 }
 
 .background-art-grid {
@@ -434,11 +655,6 @@
   color: var(--foreground);
   font-size: 10px;
   font-weight: 750;
-}
-
-.background-art-panel-head > small {
-  color: var(--muted-foreground);
-  font-size: 8px;
 }
 
 .background-art-choice {
@@ -830,6 +1046,56 @@
 
 .backdrop-swatch .background-art-preview--solid {
   background: var(--backdrop);
+}
+
+.custom-background-control {
+  display: grid;
+  grid-template-columns: auto 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--background) 92%, var(--muted));
+}
+
+.custom-background-control[hidden] {
+  display: none;
+}
+
+.custom-background-control > label {
+  color: var(--muted-foreground);
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.custom-background-control input[type="color"] {
+  width: 34px;
+  height: 27px;
+  padding: 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--background);
+  cursor: pointer;
+}
+
+.custom-background-control input[type="color"]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.custom-background-control output {
+  overflow: hidden;
+  min-width: 0;
+  color: var(--muted-foreground);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .backdrop-swatch.is-selected::after,
@@ -1268,11 +1534,12 @@
 
 /* Card copy editor: a stable writing surface for long titles and descriptions.
    The canvas remains a direct-manipulation preview, while these fields keep
-   the full draft readable at every inspector width. */
+   the full draft readable at every inspector width. Keep the authoring tools
+   on the inspector surface instead of turning them into a nested card. */
 .copy-editor-section {
   display: grid;
   gap: 14px;
-  background: color-mix(in srgb, var(--card) 94%, var(--muted));
+  background: transparent;
 }
 
 /* Copy and title typography are one authoring task. Keep the font controls
@@ -1296,11 +1563,6 @@
   color: var(--foreground);
   font-size: 10px;
   font-weight: 700;
-}
-
-.copy-editor-typography-head > small {
-  color: var(--muted-foreground);
-  font-size: 9px;
 }
 
 .copy-editor-typography .title-font-control {
@@ -1472,8 +1734,7 @@
 }
 
 /* Put the high-attention placement work in one focused surface. */
-.image-placement-launch-row,
-.image-placement-tip-row {
+.image-placement-launch-row {
   min-height: var(--image-control-height);
 }
 
@@ -1511,10 +1772,6 @@
   transform: translateY(-1px);
 }
 
-.image-placement-tip-row .image-editor-hint {
-  min-width: 0;
-}
-
 /* Inspector image flow ---------------------------------------------------
    The order mirrors the user's task: inspect the current source, choose its
    frame, place it on the card, then run the optional cutout action. */
@@ -1531,28 +1788,6 @@
 .portrait-section .cutout-action {
   min-height: 42px;
   margin-top: 0;
-}
-
-.portrait-section .image-placement-tip-row {
-  min-height: var(--image-control-height);
-  margin-top: 0;
-  opacity: .82;
-}
-
-.portrait-section .image-placement-tip-row > span {
-  min-height: var(--image-control-height);
-  font-size: 9px;
-}
-
-.portrait-section .image-placement-tip-row .image-editor-hint {
-  gap: 6px;
-  font-size: 9px;
-}
-
-@media (max-width: 560px) {
-  .portrait-section .image-placement-tip-row .image-editor-hint {
-    align-items: flex-start;
-  }
 }
 
 /* Image placement dock ---------------------------------------------------
@@ -2039,15 +2274,16 @@
 .inspector .inspector-section { padding-block: 24px; scroll-margin-block-start: 64px; }
 .inspector :is(.panel-eyebrow, .panel-state, .panel-selection-summary,
   .source-copy span, .image-state, .copy-editor-hint,
-  .copy-editor-count, .copy-editor-field > span, .copy-editor-typography-head small,
+  .copy-editor-count, .copy-editor-field > span,
   .title-weight-option small, .title-weight-label, .background-art-heading span,
   .background-art-choice span, .backdrop-swatch > span:last-child,
-  .image-editor-hint, .compact-control-hint, .background-preset-empty,
+  .compact-control-hint, .background-preset-empty,
   .compact-option-row > span) { font-size: 12px; line-height: 1.5; }
 .inspector :is(.copy-editor-typography-head span, .compact-segments button,
   .cast-count-control button, .image-placement-launch, .cutout-action) { font-size: 13px; line-height: 1.5; }
 .inspector :is(.compact-segments button, .cast-count-control button) { min-height: 36px; }
 .inspector :is(.copy-editor-field textarea, .title-font-control select) { font-size: 14px; line-height: 1.6; }
+.compact-control-hint[data-ready="true"] { display: none; }
 .editor-category-section {
   border-top: 1px solid var(--border);
 }
@@ -2162,30 +2398,25 @@
    source data; this row controls whether that data is printed on lineup cards. */
 .card-display-control {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   min-width: 0;
   padding-block: 14px;
   border-block: 1px solid var(--border);
 }
 
 .card-display-copy {
-  display: grid;
+  display: flex;
   min-width: 0;
-  gap: 3px;
+  align-items: center;
+  gap: 8px;
 }
 
 .card-display-copy > span {
   color: var(--foreground);
   font-size: 13px;
   font-weight: 750;
-}
-
-.card-display-copy > small {
-  color: var(--muted-foreground);
-  font-size: 12px;
-  line-height: 1.45;
 }
 
 .card-display-switch {
@@ -2371,12 +2602,72 @@
   font-weight: 750;
 }
 
-.image-workflow-head > small {
-  min-width: 0;
+/* Optional context belongs behind one consistent, keyboard-accessible help
+   affordance. Keep the inspector quiet until a user asks for the detail. */
+.control-help {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.control-help > summary {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
   color: var(--muted-foreground);
-  font-size: 10px;
-  line-height: 1.4;
-  text-align: right;
+  background: var(--background);
+  font: 750 12px/1 var(--sans);
+  cursor: pointer;
+  list-style: none;
+  transition: color 140ms ease, border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.control-help > summary::-webkit-details-marker,
+.control-help > summary::marker {
+  display: none;
+  content: "";
+}
+
+.control-help > summary:hover,
+.control-help[open] > summary {
+  border-color: var(--primary);
+  color: var(--foreground);
+  background: color-mix(in oklch, var(--primary) 7%, var(--background));
+}
+
+.control-help > summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.control-help-popover {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 8px);
+  right: 0;
+  box-sizing: border-box;
+  width: min(280px, calc(100vw - 48px));
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--popover);
+  box-shadow: 0 12px 28px rgb(0 0 0 / .14);
+}
+
+.control-help-popover p {
+  margin: 0;
+  color: var(--popover-foreground);
+  font: 500 12px/1.55 var(--sans);
+}
+
+.control-help-popover p + p {
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid var(--border);
 }
 
 .image-treatment-group .cutout-action {
@@ -2422,6 +2713,197 @@
 }
 
 /* Copy controls ---------------------------------------------------------- */
+.copy-editor-contextbar {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.copy-editor-contextbar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.copy-editor-context-title {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.copy-editor-context-kicker {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .03em;
+  white-space: nowrap;
+}
+
+.copy-editor-context-title strong {
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy-editor-card-focus {
+  min-height: 34px;
+  flex: 0 0 auto;
+  padding-inline: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--inspector-pill-radius, 999px);
+  color: var(--foreground);
+  background: var(--muted);
+  font: 650 11px/1 var(--sans);
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.copy-editor-card-focus:hover {
+  border-color: var(--primary);
+  background: color-mix(in oklch, var(--primary) 7%, var(--muted));
+}
+
+.copy-editor-card-focus:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.copy-editor-toolbar {
+  display: grid;
+  gap: 12px;
+}
+
+.copy-editor-contextbar .copy-editor-style-grid {
+  grid-template-columns: 1fr;
+  gap: 10px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.copy-editor-contextbar .copy-editor-style-field {
+  gap: 7px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.copy-editor-contextbar .copy-editor-typography {
+  grid-template-columns: 1fr;
+  align-items: start;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.copy-editor-contextbar .title-font-control {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.copy-editor-contextbar .title-font-control select {
+  min-height: 40px;
+}
+
+.copy-editor-contextbar .title-alignment-controls button {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding-inline: 6px;
+}
+
+.alignment-glyph {
+  display: block;
+  width: 16px;
+  height: 14px;
+  flex: 0 0 16px;
+  color: currentColor;
+  background:
+    linear-gradient(currentColor, currentColor) left top / 16px 2px no-repeat,
+    linear-gradient(currentColor, currentColor) left 4px / 11px 2px no-repeat,
+    linear-gradient(currentColor, currentColor) left 8px / 16px 2px no-repeat,
+    linear-gradient(currentColor, currentColor) left 12px / 8px 2px no-repeat;
+}
+
+.alignment-glyph--center {
+  background-position: center top, center 4px, center 8px, center 12px;
+  background-size: 16px 2px, 12px 2px, 16px 2px, 10px 2px;
+}
+
+.alignment-glyph--right {
+  background-position: right top, right 4px, right 8px, right 12px;
+  background-size: 16px 2px, 10px 2px, 16px 2px, 8px 2px;
+}
+
+.copy-editor-contextbar .copy-editor-color-row {
+  flex-wrap: nowrap;
+}
+
+.copy-editor-contextbar .copy-editor-color-picker {
+  flex: 1 1 auto;
+}
+
+.copy-editor-advanced {
+  border-top: 1px solid var(--border);
+}
+
+.copy-editor-advanced > summary {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 4px;
+  color: var(--foreground);
+  font: 700 12px/1.4 var(--sans);
+  cursor: pointer;
+  list-style: none;
+}
+
+.copy-editor-advanced > summary::-webkit-details-marker,
+.copy-editor-advanced > summary::marker {
+  display: none;
+  content: "";
+}
+
+.copy-editor-advanced > summary::after {
+  color: var(--muted-foreground);
+  content: "＋";
+  font-size: 16px;
+  line-height: 1;
+}
+
+.copy-editor-advanced > summary:hover,
+.copy-editor-advanced[open] > summary {
+  color: var(--foreground);
+  background: color-mix(in oklch, var(--primary) 5%, var(--background));
+}
+
+.copy-editor-advanced[open] > summary::after {
+  color: var(--primary);
+  content: "－";
+}
+
+.copy-editor-advanced > summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.copy-editor-advanced .copy-editor-title-outline {
+  padding-top: 12px;
+  border-top: 0;
+}
+
 .copy-editor-style-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2533,9 +3015,25 @@
   --inspector-control-height: 40px;
   --inspector-control-radius: 12px;
   --inspector-pill-radius: 999px;
-  scrollbar-color: color-mix(in srgb, var(--muted-foreground) 42%, transparent) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
   scrollbar-width: thin;
   scrollbar-gutter: stable;
+}
+
+.inspector .catalog-results {
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  scrollbar-width: thin;
+}
+
+/* Touch screens should have one predictable document scroll. The catalog is
+   part of the inspector flow, so do not nest a second scroll surface inside
+   the mobile page; keep the capped result rail for wider layouts. */
+@media (max-width: 920px) {
+  .inspector .catalog-results {
+    max-height: none;
+    overflow: visible;
+    overscroll-behavior: auto;
+  }
 }
 
 /* Direction controls are still compact, but each arrow owns a real touch
@@ -2560,8 +3058,8 @@
 
 .inspector::-webkit-scrollbar,
 .inspector .catalog-results::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
 }
 
 .inspector::-webkit-scrollbar-track,
@@ -2573,13 +3071,13 @@
 .inspector .catalog-results::-webkit-scrollbar-thumb {
   border: 1px solid transparent;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--muted-foreground) 42%, transparent);
+  background: var(--scrollbar-thumb);
   background-clip: padding-box;
 }
 
 .inspector::-webkit-scrollbar-thumb:hover,
 .inspector .catalog-results::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--muted-foreground) 64%, transparent);
+  background: var(--scrollbar-thumb-hover);
   background-clip: padding-box;
 }
 
@@ -2608,26 +3106,19 @@
   line-height: 1.55;
 }
 
-.inspector .copy-editor-hint {
-  padding: 9px 11px;
-  border: 1px solid var(--border);
-  border-radius: var(--inspector-control-radius);
-  color: var(--muted-foreground);
-  background: var(--muted);
-}
-
 .inspector .copy-editor-style-grid {
   grid-template-columns: 1fr;
   gap: 10px;
-  padding-top: 16px;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .inspector .copy-editor-style-field {
   gap: 9px;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--inspector-control-radius);
-  background: color-mix(in srgb, var(--background) 72%, var(--muted));
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .inspector .copy-editor-typography-head {
@@ -2637,12 +3128,6 @@
 .inspector .copy-editor-typography-head > span {
   font-size: 12px;
   line-height: 1.35;
-}
-
-.inspector .copy-editor-typography-head > small {
-  font-size: 10px;
-  line-height: 1.35;
-  text-align: right;
 }
 
 .inspector .copy-editor-color-row {
@@ -2715,7 +3200,17 @@
 .inspector .copy-editor-typography,
 .inspector .copy-editor-title-outline {
   gap: 10px;
-  padding-top: 16px;
+}
+
+.inspector .copy-editor-contextbar .copy-editor-typography {
+  grid-template-columns: 1fr;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.inspector .copy-editor-contextbar .copy-editor-title-outline {
+  padding-top: 12px;
+  border-top: 0;
 }
 
 .inspector .title-font-control {
@@ -2811,12 +3306,32 @@
 }
 
 @media (max-width: 420px) {
+  .copy-editor-contextbar {
+    padding: 11px;
+  }
+
+  .copy-editor-contextbar-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .copy-editor-card-focus {
+    width: 100%;
+  }
+
+  .copy-editor-contextbar .copy-editor-style-grid,
+  .inspector .copy-editor-style-grid,
+  .copy-editor-contextbar .copy-editor-typography,
+  .inspector .copy-editor-contextbar .copy-editor-typography {
+    grid-template-columns: 1fr;
+  }
+
   .inspector .copy-editor-style-grid {
     gap: 12px;
   }
 
   .inspector .copy-editor-style-field {
-    padding: 12px 11px;
+    padding: 0;
   }
 
   .inspector .title-outline-controls {

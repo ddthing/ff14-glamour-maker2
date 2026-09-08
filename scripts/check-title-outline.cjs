@@ -30,7 +30,10 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.match(initial.stroke, /0px/, `default title outline should be disabled: ${initial.stroke}`);
     assert.equal(initial.boardHaloToken, "", "legacy title halo token leaked into the card");
 
+    await page.locator("#copyEditorAdvanced summary").click();
+    await page.locator('[data-title-outline-color="#263238"]').scrollIntoViewIfNeeded();
     await page.locator('[data-title-outline-color="#263238"]').click();
+    await page.locator("#titleOutlineRange").scrollIntoViewIfNeeded();
     await page.locator("#titleOutlineRange").fill("3");
     const applied = await page.evaluate(() => ({
       stroke: getComputedStyle(document.querySelector("#boardTitle")).webkitTextStroke,

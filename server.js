@@ -4,6 +4,12 @@ const path = require("path");
 const crypto = require("crypto");
 const { spawn } = require("child_process");
 
+// Keep local development and the Pages Function on the same search contract.
+// The server remains CommonJS because it owns the local worker lifecycle, so
+// load the ESM search adapter once and await it only when a request arrives.
+const itemSearchModulePromise = import("./functions/_shared/item-search.mjs");
+const itemIndexModulePromise = import("./functions/_shared/item-index.mjs");
+
 const root = __dirname;
 const port = Number(process.env.PORT || 4173);
 const runtimeDir = path.join(root, ".runtime", "background-removal");
@@ -34,34 +40,18 @@ const contentTypes = {
 
 const koreanItemCsvUrl = "https://raw.githubusercontent.com/Ra-Workspace/ffxiv-datamining-ko/master/csv/Item.csv";
 const koreanItemSnapshotPath = path.join(root, "assets", "data", "items-ko.json");
-const xivApiBaseUrl = "https://v2.xivapi.com/api";
+const koreanItemSnapshotBasePath = path.join(root, "assets", "data", "items-ko");
+const koreanIndexSlots = ["head", "body", "hands", "legs", "feet", "weapon"];
 const itemSearchCache = new Map();
 const itemSearchInflight = new Map();
-let koreanItemIndexPromise = null;
+const koreanItemIndexPromises = new Map();
+const koreanItemSnapshotPromises = new Map();
 const itemSearchCacheTtlMs = 5 * 60 * 1000;
 const itemSearchStaleTtlMs = 24 * 60 * 60 * 1000;
 const itemSearchCacheHeaders = {
   "Cache-Control": "public, max-age=0, s-maxage=300, stale-while-revalidate=86400",
 };
-const itemSlotByEquipSlotCategory = {
-  1: "weapon",
-  2: "weapon",
-  3: "head",
-  4: "body",
-  5: "hands",
-  7: "legs",
-  8: "feet",
-  13: "weapon",
-};
 const supportedItemSlots = new Set(["head", "body", "hands", "legs", "feet", "weapon"]);
-const itemSlotLabels = {
-  head: { ko: "머리", en: "Head", ja: "頭" },
-  body: { ko: "몸통", en: "Body", ja: "胴" },
-  hands: { ko: "손", en: "Hands", ja: "手" },
-  legs: { ko: "다리", en: "Legs", ja: "脚" },
-  feet: { ko: "발", en: "Feet", ja: "足" },
-  weapon: { ko: "무기", en: "Weapon", ja: "武器" },
-};
 
 function sendJson(response, statusCode, payload, headers = {}) {
   const body = JSON.stringify(payload);
@@ -80,215 +70,76 @@ function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
     .finally(() => clearTimeout(timeout));
 }
 
-function normaliseItemSearchText(value) {
-  return String(value || "")
-    .normalize("NFKC")
-    .toLocaleLowerCase("ko-KR")
-    .replace(/자켓/gu, "재킷")
-    .replace(/[\s\p{P}\p{S}]+/gu, "");
-}
+async function loadKoreanItemIndex(slot = "") {
+  const cacheKey = supportedItemSlots.has(slot) ? slot : "all";
+  const cached = koreanItemIndexPromises.get(cacheKey);
+  if (cached) return cached;
 
-function parseCsvLine(line) {
-  const fields = [];
-  let field = "";
-  let quoted = false;
-  for (let index = 0; index < line.length; index += 1) {
-    const character = line[index];
-    if (character === '"') {
-      if (quoted && line[index + 1] === '"') {
-        field += '"';
-        index += 1;
-      } else {
-        quoted = !quoted;
-      }
-    } else if (character === "," && !quoted) {
-      fields.push(field);
-      field = "";
+  const promise = Promise.resolve().then(async () => {
+    if (cacheKey !== "all") {
+      const slotPath = `${koreanItemSnapshotBasePath}-${cacheKey}.json`;
+      if (fs.existsSync(slotPath)) return readKoreanItemSnapshot(slotPath);
     } else {
-      field += character;
+      const partitionedPaths = koreanIndexSlots.map((part) => `${koreanItemSnapshotBasePath}-${part}.json`);
+      if (partitionedPaths.every((snapshotPath) => fs.existsSync(snapshotPath))) {
+        const partitions = await Promise.all(partitionedPaths.map((snapshotPath) => readKoreanItemSnapshot(snapshotPath)));
+        return partitions.flat();
+      }
     }
-  }
-  fields.push(field.replace(/\r$/, ""));
-  return fields;
-}
 
-function buildIconUrl(iconId) {
-  const numericIcon = Number(iconId);
-  if (!Number.isInteger(numericIcon) || numericIcon <= 0) return "";
-  const icon = String(numericIcon).padStart(6, "0");
-  const bucket = String(Math.floor(numericIcon / 1000) * 1000).padStart(6, "0");
-  return `https://xivapi.com/i/${bucket}/${icon}.png`;
-}
+    if (fs.existsSync(koreanItemSnapshotPath)) {
+      const index = await readKoreanItemSnapshot(koreanItemSnapshotPath);
+      return cacheKey === "all" ? index : index.filter((item) => item.slot === cacheKey);
+    }
 
-function itemMeta(slot, levelItem, language = "ko") {
-  const label = itemSlotLabels[slot]?.[language] || itemSlotLabels[slot]?.ko || "장비";
-  const level = Number(levelItem);
-  return Number.isFinite(level) && level > 0 ? `${label} · i${level}` : label;
-}
-
-function parseKoreanItemIndex(csv) {
-  const rows = csv.split(/\r?\n/);
-  const index = [];
-  for (let rowIndex = 3; rowIndex < rows.length; rowIndex += 1) {
-    if (!rows[rowIndex]) continue;
-    const fields = parseCsvLine(rows[rowIndex]);
-    const id = Number(fields[0]);
-    const name = String(fields[10] || "").trim();
-    const slot = itemSlotByEquipSlotCategory[Number(fields[18])];
-    if (!Number.isInteger(id) || id <= 0 || !name || !slot) continue;
-    index.push({
-      id: String(id),
-      slot,
-      icon: "",
-      iconUrl: buildIconUrl(fields[11]),
-      names: { ko: name },
-      meta: { ko: itemMeta(slot, fields[12], "ko") },
-      source: "ffxiv-ko-datamining",
-      searchName: normaliseItemSearchText(name),
-    });
-  }
-  return index;
-}
-
-async function loadKoreanItemIndex() {
-  if (koreanItemIndexPromise) return koreanItemIndexPromise;
-  if (fs.existsSync(koreanItemSnapshotPath)) {
-    koreanItemIndexPromise = Promise.resolve().then(() => readKoreanItemSnapshot()).catch((error) => {
-      koreanItemIndexPromise = null;
-      throw error;
-    });
-    return koreanItemIndexPromise;
-  }
-  koreanItemIndexPromise = fetchWithTimeout(koreanItemCsvUrl, {
-    headers: { "User-Agent": "tuyeong-set-maker2-item-search" },
-  }, 15000).then(async (result) => {
+    const result = await fetchWithTimeout(koreanItemCsvUrl, {
+      headers: { "User-Agent": "ff14-glamour-maker2-item-search" },
+    }, 15000);
     if (!result.ok) throw new Error(`한국어 장비 데이터 응답 오류 (${result.status})`);
-    return parseKoreanItemIndex(await result.text());
+    const itemIndexModule = await itemIndexModulePromise;
+    const parsed = itemIndexModule.parseKoreanItemIndex(await result.text());
+    itemIndexModule.assertKoreanItemIndexAudit(parsed.audit);
+    const index = parsed.records;
+    return cacheKey === "all" ? index : index.filter((item) => item.slot === cacheKey);
   }).catch((error) => {
-    koreanItemIndexPromise = null;
+    koreanItemIndexPromises.delete(cacheKey);
     throw error;
   });
-  return koreanItemIndexPromise;
+  koreanItemIndexPromises.set(cacheKey, promise);
+  return promise;
 }
 
-function readKoreanItemSnapshot() {
-  const records = JSON.parse(fs.readFileSync(koreanItemSnapshotPath, "utf8"));
-  if (!Array.isArray(records) || !records.length) throw new Error("한국어 아이템 snapshot이 비어 있습니다.");
-  const index = records.map((record) => {
-    const name = String(record?.names?.ko || "").trim();
-    const itemLevel = Number(record?.itemLevel);
-    if (!record?.id || !name || !supportedItemSlots.has(record.slot)) return null;
-    return {
-      ...record,
-      id: String(record.id),
-      slot: record.slot,
-      icon: "",
-      meta: { ko: itemMeta(record.slot, itemLevel, "ko") },
-      source: "ffxiv-ko-snapshot",
-      searchName: normaliseItemSearchText(name),
-    };
-  }).filter(Boolean);
-  if (!index.length) throw new Error("유효한 한국어 아이템 snapshot 레코드가 없습니다.");
-  return index;
-}
-
-function publicItemRecord(item) {
-  const { searchName, ...record } = item;
-  return record;
-}
-
-function scoreKoreanItem(item, query, queryNormalized) {
-  if (/^\d+$/.test(query) && item.id === query) return 1000;
-  if (!queryNormalized) return 0;
-  if (item.searchName === queryNormalized) return 900;
-  if (item.searchName.startsWith(queryNormalized)) return 700;
-  if (item.searchName.includes(queryNormalized)) return 500;
-  return -1;
-}
-
-async function searchKoreanItems(query, slot) {
-  const index = await loadKoreanItemIndex();
-  const queryNormalized = normaliseItemSearchText(query);
-  return index
-    .filter((item) => (!slot || item.slot === slot) && scoreKoreanItem(item, query, queryNormalized) >= 0)
-    .sort((left, right) => scoreKoreanItem(right, query, queryNormalized) - scoreKoreanItem(left, query, queryNormalized))
-    .slice(0, 8)
-    .map(publicItemRecord);
-}
-
-function inferItemSlot(fields) {
-  const equipSlotFields = fields?.EquipSlotCategory?.fields || {};
-  if (Number(equipSlotFields.Head) > 0) return "head";
-  if (Number(equipSlotFields.Body) > 0) return "body";
-  if (Number(equipSlotFields.Gloves) > 0) return "hands";
-  if (Number(equipSlotFields.Legs) > 0) return "legs";
-  if (Number(equipSlotFields.Feet) > 0) return "feet";
-  if (Number(equipSlotFields.MainHand) > 0 || Number(equipSlotFields.OffHand) > 0) return "weapon";
-  return "";
-}
-
-function normaliseXivItem(result, language) {
-  const fields = result?.fields || {};
-  const name = String(fields.Name || "").trim();
-  const id = String(result?.row_id || "");
-  const slot = inferItemSlot(fields);
-  if (!id || !name || !slot) return null;
-  const levelItem = fields.LevelItem?.value ?? fields.LevelItem;
-  const names = { [language]: name };
-  const meta = { [language]: itemMeta(slot, levelItem, language) };
-  return {
-    id,
-    slot,
-    icon: "",
-    iconUrl: buildIconUrl(fields.Icon?.id),
-    names,
-    meta,
-    source: "xivapi",
-  };
-}
-
-async function fetchXivItem(id, language) {
-  const url = new URL(`${xivApiBaseUrl}/sheet/Item/${encodeURIComponent(id)}`);
-  url.searchParams.set("fields", "Name,Icon,LevelItem,EquipSlotCategory");
-  url.searchParams.set("language", language);
-  const result = await fetchWithTimeout(url, { headers: { "User-Agent": "tuyeong-set-maker2-item-search" } });
-  if (!result.ok) throw new Error(`XIVAPI 아이템 조회 오류 (${result.status})`);
-  return normaliseXivItem(await result.json(), language);
-}
-
-async function searchXivItems(query, language, slot) {
-  if (/^\d+$/.test(query)) {
-    const item = await fetchXivItem(query, language);
-    return item && (!slot || item.slot === slot) ? [item] : [];
-  }
-  const safeQuery = query.replace(/["\\]/g, "\\$&");
-  const url = new URL(`${xivApiBaseUrl}/search`);
-  url.searchParams.set("sheets", "Item");
-  url.searchParams.set("fields", "Name,Icon,LevelItem,EquipSlotCategory");
-  url.searchParams.set("query", `Name~"${safeQuery}"`);
-  url.searchParams.set("language", language);
-  url.searchParams.set("limit", "24");
-  const result = await fetchWithTimeout(url, { headers: { "User-Agent": "tuyeong-set-maker2-item-search" } });
-  if (!result.ok) throw new Error(`XIVAPI 검색 오류 (${result.status})`);
-  const payload = await result.json();
-  return (payload.results || [])
-    .map((entry) => normaliseXivItem(entry, language))
-    .filter((item) => item && (!slot || item.slot === slot))
-    .slice(0, 8);
-}
-
-function resolveItemSearchLanguage(query, requestedLanguage) {
-  if (/^\d+$/.test(query)) return requestedLanguage;
-  if (/[\uAC00-\uD7A3]/u.test(query)) return "ko";
-  if (/[\u3040-\u30FF]/u.test(query)) return "ja";
-  return requestedLanguage === "ja" ? "ja" : "en";
+function readKoreanItemSnapshot(snapshotPath = koreanItemSnapshotPath) {
+  const cached = koreanItemSnapshotPromises.get(snapshotPath);
+  if (cached) return cached;
+  const promise = fs.promises.readFile(snapshotPath, "utf8").then((contents) => {
+    const records = JSON.parse(contents);
+    if (!Array.isArray(records) || !records.length) throw new Error("한국어 아이템 snapshot이 비어 있습니다.");
+    const index = records.map((record) => {
+      const name = String(record?.names?.ko || "").trim();
+      if (!record?.id || !name || !supportedItemSlots.has(record.slot)) return null;
+      return {
+        ...record,
+        id: String(record.id),
+        slot: record.slot,
+      };
+    }).filter(Boolean);
+    if (!index.length) throw new Error("유효한 한국어 아이템 snapshot 레코드가 없습니다.");
+    return index;
+  });
+  koreanItemSnapshotPromises.set(snapshotPath, promise);
+  promise.catch(() => {
+    if (koreanItemSnapshotPromises.get(snapshotPath) === promise) koreanItemSnapshotPromises.delete(snapshotPath);
+  });
+  return promise;
 }
 
 async function handleItemSearch(request, response) {
+  const searchModule = await itemSearchModulePromise;
   const requestUrl = new URL(request.url || "/", "http://localhost");
   const query = (requestUrl.searchParams.get("q") || "").trim().slice(0, 80);
   const requestedSlot = requestUrl.searchParams.get("slot") || "";
-  const slot = supportedItemSlots.has(requestedSlot) ? requestedSlot : "";
+  const slot = searchModule.supportedSlots.includes(requestedSlot) ? requestedSlot : "";
   const requestedLanguage = ["ko", "en", "ja"].includes(requestUrl.searchParams.get("language"))
     ? requestUrl.searchParams.get("language")
     : "ko";
@@ -296,8 +147,8 @@ async function handleItemSearch(request, response) {
     sendJson(response, 200, { results: [], language: requestedLanguage, source: "empty" });
     return;
   }
-  const language = resolveItemSearchLanguage(query, requestedLanguage);
-  const cacheKey = `${language}:${slot}:${normaliseItemSearchText(query)}`;
+  const language = searchModule.resolveItemSearchLanguage(query, requestedLanguage);
+  const cacheKey = `${language}:${slot}:${searchModule.normaliseItemSearchText(query)}`;
   const cached = itemSearchCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) {
     sendJson(response, 200, cached.payload, {
@@ -311,12 +162,12 @@ async function handleItemSearch(request, response) {
   if (!pending) {
     pending = (async () => {
       const results = language === "ko"
-        ? await searchKoreanItems(query, slot)
-        : await searchXivItems(query, language, slot);
+        ? searchModule.searchKoreanItems(await loadKoreanItemIndex(slot), query, slot)
+        : await searchModule.searchXivItems(query, language, slot, { version: process.env.XIVAPI_VERSION || "" });
       const payload = {
         results,
         language,
-        source: language === "ko" ? "ffxiv-ko-datamining" : "xivapi",
+        source: language === "ko" ? "ffxiv-ko-snapshot" : "xivapi",
       };
       const expiresAt = Date.now() + itemSearchCacheTtlMs;
       itemSearchCache.set(cacheKey, {
@@ -725,8 +576,20 @@ const server = http.createServer(async (request, response) => {
   let requestPath;
   try { requestPath = decodeURIComponent((request.url || "/").split("?")[0]); }
   catch { sendJson(response, 400, { error: "올바르지 않은 요청 주소입니다." }); return; }
-  const relativePath = requestPath === "/" ? "index.html" : requestPath.replace(/^\/+/, "");
-  const publicFile = ["index.html", "app.js", "styles.css", "robots.txt", "sitemap.xml", "models/look-editor.js", "models/look-book.js", "models/image-assets.js", "models/item-search.js", "models/card-layout.js", "models/card-copy.js", "models/color-contrast.js", "models/card-png.js", "models/editor-navigation.js", "models/background-presets.js", "models/title-typography.js", "models/background-removal.js"].includes(relativePath)
+  const cleanPagePaths = {
+    "/terms": "terms/index.html",
+    "/terms/": "terms/index.html",
+    "/privacy": "privacy/index.html",
+    "/privacy/": "privacy/index.html",
+    "/guide": "guide/index.html",
+    "/guide/": "guide/index.html",
+    "/contact": "contact/index.html",
+    "/contact/": "contact/index.html",
+    "/support": "support/index.html",
+    "/support/": "support/index.html",
+  };
+  const relativePath = requestPath === "/" ? "index.html" : cleanPagePaths[requestPath] || requestPath.replace(/^\/+/, "");
+  const publicFile = ["index.html", "app.js", "styles.css", "robots.txt", "sitemap.xml", "models/look-editor.js", "models/look-book.js", "models/image-assets.js", "models/image-validation.js", "models/draft-storage.js", "models/i18n.js", "models/public-pages.js", "models/item-records.js", "models/item-search.js", "models/card-layout.js", "models/card-copy.js", "models/color-contrast.js", "models/card-png.js", "models/editor-navigation.js", "models/background-presets.js", "models/title-typography.js", "models/background-removal.js", "terms/index.html", "privacy/index.html", "guide/index.html", "contact/index.html", "support/index.html"].includes(relativePath)
     || /^(styles\/[^/]+\.css|assets\/(data|fonts|icons)\/[^/]+\.(json|ttf|woff2?|svg))$/.test(relativePath);
   const filePath = path.resolve(root, relativePath);
   const isInsideRoot = filePath === root || filePath.startsWith(`${root}${path.sep}`);

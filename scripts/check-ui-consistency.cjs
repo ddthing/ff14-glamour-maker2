@@ -41,9 +41,10 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
       return {
         imageState: { dataState: state.dataset.state, radius: stateStyle.borderRadius, height: Math.round(state.getBoundingClientRect().height) },
         sourceCard: rect(".portrait-source-card"),
-        fitRow: rect(".image-fit-row"),
-        transformRow: rect(".image-transform-row"),
-        positionRow: rect(".image-position-row"),
+        imageRows: [".image-fit-row", ".image-transform-row"].map((selector) => ({
+          selector,
+          ...rect(selector),
+        })),
         cutout: rect("#cutoutButton"),
         previewEmpty: rect("#portraitWrap .character-figure.is-empty"),
         buttons,
@@ -58,7 +59,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.ok(["empty", "original", "cutout"].includes(snapshot.imageState.dataState), "image state has no visual state token");
     assert.equal(snapshot.imageState.radius, "999px", "image state should use the shared compact status shape");
     assert.ok(snapshot.sourceCard.width > 240 && snapshot.sourceCard.height >= 80, "source card collapsed below its readable working size");
-    for (const row of ["fitRow", "transformRow", "positionRow"]) assert.ok(snapshot[row].height >= 36, `${row} lost the shared control rhythm`);
+    assert.equal(snapshot.imageRows.length, 2, "image panel should keep only the frame and placement rows");
+    for (const row of snapshot.imageRows) assert.ok(row.height >= 36, row.selector + " lost the shared control rhythm");
     assert.ok(snapshot.cutout.height >= 40, "cutout action lost its primary working height");
     assert.ok(snapshot.previewEmpty.width >= 160 && snapshot.previewEmpty.height >= 56, "preview image add target lost its working size");
     assert.ok(snapshot.buttons.every(({ height }) => height >= 32), `image control below 32px: ${JSON.stringify(snapshot.buttons)}`);

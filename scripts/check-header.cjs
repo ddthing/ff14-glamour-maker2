@@ -5,13 +5,17 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
   const browser = await chromium.launch({ headless: true, channel: "msedge" });
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "languages", { configurable: true, get: () => ["ko-KR"] });
+      Object.defineProperty(navigator, "language", { configurable: true, get: () => "ko-KR" });
+    });
     await page.goto(process.env.TEST_BASE_URL || "http://localhost:4173/?header-check=1", { waitUntil: "networkidle" });
     await page.evaluate(() => localStorage.clear());
     await page.reload({ waitUntil: "networkidle" });
     await page.waitForSelector("#languageSelect");
 
     assert.equal(await page.locator("#shareButton").count(), 0, "share action should not be present");
-    assert.equal(await page.locator("#languageSelect").getAttribute("aria-label"), "카드와 아이템 언어");
+    assert.equal(await page.locator("#languageSelect").getAttribute("aria-label"), "페이지와 아이템 언어");
     assert.deepEqual(await page.locator("#languageSelect option").evaluateAll((options) => options.map((option) => option.value)), ["ko", "en", "ja"]);
     assert.equal(await page.locator("#languageSelect").inputValue(), "ko");
     assert.ok(await page.locator("#exportButton").isVisible(), "export should remain the primary header action");

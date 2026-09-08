@@ -2,6 +2,8 @@ const { create: defaultLookEditor, capture: captureEditorState, normalize: norma
   emptyCharacter: createEmptyCharacter, emptyCharacters: createEmptyCharacters,
   normalizeCharacter: ensureCharacterImageState } = LookEditor;
 
+const customBackgroundDefault = "#f7f5f0";
+
 const backgrounds = {
   dusk: {
     solid: "#eee5d7",
@@ -36,6 +38,7 @@ const backgrounds = {
   paper: { solid: "#f7f5f0", pattern: ["#858594", "#ffffff"], label: "종이" },
   mist: { solid: "#e7eff2", pattern: ["#648091", "#f8fdff"], label: "미스트" },
   charcoal: { solid: "#25262b", pattern: ["#dddbea", "#747481"], label: "차콜" },
+  custom: { solid: customBackgroundDefault, pattern: ["#858594", "#ffffff"], label: "직접 지정" },
 };
 
 const titleTypography = TitleTypography.create();
@@ -84,8 +87,8 @@ function syncTitleFontControls() {
   weightRow.hidden = options.length === 0;
   const hadWeightFocus = optionsHost.contains(document.activeElement);
   optionsHost.innerHTML = options.map(({ weight, label }) => `
-    <button class="title-weight-option${weight === state.titleWeight ? " is-selected" : ""}" type="button" data-title-weight="${weight}" role="radio" aria-checked="${weight === state.titleWeight}" aria-label="${escapeHtml(`${label} ${weight}`)}">
-      <span style="font-weight:${weight}">가</span><small>${escapeHtml(label)}</small>
+    <button class="title-weight-option${weight === state.titleWeight ? " is-selected" : ""}" type="button" data-title-weight="${weight}" role="radio" aria-checked="${weight === state.titleWeight}" aria-label="${escapeHtml(`${t(`font.weight.${weight}`) || label} ${weight}`)}">
+      <span style="font-weight:${weight}">${escapeHtml(t("font.sample"))}</span><small>${escapeHtml(t(`font.weight.${weight}`) || label)}</small>
     </button>
   `).join("");
   if (hadWeightFocus) optionsHost.querySelector('[aria-checked="true"]')?.focus();
@@ -120,6 +123,16 @@ function syncCopyColorControls() {
   }
 }
 
+function setCopyEditorTarget(target = "title") {
+  const nextTarget = target === "subtitle" ? "subtitle" : "title";
+  elements.board?.setAttribute("data-copy-target", nextTarget);
+  const targetLabel = document.getElementById("copyEditorTarget");
+  if (!targetLabel) return;
+  const translationKey = nextTarget === "subtitle" ? "copy.cardDescription" : "copy.cardTitle";
+  targetLabel.dataset.i18n = translationKey;
+  targetLabel.textContent = t(translationKey);
+}
+
 // Kept only to migrate drafts created before background presets existed.
 // These values never appear in the editor or in the new preset library.
 const legacyStyleRecipes = {
@@ -145,8 +158,23 @@ const legacyStyleRecipes = {
   },
 };
 
-function getExportTheme() {
-  const isDark = ["ink", "charcoal"].includes(state.background);
+function getBackgroundTheme(source = state) {
+  const backgroundKey = backgrounds[source?.background] ? source.background : "paper";
+  const base = backgrounds[backgroundKey];
+  if (backgroundKey !== "custom") return base;
+  const solid = normaliseHexColor(source?.customBackgroundColor, customBackgroundDefault);
+  const contrast = ColorContrast.themeFor(solid);
+  const muted = contrast.foreground === "#ffffff" ? "rgba(255, 255, 255, .66)" : "rgba(17, 17, 17, .66)";
+  return {
+    ...base,
+    solid,
+    pattern: [contrast.foreground, muted],
+  };
+}
+
+function getExportTheme(source = state) {
+  const background = getBackgroundTheme(source);
+  const isDark = ColorContrast.themeFor(background.solid).foreground === "#ffffff";
   const ink = isDark ? "#f7f3ed" : "#263238";
   const panelBase = isDark ? "#1d2228" : "#fffaf4";
   const panelBorder = isDark ? rgba("#f7f3ed", 0.24) : rgba("#263238", 0.18);
@@ -204,8 +232,8 @@ const patternStars = [
 
 const backgroundPatternOptions = new Set(["none", "dots", "stars", "halftone", "bitmap"]);
 const backgroundTextureOptions = new Set(["none", "grain"]);
-const projectName = "투영세트메이커2";
 const storageNamespace = "tuyeong-set-maker2";
+const languagePreferenceStorageKey = `${storageNamespace}-language-v1`;
 const draftStorageKey = `${storageNamespace}-draft-v3`;
 const uiPreferencesStorageKey = `${storageNamespace}-ui-v2`;
 const backgroundPresetStorageKey = `${storageNamespace}-background-presets-v2`;
@@ -229,7 +257,7 @@ const backgroundPatternLabels = Object.freeze({
   dots: "도트",
   stars: "별",
   halftone: "하프톤",
-  bitmap: "비트맵",
+  bitmap: "체커보드",
 });
 const backgroundTextureLabels = Object.freeze({ none: "질감 없음", grain: "그레인" });
 let backgroundPresets = [];
@@ -253,7 +281,20 @@ function getBackgroundSelectionSignature(source = state) {
 }
 
 function describeBackgroundSelection(source = state) {
-  return backgroundPresetModel.describe(source);
+  const selection = getBackgroundSelection(source);
+  const patternLabel = selection.backgroundPattern === "none"
+    ? t("background.patternNone")
+    : t(`pattern.${selection.backgroundPattern}`);
+  const textureLabel = selection.backgroundTexture === "none"
+    ? t("background.textureNone")
+    : t(`texture.${selection.backgroundTexture}`);
+  return [
+    selection.background === "custom"
+      ? t("background.customWithColor", { color: selection.customBackgroundColor.toUpperCase() })
+      : t(`background.${selection.background}`),
+    patternLabel,
+    textureLabel,
+  ].join(" · ");
 }
 
 function loadBackgroundPresets() {
@@ -280,14 +321,14 @@ function renderBackgroundPresets() {
   if (!list) return;
   const currentSignature = getBackgroundSelectionSignature();
   list.innerHTML = backgroundPresets.map((preset) => {
-    const background = backgrounds[preset.background];
+    const background = getBackgroundTheme(preset);
     const selected = getBackgroundSelectionSignature(preset) === currentSignature;
     return `<article class="background-preset-item${selected ? " is-current" : ""}">
-      <button class="background-preset-apply" type="button" data-background-preset-id="${escapeHtml(preset.id)}" aria-pressed="${selected}" aria-label="${escapeHtml(`${preset.name} 배경 프리셋 적용`)}">
+      <button class="background-preset-apply" type="button" data-background-preset-id="${escapeHtml(preset.id)}" aria-pressed="${selected}" aria-label="${escapeHtml(t("preset.apply", { name: preset.name }))}">
         <span class="background-preset-preview" data-pattern="${preset.backgroundPattern}" data-texture="${preset.backgroundTexture}" style="--preset-bg:${background.solid};--preset-ink:${background.pattern[0]};--preset-light:${background.pattern[1]}" aria-hidden="true"></span>
         <span class="background-preset-copy"><strong>${escapeHtml(preset.name)}</strong><small>${escapeHtml(describeBackgroundSelection(preset))}</small></span>
       </button>
-      <button class="background-preset-delete" type="button" data-background-preset-delete="${escapeHtml(preset.id)}" aria-label="${escapeHtml(`${preset.name} 프리셋 삭제`)}"><span aria-hidden="true">×</span></button>
+      <button class="background-preset-delete" type="button" data-background-preset-delete="${escapeHtml(preset.id)}" aria-label="${escapeHtml(t("preset.delete", { name: preset.name }))}"><span aria-hidden="true">×</span></button>
     </article>`;
   }).join("");
   list.hidden = backgroundPresets.length === 0;
@@ -302,7 +343,7 @@ function setBackgroundPresetFormOpen(open) {
   if (form) form.hidden = !backgroundPresetCreateOpen;
   if (trigger) {
     trigger.setAttribute("aria-expanded", String(backgroundPresetCreateOpen));
-    trigger.textContent = backgroundPresetCreateOpen ? "취소" : "＋ 저장";
+    trigger.textContent = backgroundPresetCreateOpen ? t("preset.cancel") : t("preset.save");
   }
   if (backgroundPresetCreateOpen) {
     const input = $("#backgroundPresetName");
@@ -319,7 +360,7 @@ function saveCurrentBackgroundPreset() {
   const name = input?.value.trim().slice(0, 28) || describeBackgroundSelection(selection);
   const result = backgroundPresetModel.add(backgroundPresets, selection, name);
   if (!result) {
-    showToast("같은 배경 조합이 이미 저장되어 있습니다.");
+    showToast(t("toast.presetDuplicate"));
     input?.focus();
     return false;
   }
@@ -328,7 +369,7 @@ function saveCurrentBackgroundPreset() {
   setBackgroundPresetFormOpen(false);
   renderBackgroundPresets();
   renderStyles({ refreshInfo: false, refreshPattern: false });
-  showToast(`${name} 배경 프리셋을 저장했습니다.`);
+  showToast(t("toast.presetSaved", { name }));
   return true;
 }
 
@@ -337,11 +378,12 @@ function applyBackgroundPreset(id) {
   if (!preset) return;
   recordHistory();
   state.background = preset.background;
+  state.customBackgroundColor = normaliseHexColor(preset.customBackgroundColor, customBackgroundDefault);
   state.backgroundPattern = preset.backgroundPattern;
   state.backgroundTexture = preset.backgroundTexture;
   renderStyles();
   saveState();
-  showToast(`${preset.name} 배경 프리셋을 적용했습니다.`);
+  showToast(t("toast.presetApplied", { name: preset.name }));
 }
 
 function deleteBackgroundPreset(id) {
@@ -350,20 +392,24 @@ function deleteBackgroundPreset(id) {
   backgroundPresets = backgroundPresetModel.remove(backgroundPresets, id);
   saveBackgroundPresets();
   renderBackgroundPresets();
-  showToast(`${preset.name} 프리셋을 삭제했습니다.`);
+  showToast(t("toast.presetDeleted", { name: preset.name }));
 }
 
 // The editor receives item records from the server search adapter. Keeping a
 // built-in catalog here made the first render look finished with fabricated
 // outfits and caused test data to leak into production drafts.
-const itemRecordCache = new Map();
+const outfitSlots = ["head", "body", "hands", "legs", "feet"];
+const itemRecordCache = ItemRecords.create({ slots: outfitSlots });
 const itemSearchState = {
   timer: null,
   mode: "idle",
 };
+// The search API currently returns eight matches. Keep a wider safety window
+// for future pagination, but never let an unexpectedly large payload create an
+// unbounded DOM subtree or eager image workload in the inspector.
+const catalogRenderLimit = 24;
 const itemSearch = ItemSearch.create({ fetch: (...args) => fetch(...args) });
 
-const outfitSlots = ["head", "body", "hands", "legs", "feet"];
 const outfitSlotNamesByLanguage = {
   ko: { head: "머리", body: "몸통", hands: "손", legs: "다리", feet: "발", weapon: "무기" },
   en: { head: "Head", body: "Body", hands: "Hands", legs: "Legs", feet: "Feet", weapon: "Weapon" },
@@ -377,11 +423,11 @@ const outfitSlotVisualLabelsByLanguage = {
 };
 const outfitSlotVisualLabels = outfitSlotVisualLabelsByLanguage.ko;
 function getOutfitSlotName(slot, language = state.language) {
-  return outfitSlotNamesByLanguage[language]?.[slot] || outfitSlotNames[slot] || "장비";
+  return outfitSlotNamesByLanguage[language]?.[slot] || outfitSlotNames[slot] || I18n.t("item.section", {}, language);
 }
 
 function getOutfitSlotVisualLabel(slot, language = state.language) {
-  return outfitSlotVisualLabelsByLanguage[language]?.[slot] || outfitSlotVisualLabels[slot] || "장비";
+  return outfitSlotVisualLabelsByLanguage[language]?.[slot] || outfitSlotVisualLabels[slot] || I18n.t("item.section", {}, language);
 }
 
 function createOutfit(itemIds = []) {
@@ -413,6 +459,11 @@ function outfitToItemIds(outfit) {
   return outfitSlots.map((slot) => outfit?.[slot]).filter(Boolean);
 }
 
+// Outfit collections are normalized at every external boundary (load, copy,
+// reset, and mutation). Keep the hot read path allocation-free between those
+// boundaries; WeakSet avoids adding bookkeeping fields to persisted looks.
+const normalizedOutfitCollections = new WeakSet();
+
 function ensureLookOutfits(look) {
   if (!Array.isArray(look.outfits) || !look.outfits.length) {
     look.outfits = createOutfits(look.itemIds || []);
@@ -420,7 +471,10 @@ function ensureLookOutfits(look) {
   while (look.outfits.length < 5) {
     look.outfits.push(createOutfit(look.itemIds || []));
   }
-  look.outfits = look.outfits.slice(0, 5).map((outfit) => normaliseOutfit(outfit));
+  if (look.outfits.length > 5 || !normalizedOutfitCollections.has(look.outfits)) {
+    look.outfits = look.outfits.slice(0, 5).map((outfit) => normaliseOutfit(outfit));
+    normalizedOutfitCollections.add(look.outfits);
+  }
   look.itemIds = outfitToItemIds(look.outfits[0]);
   return look.outfits;
 }
@@ -446,6 +500,7 @@ function createBlankLook(number = 1, id = `look-${number}`) {
     itemIds: [],
     outfits: createOutfits([]),
     background: "paper",
+    customBackgroundColor: customBackgroundDefault,
     backgroundPattern: "none",
     backgroundTexture: "none",
     titleFont: defaultTitleFont,
@@ -471,6 +526,7 @@ function createLookResetSnapshot(look, index = 0) {
     subtitle: blank.subtitle,
     outfits: cloneOutfits(blank.outfits),
     background: blank.background,
+    customBackgroundColor: blank.customBackgroundColor,
     backgroundPattern: blank.backgroundPattern,
     backgroundTexture: blank.backgroundTexture,
     titleAlign: blank.titleAlign,
@@ -484,8 +540,52 @@ function captureDefaultLookSnapshots() {
 
 captureDefaultLookSnapshots();
 
+function t(key, variables = {}, language = state?.language) {
+  return I18n.t(key, variables, language || I18n.fallbackLanguage);
+}
+
+function getDocumentTitle(look = getSelectedLook()) {
+  return `${t("project.name")} | ${getLookTitle(look)}`;
+}
+
+function getUserFacingError(error, fallbackKey) {
+  const message = typeof error?.message === "string" ? error.message.trim() : "";
+  if (!message) return t(fallbackKey);
+  if (state.language === "ko" && /[가-힣]/.test(message)) return message;
+  const dictionary = I18n.dictionaries[state.language] || {};
+  const isCurrentLanguageMessage = Object.values(dictionary).some((value) => value === message);
+  return isCurrentLanguageMessage ? message : t(fallbackKey);
+}
+
+function readLanguagePreference() {
+  try {
+    const saved = localStorage.getItem(languagePreferenceStorageKey);
+    return I18n.supportedLanguages.includes(saved) ? saved : "";
+  } catch {
+    return "";
+  }
+}
+
+function getInitialLanguage() {
+  return readLanguagePreference() || I18n.detectLanguage();
+}
+
+function persistLanguagePreference(language) {
+  try { localStorage.setItem(languagePreferenceStorageKey, I18n.normaliseLanguage(language)); } catch {
+    // The editor can still use the detected language for this session.
+  }
+}
+
+function getDefaultLookTitle(language = state?.language) {
+  return I18n.t("look.defaultTitle", {}, language || I18n.fallbackLanguage);
+}
+
+function isDefaultLookTitle(title) {
+  return !title || String(title).trim() === "새로운 룩";
+}
+
 const state = {
-  language: "ko",
+  language: getInitialLanguage(),
   selectedLookId: "look-1",
   activeSlot: "head",
   activePanel: "stylePanel",
@@ -493,6 +593,7 @@ const state = {
   selectedCharacter: 0,
   characters: createEmptyCharacters(),
   background: "paper",
+  customBackgroundColor: customBackgroundDefault,
   multiInfoEnabled: true,
   multiInfoMode: "clear",
   titleFont: defaultTitleFont,
@@ -529,6 +630,7 @@ const elements = {
   scenePattern: $("#scenePattern"),
   multiInfoLayer: $("#multiInfoLayer"),
   boardCopyCanvas: $("#boardCopyCanvas"),
+  boardCopyright: $("#boardCopyright"),
   sourceThumb: $("#sourceThumb"),
   sourceThumbFrame: $("#sourceThumbFrame"),
   sourceFileName: $("#sourceFileName"),
@@ -556,6 +658,7 @@ const elements = {
   equipmentList: $("#equipmentList"),
   catalogResults: $("#catalogResults"),
   languageSelect: $("#languageSelect"),
+  saveRetryButton: $("#saveRetryButton"),
   outlineRange: $("#outlineRange"),
   outlineValue: $("#outlineValue"),
   titleOutlineRange: $("#titleOutlineRange"),
@@ -573,6 +676,31 @@ const elements = {
   imageInput: $("#imageInput"),
 };
 
+function getLookTitle(look = getSelectedLook(), language = state.language) {
+  const value = typeof look?.title === "string" ? look.title.trim() : "";
+  return isDefaultLookTitle(value) ? getDefaultLookTitle(language) : value;
+}
+
+function applyPageLanguage(language = state.language) {
+  state.language = I18n.normaliseLanguage(language);
+  I18n.apply(document, state.language);
+  document.documentElement.lang = state.language;
+  document.documentElement.dataset.language = state.language;
+  if (elements.languageSelect) elements.languageSelect.value = state.language;
+  syncLibraryPanel();
+  if (typeof openPanel === "function") openPanel(state.activePanel);
+  return state.language;
+}
+
+function setExportButtonLabel(key) {
+  const button = document.getElementById("exportButton");
+  if (!button) return;
+  const label = button.querySelector("span[data-i18n]");
+  if (!label) return;
+  label.dataset.i18n = key;
+  label.textContent = t(key);
+}
+
 let toastTimer;
 let styleAdvancedOpen = false;
 const uiPreferences = { libraryCollapsed: true };
@@ -582,10 +710,15 @@ let imageEditorDirty = false;
 let imageEditorReturnFocus = null;
 let boardTitleResizeObserver = null;
 let cardCopyRenderFrame = 0;
+let boardTitleFitFrame = 0;
+let liveStyleRenderFrame = 0;
+let liveStyleRenderOptions = null;
+let cutoutProcessingKey = "cutout.processing";
+let cutoutProgress = null;
 
 const panelLabels = {
-  stylePanel: "꾸미기",
-  itemsPanel: "장비",
+  stylePanel: "mode.style",
+  itemsPanel: "mode.items",
 };
 const editorNavigation = EditorNavigation.create({
   panels: Object.keys(panelLabels),
@@ -639,12 +772,13 @@ function syncLibraryPanel() {
   const button = elements.libraryToggleButton;
   if (!button) return;
   button.setAttribute("aria-expanded", String(!collapsed));
-  button.setAttribute("aria-label", collapsed ? "LOOK BOOK 펼치기" : "LOOK BOOK 접기");
-  button.title = collapsed ? "LOOK BOOK 펼치기" : "LOOK BOOK 접기";
+  const libraryLabel = collapsed ? t("library.expand") : t("library.collapse");
+  button.setAttribute("aria-label", libraryLabel);
+  button.title = libraryLabel;
   const key = button.querySelector(".tool-key");
   const label = button.querySelector("small");
   if (key) key.textContent = collapsed ? "›" : "‹";
-  if (label) label.textContent = collapsed ? "LOOK BOOK 펼치기" : "LOOK BOOK 접기";
+  if (label) label.textContent = libraryLabel;
 }
 
 function toggleLibraryPanel() {
@@ -657,10 +791,17 @@ function getSelectedLook() {
   return looks.find((look) => look.id === state.selectedLookId) || looks[0];
 }
 
+// Most saves touch only the selected look. Keep normalized snapshots for the
+// other looks so a large look book does not repeatedly clone every untouched
+// editor state before the draft persistence write.
+const serializedLookCache = new WeakMap();
+
 function syncStateIntoLook(look = getSelectedLook()) {
   if (!look) return;
+  serializedLookCache.delete(look);
   look.editor = captureEditorState(state);
   look.background = backgrounds[state.background] ? state.background : "paper";
+  look.customBackgroundColor = normaliseHexColor(state.customBackgroundColor, customBackgroundDefault);
   look.backgroundPattern = backgroundPatternOptions.has(state.backgroundPattern) ? state.backgroundPattern : "none";
   look.backgroundTexture = backgroundTextureOptions.has(state.backgroundTexture) ? state.backgroundTexture : "none";
   look.titleFont = titleFonts[state.titleFont] ? state.titleFont : defaultTitleFont;
@@ -678,49 +819,15 @@ function getItem(itemId) {
 }
 
 function serializeItemRecord(item) {
-  const localise = (values) => Object.fromEntries(["ko", "en", "ja"]
-    .filter((language) => typeof values?.[language] === "string")
-    .map((language) => [language, values[language].slice(0, 160)]));
-  return {
-    id: String(item.id),
-    slot: outfitSlots.includes(item.slot) ? item.slot : "",
-    icon: typeof item.icon === "string" ? item.icon.slice(0, 160) : "",
-    iconUrl: typeof item.iconUrl === "string" && item.iconUrl.startsWith("https://") ? item.iconUrl.slice(0, 320) : "",
-    names: localise(item.names),
-    meta: localise(item.meta),
-    source: typeof item.source === "string" ? item.source.slice(0, 80) : "",
-  };
+  return itemRecordCache.serialize(item);
 }
 
 function getPersistedItemRecords() {
-  const referencedIds = new Set();
-  for (const look of looks) {
-    for (const outfit of getLookOutfits(look)) {
-      for (const itemId of outfitToItemIds(outfit)) {
-        const id = String(itemId);
-        if (/^\d+$/.test(id)) referencedIds.add(id);
-      }
-    }
-  }
-  return Array.from(referencedIds)
-    .map((id) => getItem(id))
-    .filter((item) => item && outfitSlots.includes(item.slot))
-    .map(serializeItemRecord);
+  return itemRecordCache.persistedRecords(looks);
 }
 
 function registerItemRecords(items = []) {
-  items.forEach((item) => {
-    if (!item?.id || !item?.slot || !item?.names) return;
-    const id = String(item.id);
-    const previous = itemRecordCache.get(id) || {};
-    itemRecordCache.set(id, {
-      ...previous,
-      ...item,
-      id,
-      names: { ...(previous.names || {}), ...item.names },
-      meta: { ...(previous.meta || {}), ...(item.meta || {}) },
-    });
-  });
+  itemRecordCache.register(items);
 }
 
 const localizedItemNameRequests = new Map();
@@ -774,8 +881,8 @@ function hydrateCurrentLookEnglishNames() {
 }
 
 function getItemName(item, language = state.language) {
-  if (!item) return "아이템을 연결하세요";
-  return item.names?.[language] || item.names?.ko || item.names?.en || item.names?.ja || `아이템 ${item.id}`;
+  if (!item) return I18n.t("item.emptyName", {}, language);
+  return item.names?.[language] || item.names?.ko || item.names?.en || item.names?.ja || `${I18n.t("item.section", {}, language)} ${item.id}`;
 }
 
 function getSecondaryItemName(item, language = state.language) {
@@ -786,8 +893,8 @@ function getSecondaryItemName(item, language = state.language) {
 }
 
 function getItemMeta(item, language = state.language) {
-  if (!item) return "아이템을 검색해 연결";
-  return item.meta?.[language] || item.meta?.ko || item.meta?.en || item.meta?.ja || "장비";
+  if (!item) return I18n.t("item.emptyHint", {}, language);
+  return item.meta?.[language] || item.meta?.ko || item.meta?.en || item.meta?.ja || I18n.t("item.section", {}, language);
 }
 
 function escapeHtml(value) {
@@ -811,10 +918,16 @@ function getItemImageUrl(item) {
   }
 }
 
-function renderItemImage(item, fallbackSlot = item?.slot) {
+function renderItemImage(item, fallbackSlot = item?.slot, { loading = "eager" } = {}) {
   const imageUrl = getItemImageUrl(item);
   if (!imageUrl) return renderEquipmentIcon(fallbackSlot);
-  return `<img class="item-image" src="${escapeHtml(imageUrl)}" alt="" loading="eager" decoding="async" referrerpolicy="no-referrer"><span class="item-image-fallback" aria-hidden="true">${renderEquipmentIcon(fallbackSlot)}</span>`;
+  return `<img class="item-image" src="${escapeHtml(imageUrl)}" alt="" loading="${loading === "lazy" ? "lazy" : "eager"}" decoding="async" referrerpolicy="no-referrer"><span class="item-image-fallback" aria-hidden="true">${renderEquipmentIcon(fallbackSlot)}</span>`;
+}
+
+function renderCharacterImage(source, { alt = "", loading = "lazy" } = {}) {
+  if (!source) return "";
+  const priority = loading === "eager" ? "eager" : "lazy";
+  return `<img src="${escapeHtml(source)}" alt="${escapeHtml(alt)}" loading="${priority}" decoding="async" draggable="false" />`;
 }
 
 function bindItemImageFallbacks(container) {
@@ -827,8 +940,11 @@ function bindItemImageFallbacks(container) {
   });
 }
 
-function renderCatalogIcon(item) {
-  return renderItemImage(item);
+function renderCatalogIcon(item, index = 0) {
+  // The API currently returns at most eight rows. Keep those immediately
+  // visible icons eager, but protect the list from eager-loading an unusually
+  // large response (or a future pagination change) past the first viewport.
+  return renderItemImage(item, item?.slot, { loading: index < 8 ? "eager" : "lazy" });
 }
 
 function renderEquipmentIcon(slot) {
@@ -899,10 +1015,16 @@ const characterAssetVault = ImageAssets.create({
   indexedDB: window.indexedDB,
   legacyDatabaseNames: ["glamour-atelier-assets-v1"],
 });
+const draftStorage = DraftStorage.create({
+  localStorage: window.localStorage,
+  indexedDB: window.indexedDB,
+  databaseName: `${storageNamespace}-drafts-v1`,
+});
 
 let assetCleanupTimer;
 let workspaceEpoch = 0;
 const pendingAssetWrites = new Set();
+const pendingImageImports = new Map();
 async function writeCharacterAsset(key, value) {
   const write = characterAssetVault.update(key, value);
   pendingAssetWrites.add(write);
@@ -916,7 +1038,7 @@ function createAssetUrl(blob) {
 function scheduleAssetCleanup() {
   clearTimeout(assetCleanupTimer);
   assetCleanupTimer = setTimeout(() => {
-    if (exportInProgress || lookCopyInProgress || pendingAssetWrites.size || $("#cutoutButton")?.classList.contains("is-processing")) { scheduleAssetCleanup(); return; }
+    if (exportInProgress || lookCopyInProgress || pendingAssetWrites.size || pendingImageImports.size || $("#cutoutButton")?.classList.contains("is-processing")) { scheduleAssetCleanup(); return; }
     const snapshots = [state, ...state.history, ...state.redo,
       ...[...looks, ...deletedLooks.map(entry => entry.look)].flatMap(look => [look.editor, ...(look.history || []), ...(look.redo || [])])];
     const characters = snapshots.flatMap(snapshot => snapshot?.characters || []);
@@ -925,6 +1047,53 @@ function scheduleAssetCleanup() {
     for (const url of assetUrls) if (!liveUrls.has(url)) { revokeObjectUrl(url); assetUrls.delete(url); }
     void characterAssetVault.prune(liveKeys).catch(() => {});
   }, 1000);
+}
+
+function imageImportTargetKey(look, characterIndex) {
+  return `${look.id}\u0000${characterIndex}`;
+}
+
+function disposeImageImport(transaction) {
+  revokeObjectUrl(transaction.nextCharacter?.src);
+  assetUrls.delete(transaction.nextCharacter?.src);
+  scheduleAssetCleanup();
+}
+
+function invalidatePendingImageImports({ look = null, characterIndex = null } = {}) {
+  for (const [targetKey, transaction] of pendingImageImports) {
+    if (look && transaction.look !== look) continue;
+    if (characterIndex !== null && transaction.targetIndex !== characterIndex) continue;
+    pendingImageImports.delete(targetKey);
+    disposeImageImport(transaction);
+  }
+}
+
+function isCurrentImageImport(transaction) {
+  return transaction.operationEpoch === workspaceEpoch
+    && pendingImageImports.get(transaction.targetKey) === transaction;
+}
+
+function releaseImageImport(transaction) {
+  if (pendingImageImports.get(transaction.targetKey) === transaction) pendingImageImports.delete(transaction.targetKey);
+}
+
+function ensureLookEditorCharacters(look) {
+  if (!look.editor || !Array.isArray(look.editor.characters)) look.editor = defaultLookEditor();
+  while (look.editor.characters.length < 5) look.editor.characters.push(LookEditor.emptyCharacter());
+  return look.editor.characters;
+}
+
+function commitImageImport(transaction) {
+  const { look, targetIndex, nextCharacter } = transaction;
+  if (getSelectedLook() === look) {
+    state.characters[targetIndex] = nextCharacter;
+    if (targetIndex === state.selectedCharacter) syncSelectedCharacter();
+    syncStateIntoLook(look);
+    return;
+  }
+  ensureLookEditorCharacters(look)[targetIndex] = { ...nextCharacter };
+  LookEditor.normalizeCharacter(look.editor.characters[targetIndex]);
+  serializedLookCache.delete(look);
 }
 
 function createAssetKey() {
@@ -969,13 +1138,14 @@ function normaliseTitleAlign(value) {
 function resolveTitleAlign() {
   if (state.titleAlign !== "auto") return state.titleAlign;
   if (state.characterCount === 1 && state.singleRatio === "portrait") return "center";
-  if (state.characterCount >= 3) return "center";
+  if (state.characterCount >= 2) return "center";
   if (state.characterCount === 1 && state.singleLayout === "info-right") return "right";
   return "left";
 }
 
 function defaultTitleColor() {
-  return ["ink", "charcoal"].includes(state.background) ? "#f7f3ed" : "#263238";
+  const background = getBackgroundTheme();
+  return ColorContrast.themeFor(background.solid).foreground === "#ffffff" ? "#f7f3ed" : "#263238";
 }
 
 function serializeCharacter(character = {}) {
@@ -1028,7 +1198,7 @@ function isImagePlacementChanged(snapshot = imageEditorSnapshot) {
 
 function syncImagePlacementSummary() {
   if (elements.imagePlacementSummary) {
-    const placement = state.panX === 0 && state.panY === 0 ? "기본 위치" : "사용자 지정";
+    const placement = state.panX === 0 && state.panY === 0 ? t("image.defaultPosition") : t("image.customPosition");
     elements.imagePlacementSummary.textContent = `${state.zoom}% · ${placement}`;
   }
 }
@@ -1045,7 +1215,7 @@ function openImageEditor() {
   document.body.classList.add("image-placement-mode");
   elements.imageEditorDialog.hidden = false;
   elements.openImageEditorButton?.setAttribute("aria-expanded", "true");
-  elements.portraitWrap?.setAttribute("aria-label", "이미지 배치 편집 중. 선택한 캐릭터를 드래그하거나 방향키로 이동하세요.");
+  elements.portraitWrap?.setAttribute("aria-label", t("canvas.editingPlacement"));
   syncImagePlacementSummary();
   window.requestAnimationFrame(() => {
     const selectedFigure = elements.portraitWrap?.querySelector(`.character-figure[data-character-index="${state.selectedCharacter}"]`);
@@ -1073,12 +1243,12 @@ function finishImageEditor(apply) {
   document.body.classList.remove("image-placement-mode");
   elements.imageEditorDialog.hidden = true;
   elements.openImageEditorButton?.setAttribute("aria-expanded", "false");
-  elements.portraitWrap?.setAttribute("aria-label", "캐릭터 배치 영역");
+  elements.portraitWrap?.setAttribute("aria-label", t("canvas.characters"));
   elements.portraitWrap?.classList.remove("is-dragging");
   elements.portraitWrap?.querySelector(".character-figure[aria-describedby=\"imageEditorDescription\"]")?.removeAttribute("aria-describedby");
   imageEditorReturnFocus?.focus?.({ preventScroll: true });
   imageEditorReturnFocus = null;
-  if (apply && changed) showToast("이미지 배치를 적용했습니다.");
+  if (apply && changed) showToast(t("toast.placementApplied"));
 }
 
 async function restoreCharacterAssets(savedCharacters = [], characters = state.characters, { sync = true } = {}) {
@@ -1113,13 +1283,16 @@ async function restoreCharacterAssets(savedCharacters = [], characters = state.c
 
 
 function serializeLook(look) {
+  const cached = serializedLookCache.get(look);
+  if (cached) return cached;
   const editor = normaliseLookEditor(look.editor || defaultLookEditor());
-  return {
+  const serialized = {
     id: String(look.id),
     title: typeof look.title === "string" ? look.title : "새로운 룩",
     subtitle: typeof look.subtitle === "string" ? look.subtitle : "",
     outfits: cloneOutfits(getLookOutfits(look)),
     background: backgrounds[look.background] ? look.background : "paper",
+    customBackgroundColor: normaliseHexColor(look.customBackgroundColor, customBackgroundDefault),
     backgroundPattern: backgroundPatternOptions.has(look.backgroundPattern) ? look.backgroundPattern : "none",
     backgroundTexture: backgroundTextureOptions.has(look.backgroundTexture) ? look.backgroundTexture : "none",
     titleFont: titleFonts[look.titleFont] ? look.titleFont : defaultTitleFont,
@@ -1130,10 +1303,14 @@ function serializeLook(look) {
     titleOutline: normaliseOutline(look.titleOutline, "#ffffff", 6),
     editor: { ...editor, characters: editor.characters.map(serializeCharacter) },
   };
+  serializedLookCache.set(look, serialized);
+  return serialized;
 }
 
 const draftSaveDebounceMs = 180;
+const draftIndexedDbLookThreshold = 100;
 let scheduledSaveTimer = 0;
+let draftSaveSequence = 0;
 
 function scheduleSaveState() {
   window.clearTimeout(scheduledSaveTimer);
@@ -1144,25 +1321,24 @@ function scheduleSaveState() {
 }
 
 function flushScheduledSaveState() {
-  if (!scheduledSaveTimer) return;
-  window.clearTimeout(scheduledSaveTimer);
-  scheduledSaveTimer = 0;
-  saveState();
-}
-
-function saveState() {
+  if (!scheduledSaveTimer && !draftSaveRun) return;
   if (scheduledSaveTimer) {
     window.clearTimeout(scheduledSaveTimer);
     scheduledSaveTimer = 0;
   }
+  saveState({ immediate: true });
+}
+
+function createDraftSnapshot() {
   const look = getSelectedLook();
   syncStateIntoLook(look);
-  const snapshot = {
+  return {
     version: 3,
     looks: looks.map(serializeLook),
     title: look.title,
     subtitle: look.subtitle,
     background: state.background,
+    customBackgroundColor: normaliseHexColor(state.customBackgroundColor, customBackgroundDefault),
     cutout: state.cutout,
     outline: normaliseOutline(state.outline, "#f1dfbb", 8),
     titleOutline: normaliseOutline(state.titleOutline, "#ffffff", 6),
@@ -1190,18 +1366,86 @@ function saveState() {
     backgroundTexture: state.backgroundTexture,
     characters: state.characters.map(serializeCharacter),
   };
-  try {
-    localStorage.setItem(draftStorageKey, JSON.stringify(snapshot));
-    setSaveStatus("이 브라우저에 저장됨");
-    scheduleAssetCleanup();
-  } catch {
-    setSaveStatus("저장 실패 · 브라우저 저장 공간을 확인하세요", true);
+}
+
+function finishDraftSave(run, saveSequence, failed = false) {
+  if (run.needsRun) {
+    runDraftSave(run);
+    return;
   }
+  if (draftSaveRun === run) draftSaveRun = null;
+  if (failed) {
+    if (saveSequence === draftSaveSequence) setSaveStatus(t("status.saveFailed"), true);
+  } else if (saveSequence === draftSaveSequence) {
+    setSaveStatus(t("status.saved"));
+    scheduleAssetCleanup();
+  }
+  run.resolve();
+}
+
+function runDraftSave(run) {
+  run.needsRun = false;
+  run.started = true;
+  const saveSequence = run.latestSequence;
+  let writePromise;
+  setSaveStatus(t("status.saving"));
+  try {
+    const snapshot = createDraftSnapshot();
+    writePromise = typeof draftStorage.writeValue === "function"
+      ? draftStorage.writeValue(draftStorageKey, snapshot, { preferIndexedDb: looks.length >= draftIndexedDbLookThreshold })
+      : draftStorage.write(draftStorageKey, JSON.stringify(snapshot));
+  } catch {
+    finishDraftSave(run, saveSequence, true);
+    return;
+  }
+  return Promise.resolve(writePromise)
+    .then(() => finishDraftSave(run, saveSequence))
+    .catch(() => finishDraftSave(run, saveSequence, true));
+}
+
+let draftSaveRun = null;
+
+function saveState({ immediate = false } = {}) {
+  if (scheduledSaveTimer) {
+    window.clearTimeout(scheduledSaveTimer);
+    scheduledSaveTimer = 0;
+  }
+  const saveSequence = ++draftSaveSequence;
+  if (draftSaveRun) {
+    draftSaveRun.latestSequence = saveSequence;
+    draftSaveRun.needsRun = true;
+    if (immediate && !draftSaveRun.started) runDraftSave(draftSaveRun);
+    return draftSaveRun.promise;
+  }
+
+  const run = {
+    latestSequence: saveSequence,
+    needsRun: false,
+    started: false,
+    promise: null,
+    resolve: null,
+  };
+  run.promise = new Promise((resolve) => { run.resolve = resolve; });
+  draftSaveRun = run;
+  if (immediate) {
+    runDraftSave(run);
+  } else {
+    queueMicrotask(() => {
+      if (draftSaveRun === run && !run.started) runDraftSave(run);
+    });
+  }
+  return run.promise;
 }
 
 function setSaveStatus(message, failed = false) {
   const status = document.getElementById("saveStatus");
   if (status) { status.textContent = message; status.dataset.failed = String(failed); }
+  const retry = elements.saveRetryButton;
+  if (retry) {
+    retry.hidden = !failed;
+    retry.disabled = !failed;
+    retry.setAttribute("aria-hidden", String(!failed));
+  }
 }
 
 function syncHistoryControls() {
@@ -1225,6 +1469,7 @@ function createSnapshot() {
     title: look.title,
     subtitle: look.subtitle,
     background: state.background,
+    customBackgroundColor: normaliseHexColor(state.customBackgroundColor, customBackgroundDefault),
     cutout: state.cutout,
     outline: normaliseOutline(state.outline, "#f1dfbb", 8),
     titleOutline: normaliseOutline(state.titleOutline, "#ffffff", 6),
@@ -1253,9 +1498,11 @@ function createSnapshot() {
 
 function restoreSnapshot(snapshot) {
   const look = getSelectedLook();
+  invalidatePendingImageImports({ look });
   if (typeof snapshot.title === "string") look.title = snapshot.title;
   if (typeof snapshot.subtitle === "string") look.subtitle = snapshot.subtitle;
   state.background = backgrounds[snapshot.background] ? snapshot.background : "paper";
+  state.customBackgroundColor = normaliseHexColor(snapshot.customBackgroundColor, customBackgroundDefault);
   state.cutout = snapshot.cutout === true;
   state.outline = normaliseOutline(snapshot.outline, "#f1dfbb", 8);
   state.titleOutline = normaliseOutline(snapshot.titleOutline, "#ffffff", 6);
@@ -1303,23 +1550,23 @@ function restoreSnapshot(snapshot) {
 function undo() {
   const previous = state.history.pop();
   if (!previous) {
-    showToast("되돌릴 변경이 아직 없습니다.");
+    showToast(t("toast.undoEmpty"));
     return;
   }
   state.redo.push(createSnapshot());
   restoreSnapshot(previous);
-  showToast("마지막 변경을 되돌렸습니다.");
+  showToast(t("toast.undo"));
 }
 
 function redo() {
   const next = state.redo.pop();
   if (!next) {
-    showToast("다시 실행할 변경이 없습니다.");
+    showToast(t("toast.redoEmpty"));
     return;
   }
   state.history.push(createSnapshot());
   restoreSnapshot(next);
-  showToast("변경을 다시 실행했습니다.");
+  showToast(t("toast.redo"));
 }
 
 function currentLookIndex() {
@@ -1344,6 +1591,10 @@ function resizeCopyEditorField(input) {
 }
 
 function fitBoardTitle() {
+  if (boardTitleFitFrame) {
+    window.cancelAnimationFrame(boardTitleFitFrame);
+    boardTitleFitFrame = 0;
+  }
   const title = elements.boardTitle;
   const titleBlock = title?.parentElement;
   if (!(title instanceof HTMLElement) || !(titleBlock instanceof HTMLElement)) return;
@@ -1378,9 +1629,47 @@ function fitBoardTitle() {
   }
 }
 
+function scheduleBoardTitleFit() {
+  if (boardTitleFitFrame) return;
+  boardTitleFitFrame = window.requestAnimationFrame(() => {
+    boardTitleFitFrame = 0;
+    fitBoardTitle();
+  });
+}
+
+// Range and colour inputs can emit dozens of events in one gesture. Keep the
+// model update immediate for accessibility/readouts, but paint the expensive
+// card image pass at most once per animation frame.
+function scheduleLiveStyleRender(options = {}) {
+  liveStyleRenderOptions = { ...(liveStyleRenderOptions || {}), ...options };
+  if (liveStyleRenderFrame) return;
+  liveStyleRenderFrame = window.requestAnimationFrame(() => {
+    liveStyleRenderFrame = 0;
+    const nextOptions = liveStyleRenderOptions || {};
+    liveStyleRenderOptions = null;
+    renderStyles(nextOptions);
+  });
+}
+
+function flushLiveStyleRender(overrides = {}) {
+  if (!liveStyleRenderFrame) return false;
+  window.cancelAnimationFrame(liveStyleRenderFrame);
+  liveStyleRenderFrame = 0;
+  const nextOptions = { ...(liveStyleRenderOptions || {}), ...overrides };
+  liveStyleRenderOptions = null;
+  renderStyles(nextOptions);
+  return true;
+}
+
+function cancelLiveStyleRender() {
+  if (liveStyleRenderFrame) window.cancelAnimationFrame(liveStyleRenderFrame);
+  liveStyleRenderFrame = 0;
+  liveStyleRenderOptions = null;
+}
+
 function syncCopyEditorFields() {
   const look = getSelectedLook();
-  const title = look.title || "새로운 룩";
+  const title = getLookTitle(look);
   const subtitle = look.subtitle || "";
   if (elements.cardTitleInput) {
     if (document.activeElement !== elements.cardTitleInput) elements.cardTitleInput.value = title;
@@ -1394,15 +1683,15 @@ function syncCopyEditorFields() {
   }
 }
 
-function renderLook() {
+function renderLook({ fitTitle = true } = {}) {
   const look = getSelectedLook();
-  elements.boardTitle.textContent = look.title || "새로운 룩";
+  elements.boardTitle.textContent = getLookTitle(look);
   elements.boardSubtitle.textContent = look.subtitle || "";
   elements.boardSubtitle.dataset.empty = String(!look.subtitle);
-  fitBoardTitle();
+  if (fitTitle) fitBoardTitle();
   scheduleCardCopyPreview();
   syncCopyEditorFields();
-  document.title = `${projectName} | ${look.title}`;
+  document.title = getDocumentTitle(look);
   $$(".look-list-item").forEach((button) => {
     const selected = button.dataset.lookId === state.selectedLookId;
     button.classList.toggle("is-current", selected);
@@ -1411,14 +1700,22 @@ function renderLook() {
   });
 }
 
+let renderedLookListKey = null;
+
+function getLookListRenderKey(query = $("#lookSearch")?.value.trim().toLowerCase() || "") {
+  return [query, ...looks.map((look) => `${look.id}\u0001${getLookTitle(look)}\u0001${look.subtitle || ""}`)].join("\u0002");
+}
+
 function renderLookList() {
   if (!elements.lookList) return;
   const query = $("#lookSearch")?.value.trim().toLowerCase() || "";
+  const renderKey = getLookListRenderKey(query);
+  if (renderedLookListKey === renderKey) return;
   const active = document.activeElement;
   const focusedLookId = active?.closest?.(".look-list-item")?.dataset.lookId || null;
   elements.lookList.innerHTML = looks.map((look, index) => {
     const selected = look.id === state.selectedLookId;
-    const title = look.title || "새로운 룩";
+    const title = getLookTitle(look);
     const searchable = `${title} ${look.subtitle || ""}`.toLowerCase();
     const hidden = Boolean(query) && !searchable.includes(query);
     return `<button class="look-list-item${selected ? " is-current" : ""}" type="button" data-look-id="${escapeHtml(look.id)}"${selected ? ' aria-current="page"' : ""}${hidden ? " hidden" : ""}>
@@ -1426,9 +1723,29 @@ function renderLookList() {
       <span class="look-list-copy"><strong>${escapeHtml(title)}</strong></span>
     </button>`;
   }).join("");
-  $$(".look-list-item").forEach((button) => button.addEventListener("click", () => selectLook(button.dataset.lookId)));
+  renderedLookListKey = renderKey;
   if (focusedLookId) [...elements.lookList.querySelectorAll(".look-list-item")]
     .find((button) => button.dataset.lookId === focusedLookId)?.focus({ preventScroll: true });
+}
+
+function syncLookListTitle(look = getSelectedLook()) {
+  if (!elements.lookList || !look) return;
+  const query = $("#lookSearch")?.value.trim().toLowerCase() || "";
+  if (query) {
+    renderLookList();
+    return;
+  }
+  const item = [...elements.lookList.querySelectorAll(".look-list-item")]
+    .find((button) => button.dataset.lookId === String(look.id));
+  const title = item?.querySelector(".look-list-copy strong");
+  if (!title) {
+    renderLookList();
+    return;
+  }
+  title.textContent = getLookTitle(look);
+  // The DOM row was updated in place. Invalidate the key so the next full
+  // render can still detect the underlying title change.
+  renderedLookListKey = null;
 }
 
 function syncSelectedCharacter() {
@@ -1460,7 +1777,11 @@ function syncCharacterSelectionUI() {
     button.setAttribute("aria-pressed", String(selected));
   });
   if (elements.castSelectionSummary) {
-    elements.castSelectionSummary.textContent = `캐릭터 ${String(state.selectedCharacter + 1).padStart(2, "0")} · ${state.characterCount}인`;
+    const index = String(state.selectedCharacter + 1).padStart(2, "0");
+    const countLabel = state.characterCount === 1
+      ? t("cast.person.one")
+      : t("cast.person.other", { count: state.characterCount });
+    elements.castSelectionSummary.textContent = t("cast.summary", { index, countLabel });
   }
 }
 
@@ -1470,9 +1791,8 @@ function selectCharacter(index) {
   syncSelectedCharacter();
   syncCharacterSelectionUI();
   renderStyles();
-  renderSourcePanel();
   renderEquipment();
-  renderCatalog();
+  if (shouldRenderCatalog()) renderCatalog();
 }
 
 function openCharacterImagePicker(index) {
@@ -1484,6 +1804,8 @@ function openCharacterImagePicker(index) {
 function removeCharacterImage(index = state.selectedCharacter) {
   if (imageEditorOpen) return;
   const targetIndex = Math.min(state.characterCount - 1, Math.max(0, Number(index) || 0));
+  const look = getSelectedLook();
+  invalidatePendingImageImports({ look, characterIndex: targetIndex });
   const character = state.characters[targetIndex];
   if (!resolveCharacterAsset(character, "source")) return;
   selectCharacter(targetIndex);
@@ -1494,7 +1816,7 @@ function removeCharacterImage(index = state.selectedCharacter) {
   syncSelectedCharacter();
   renderAll();
   saveState();
-  showToast(`캐릭터 ${String(targetIndex + 1).padStart(2, "0")} 사진을 제거했습니다. 되돌리기로 복원할 수 있어요.`);
+  showToast(t("toast.photoRemoved", { number: String(targetIndex + 1).padStart(2, "0") }));
 }
 
 // Replacing a selector must preserve the user's keyboard position, not focus body.
@@ -1514,9 +1836,10 @@ function renderItemCharacterSelector() {
   replaceCharacterButtons(elements.itemCharacterSelector, "data-item-character", state.characters.slice(0, state.characterCount).map((character, index) => {
     const selected = index === state.selectedCharacter;
     const source = resolveCharacterAsset(character, "hero");
-    return `<button class="item-character-button${selected ? " is-selected" : ""}" type="button" data-item-character="${index}" aria-label="캐릭터 ${index + 1} 장비 편집" aria-pressed="${selected}">
-      <span class="item-character-thumb${source ? "" : " is-empty"}">${source ? `<img src="${escapeHtml(source)}" alt="" />` : `<span class="item-character-empty" aria-hidden="true">이미지 없음</span>`}</span>
-      <span class="item-character-copy"><strong>캐릭터 ${String(index + 1).padStart(2, "0")}</strong></span>
+    const number = String(index + 1).padStart(2, "0");
+    return `<button class="item-character-button${selected ? " is-selected" : ""}" type="button" data-item-character="${index}" aria-label="${escapeHtml(t("item.characterEdit", { number }))}" aria-pressed="${selected}">
+      <span class="item-character-thumb${source ? "" : " is-empty"}">${source ? renderCharacterImage(source) : `<span class="item-character-empty" aria-hidden="true">${escapeHtml(t("item.noImage"))}</span>`}</span>
+      <span class="item-character-copy"><strong>${escapeHtml(t("item.summary", { number }))}</strong></span>
     </button>`;
   }).join(""));
   $$('[data-item-character]').forEach((button) => button.addEventListener("click", () => selectCharacter(button.dataset.itemCharacter)));
@@ -1528,25 +1851,31 @@ function renderCast() {
   syncSelectedCharacter();
   replaceCharacterButtons(elements.portraitWrap, "data-character-index", state.characters.slice(0, state.characterCount).map((character, index) => {
     const source = resolveCharacterAsset(character, "hero");
+    const number = String(index + 1).padStart(2, "0");
     return `
     <div class="character-slot${index === state.selectedCharacter ? " is-selected" : ""}${source ? "" : " is-empty"}" data-character-slot="${index}">
-      <button class="character-figure${index === state.selectedCharacter ? " is-selected" : ""}${source ? "" : " is-empty"}" type="button" data-character-index="${index}" data-cutout="${Boolean(character.cutout)}" data-empty="${!source}" aria-pressed="${index === state.selectedCharacter}" aria-label="캐릭터 ${index + 1} ${source ? "선택" : "사진 추가"}">
-        ${source ? `<img src="${escapeHtml(source)}" alt="룩북 캐릭터 ${index + 1}" draggable="false" />` : `<span class="character-empty-placeholder" aria-hidden="true"><small class="character-empty-kicker">캐릭터 ${String(index + 1).padStart(2, "0")}</small><span class="character-empty-mark">＋</span><strong>사진 추가</strong><small>카드에서 바로 선택</small></span>`}
+      <button class="character-figure${index === state.selectedCharacter ? " is-selected" : ""}${source ? "" : " is-empty"}" type="button" data-character-index="${index}" data-cutout="${Boolean(character.cutout)}" data-empty="${!source}" aria-pressed="${index === state.selectedCharacter}" aria-label="${escapeHtml(source ? t("item.characterSelect", { number }) : t("item.characterAddPhoto", { number }))}">
+        ${source ? renderCharacterImage(source, { alt: t("item.characterAlt", { number }), loading: "eager" }) : `<span class="character-empty-placeholder" aria-hidden="true"><small class="character-empty-kicker">${escapeHtml(t("item.summary", { number }))}</small><span class="character-empty-mark">＋</span><strong>${escapeHtml(t("item.addPhoto"))}</strong><small>${escapeHtml(t("item.cardSelect"))}</small></span>`}
       </button>
-      ${source ? `<div class="character-image-actions" aria-label="캐릭터 ${index + 1} 사진 작업"><button class="character-image-action" data-character-image-action="change" data-character-image-action-index="${index}" type="button" aria-label="캐릭터 ${index + 1} 사진 변경">변경</button><button class="character-image-action character-image-action--remove" data-character-image-action="remove" data-character-image-action-index="${index}" type="button" aria-label="캐릭터 ${index + 1} 사진 제거">제거</button></div>` : ""}
+      ${source ? `<div class="character-image-actions" aria-label="${escapeHtml(t("item.photoActions", { number }))}"><button class="character-image-action" data-character-image-action="change" data-character-image-action-index="${index}" type="button" aria-label="${escapeHtml(t("item.changePhoto", { number }))}">${escapeHtml(t("item.change"))}</button><button class="character-image-action character-image-action--remove" data-character-image-action="remove" data-character-image-action-index="${index}" type="button" aria-label="${escapeHtml(t("item.removePhoto", { number }))}">${escapeHtml(t("item.removeAction"))}</button></div>` : ""}
     </div>
   `;
   }).join(""));
   replaceCharacterButtons($("#castSelector"), "data-character-select", state.characters.slice(0, state.characterCount).map((character, index) => `
     ${(() => {
       const source = resolveCharacterAsset(character, "hero");
-      return `<button class="${index === state.selectedCharacter ? "is-selected" : ""}${source ? "" : " is-empty"}" type="button" data-character-select="${index}" aria-pressed="${index === state.selectedCharacter}" aria-label="캐릭터 ${index + 1} 편집">
-      <span class="cast-slot-visual${source ? "" : " is-empty"}" aria-hidden="true">${source ? `<img src="${escapeHtml(source)}" alt="" />` : `<span class="cast-empty-thumb">＋</span>`}</span><span class="cast-slot-index">${String(index + 1).padStart(2, "0")}</span>
+      const number = String(index + 1).padStart(2, "0");
+      return `<button class="${index === state.selectedCharacter ? "is-selected" : ""}${source ? "" : " is-empty"}" type="button" data-character-select="${index}" aria-pressed="${index === state.selectedCharacter}" aria-label="${escapeHtml(t("item.characterEdit", { number }))}">
+      <span class="cast-slot-visual${source ? "" : " is-empty"}" aria-hidden="true">${source ? renderCharacterImage(source) : `<span class="cast-empty-thumb">＋</span>`}</span><span class="cast-slot-index">${String(index + 1).padStart(2, "0")}</span>
     </button>`;
     })()}
   `).join(""));
   if (elements.castSelectionSummary) {
-    elements.castSelectionSummary.textContent = `캐릭터 ${String(state.selectedCharacter + 1).padStart(2, "0")} · ${state.characterCount}인`;
+    const index = String(state.selectedCharacter + 1).padStart(2, "0");
+    const countLabel = state.characterCount === 1
+      ? t("cast.person.one")
+      : t("cast.person.other", { count: state.characterCount });
+    elements.castSelectionSummary.textContent = t("cast.summary", { index, countLabel });
   }
   renderItemCharacterSelector();
   $$('[data-cast-count]').forEach((button) => {
@@ -1579,38 +1908,64 @@ function renderCast() {
   $$('[data-character-select]').forEach((button) => button.addEventListener("click", () => selectCharacter(Number(button.dataset.characterSelect))));
 }
 
+function getDisplayImageFileMeta(value, cutout = false) {
+  const raw = String(value || "").trim();
+  if (!raw) return cutout ? t("cutout.remove") : t("image.original");
+  const prefix = raw.split("·")[0].trim();
+  if (!prefix) return raw;
+  return `${prefix} · ${t(cutout ? "image.backgroundRemoved" : "image.original")}`;
+}
+
 function renderSourcePanel() {
   const hasImage = Boolean(state.imageSrc);
   if (hasImage) {
     elements.sourceThumb.src = state.imageSrc;
-    elements.sourceThumb.alt = "현재 이미지 미리보기";
+    elements.sourceThumb.alt = t("image.currentPreview");
   } else {
     elements.sourceThumb.removeAttribute("src");
-    elements.sourceThumb.alt = "사진 미선택";
+    elements.sourceThumb.alt = t("image.notSelected");
   }
   elements.sourceThumbFrame?.classList.toggle("is-empty", !hasImage);
   elements.sourceThumbFrame?.closest(".portrait-source-card")?.classList.toggle("is-empty", !hasImage);
-  elements.sourceFileName.textContent = hasImage ? state.fileName : "사진 미선택";
-  if (elements.sourceFileMeta) elements.sourceFileMeta.textContent = hasImage ? (state.fileMeta || "원본 이미지") : "PNG · JPG · WebP · 여러 장 선택 가능";
+  elements.sourceFileName.textContent = hasImage ? state.fileName : t("image.notSelected");
+  if (elements.sourceFileMeta) elements.sourceFileMeta.textContent = hasImage
+    ? getDisplayImageFileMeta(state.fileMeta, state.cutout)
+    : t("image.fileTypes");
   if (elements.imageState) {
-    elements.imageState.textContent = !hasImage ? "이미지 없음" : state.cutout ? "배경 제거됨" : "원본";
+    elements.imageState.textContent = !hasImage ? t("image.none") : state.cutout ? t("image.backgroundRemoved") : t("image.original");
     elements.imageState.dataset.state = !hasImage ? "empty" : state.cutout ? "cutout" : "original";
   }
   elements.sourceThumbFrame?.classList.toggle("is-cutout", state.cutout);
   if (elements.openImageEditorButton) {
     elements.openImageEditorButton.disabled = !hasImage;
-    elements.openImageEditorButton.title = hasImage ? "카드에서 이미지 크기와 위치를 조정" : "이미지를 먼저 추가하세요";
+    elements.openImageEditorButton.title = hasImage ? t("image.editPlacementReady") : t("image.addFirst");
   }
   const cutoutButton = $("#cutoutButton");
   if (cutoutButton && !cutoutButton.classList.contains("is-processing")) {
     cutoutButton.disabled = !hasImage;
-    cutoutButton.title = hasImage ? "원본을 보존하고 배경을 제거합니다" : "이미지를 먼저 추가하세요";
+    cutoutButton.title = hasImage
+      ? t(state.cutout ? "cutout.titleRestore" : "cutout.titleRemove")
+      : t("image.addFirst");
+    syncCutoutActionLabel();
   }
   $$('button[data-image-fit]').forEach((button) => {
     const selected = button.dataset.imageFit === state.imageFit;
     button.classList.toggle("is-selected", selected);
     button.setAttribute("aria-pressed", String(selected));
   });
+}
+
+function syncCutoutActionLabel() {
+  const button = $("#cutoutButton");
+  const label = button?.querySelector("span:first-child");
+  if (!label) return;
+  if (button.classList.contains("is-processing")) {
+    label.textContent = Number.isFinite(cutoutProgress)
+      ? t("cutout.browserProgress", { progress: cutoutProgress })
+      : t(cutoutProcessingKey);
+    return;
+  }
+  label.textContent = state.cutout ? t("cutout.restore") : t("cutout.remove");
 }
 
 function renderBoardGear() {
@@ -1621,8 +1976,9 @@ function renderBoardGear() {
     const slotName = getOutfitSlotName(item.slot);
     const primaryName = getItemName(item);
     const secondaryName = getSecondaryItemName(item);
-    const characterLabel = showCharacter ? `캐릭터 ${String(characterIndex + 1).padStart(2, "0")} · ` : "";
-    return `<button class="board-gear-item gear-slot-${item.slot}" data-character-index="${characterIndex}" data-gear-index="${index}" data-card-slot="${item.slot}" type="button" aria-label="캐릭터 ${characterIndex + 1} ${escapeHtml(`${slotName} ${primaryName} 편집`)}">
+    const characterNumber = String(characterIndex + 1).padStart(2, "0");
+    const characterLabel = showCharacter ? `${t("item.summary", { number: characterNumber })} · ` : "";
+    return `<button class="board-gear-item gear-slot-${item.slot}" data-character-index="${characterIndex}" data-gear-index="${index}" data-card-slot="${item.slot}" type="button" aria-label="${escapeHtml(t("item.gearEdit", { number: characterNumber, slot: slotName, name: primaryName }))}">
       <div class="gear-tile-copy"><span class="gear-slot-label">${characterLabel}${escapeHtml(slotName)}</span><strong>${escapeHtml(primaryName)}</strong>${secondaryName ? `<small class="gear-item-secondary">${escapeHtml(secondaryName)}</small>` : ""}</div>
     </button>`;
   };
@@ -1631,7 +1987,7 @@ function renderBoardGear() {
     boardGearList.innerHTML = [0, 1].map((characterIndex) => {
       const items = getCharacterItemIds(characterIndex, look);
       const railSide = characterIndex === 0 ? "left" : "right";
-      return `<section class="board-gear-rail board-gear-rail--${railSide}" data-gear-character="${characterIndex}" aria-label="캐릭터 ${String(characterIndex + 1).padStart(2, "0")} 장비 정보">
+      return `<section class="board-gear-rail board-gear-rail--${railSide}" data-gear-character="${characterIndex}" aria-label="${escapeHtml(t("item.gearInfo", { number: String(characterIndex + 1).padStart(2, "0") }))}">
         <div class="board-gear-rail-items">${items.map((itemId, index) => renderGearItem(itemId, index, characterIndex)).join("")}</div>
       </section>`;
     }).join("");
@@ -1662,7 +2018,7 @@ function renderMultiInfo() {
     const items = getCharacterItemIds(index).map(getItem).filter(Boolean);
     const itemNames = items.map((item) => getItemName(item)).filter(Boolean);
     const accessibleItems = itemNames.length ? `: ${itemNames.join(", ")}` : "";
-    return `<button class="multi-info-column${index === state.selectedCharacter ? " is-selected" : ""}" type="button" data-info-character="${index}" aria-label="${escapeHtml(`캐릭터 ${index + 1} 장비 편집${accessibleItems}`)}">
+    return `<button class="multi-info-column${index === state.selectedCharacter ? " is-selected" : ""}" type="button" data-info-character="${index}" aria-label="${escapeHtml(t("item.multiInfoEdit", { number: String(index + 1).padStart(2, "0"), items: accessibleItems }))}">
       <span class="multi-info-items">${items.map((item) => {
         const secondaryName = getSecondaryItemName(item);
         return `<span class="multi-info-item"><span>${escapeHtml(getItemName(item))}</span>${secondaryName ? `<small>${escapeHtml(secondaryName)}</small>` : ""}</span>`;
@@ -1687,12 +2043,46 @@ function renderPattern() {
   ).join("");
 }
 
-function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = true } = {}) {
-  const background = backgrounds[state.background] || backgrounds.dusk;
+function syncCustomBackgroundRecipe(background) {
+  const properties = ["--recipe-ink", "--recipe-muted", "--recipe-panel", "--recipe-edge", "--recipe-shadow"];
+  if (state.background !== "custom") {
+    properties.forEach((property) => elements.board.style.removeProperty(property));
+    return;
+  }
+  const isDark = ColorContrast.themeFor(background.solid).foreground === "#ffffff";
+  const recipe = {
+    "--recipe-ink": isDark ? "#f7f3ed" : "#263238",
+    "--recipe-muted": isDark ? "rgb(247 243 237 / .62)" : "rgb(38 50 56 / .58)",
+    "--recipe-panel": isDark ? "rgb(29 34 40 / .94)" : "rgb(255 252 247 / .94)",
+    "--recipe-edge": isDark ? "rgb(247 243 237 / .22)" : "rgb(38 50 56 / .18)",
+    "--recipe-shadow": isDark ? "rgb(9 12 16 / .28)" : "rgb(38 50 56 / .1)",
+  };
+  Object.entries(recipe).forEach(([property, value]) => elements.board.style.setProperty(property, value));
+}
+
+function syncCustomBackgroundControl() {
+  const color = normaliseHexColor(state.customBackgroundColor, customBackgroundDefault);
+  const control = $("#customBackgroundControl");
+  const input = $("#customBackgroundColorInput");
+  const preview = $("#customBackgroundPreview");
+  const output = $("#customBackgroundColorValue");
+  if (control) control.hidden = state.background !== "custom";
+  if (input && input.value !== color) input.value = color;
+  if (preview) preview.style.setProperty("--backdrop", color);
+  if (output) {
+    output.value = color;
+    output.textContent = color.toUpperCase();
+  }
+}
+
+function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = true, refreshControls = true } = {}) {
+  const background = getBackgroundTheme();
   const silhouetteInfoTheme = getSilhouetteInfoTheme(background);
   if (!titleFonts[state.titleFont]) state.titleFont = defaultTitleFont;
   state.titleWeight = normaliseTitleWeight(state.titleFont, state.titleWeight ?? defaultTitleWeight);
   const backgroundCss = getBackgroundSurfaceCss(background);
+  syncCustomBackgroundRecipe(background);
+  syncCustomBackgroundControl();
   elements.board.style.setProperty("--board-bg", backgroundCss);
   elements.board.style.setProperty("--pattern-ink", background.pattern[0]);
   elements.board.style.setProperty("--pattern-light", background.pattern[1]);
@@ -1704,7 +2094,7 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
     dots: 0.16,
     stars: 0.2,
     halftone: 0.2,
-    bitmap: 0.18,
+    bitmap: 0.26,
   };
   elements.board.style.setProperty("--pattern-opacity", patternOpacity[state.backgroundPattern] ?? 0);
   elements.board.dataset.background = state.background;
@@ -1722,8 +2112,8 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
   const infoModeHint = $("#infoModeHint");
   if (infoModeHint) {
     infoModeHint.textContent = silhouetteReady
-      ? "모든 캐릭터의 배경 제거가 끝났습니다. 실루엣을 선택할 수 있어요."
-      : "실루엣은 모든 캐릭터의 배경 제거가 끝나면 사용할 수 있어요.";
+      ? t("lineup.hintReady")
+      : t("lineup.hintWait");
     infoModeHint.dataset.ready = String(silhouetteReady);
   }
   elements.board.dataset.cutout = String(allCutout);
@@ -1798,115 +2188,124 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
     image.style.filter = `${baseFilter} ${infoTreatment}`.trim() || "none";
   });
 
-  elements.outlineRange.value = state.outline.width;
-  elements.outlineValue.textContent = `${String(state.outline.width).padStart(2, "0")} px`;
-  if (elements.titleOutlineRange) {
-    elements.titleOutlineRange.value = String(titleOutlineWidth);
-    updateRangeProgress(elements.titleOutlineRange);
-    elements.titleOutlineRange.setAttribute("aria-valuetext", titleOutlineWidth ? `${titleOutlineWidth} px` : "없음");
+  if (refreshControls) {
+    elements.outlineRange.value = state.outline.width;
+    elements.outlineValue.textContent = `${String(state.outline.width).padStart(2, "0")} px`;
+    if (elements.titleOutlineRange) {
+      elements.titleOutlineRange.value = String(titleOutlineWidth);
+      updateRangeProgress(elements.titleOutlineRange);
+      elements.titleOutlineRange.setAttribute("aria-valuetext", titleOutlineWidth ? `${titleOutlineWidth} px` : t("range.none"));
+    }
+    if (elements.titleOutlineValue) elements.titleOutlineValue.textContent = titleOutlineWidth ? `${titleOutlineWidth} px` : t("range.none");
+    elements.shadowRange.value = state.shadow.strength;
+    elements.shadowValue.textContent = `${state.shadow.strength}%`;
+    elements.zoomReadout.textContent = `${state.zoom}%`;
+    if (elements.zoomRange) {
+      elements.zoomRange.value = String(state.zoom);
+      updateRangeProgress(elements.zoomRange);
+      elements.zoomRange.setAttribute("aria-valuetext", `${state.zoom}%`);
+    }
+    if (elements.panXRange) {
+      elements.panXRange.value = String(state.panX);
+      updateRangeProgress(elements.panXRange);
+    }
+    if (elements.panYRange) {
+      elements.panYRange.value = String(state.panY);
+      updateRangeProgress(elements.panYRange);
+    }
+    if (elements.panXReadout) elements.panXReadout.textContent = formatImageOffset(state.panX);
+    if (elements.panYReadout) elements.panYReadout.textContent = formatImageOffset(state.panY);
+    elements.outlineRange.style.setProperty("--range-progress", `${(state.outline.width / 8) * 100}%`);
+    elements.shadowRange.style.setProperty("--range-progress", `${(state.shadow.strength / 70) * 100}%`);
+    $$(".color-swatch").forEach((swatch) => swatch.classList.toggle("is-selected", swatch.dataset.color === state.outline.color));
+    $$(".title-outline-swatch").forEach((swatch) => {
+      const selected = swatch.dataset.titleOutlineColor === state.titleOutline.color;
+      swatch.classList.toggle("is-selected", selected);
+      swatch.setAttribute("aria-checked", String(selected));
+    });
+    $$(".backdrop-swatch").forEach((swatch) => {
+      const selected = swatch.dataset.background === state.background;
+      swatch.classList.toggle("is-selected", selected);
+      swatch.setAttribute("aria-checked", String(selected));
+    });
+    $$(".direction-pad button").forEach((button) => button.classList.toggle("is-selected", button.dataset.shadow === shadowDirection()));
+    $("#cutoutButton").classList.toggle("is-highlighted", state.cutout);
+    syncCutoutActionLabel();
+    renderSourcePanel();
+    syncImagePlacementSummary();
+    $("#multiInfoToggle").checked = state.multiInfoEnabled;
+    syncTitleFontControls();
+    syncTitleAlignmentControls();
+    syncCopyColorControls();
+    const backgroundCurrentLabel = $("#backgroundCurrentLabel");
+    if (backgroundCurrentLabel) {
+      const currentPreset = backgroundPresets.find((preset) => getBackgroundSelectionSignature(preset) === getBackgroundSelectionSignature());
+      backgroundCurrentLabel.textContent = currentPreset ? t("preset.current", { name: currentPreset.name }) : describeBackgroundSelection();
+      backgroundCurrentLabel.dataset.custom = String(!currentPreset);
+    }
+    const advancedToggle = $("#styleAdvancedToggle");
+    if (advancedToggle) {
+      advancedToggle.setAttribute("aria-expanded", String(styleAdvancedOpen));
+      advancedToggle.querySelector(".style-advanced-icon").textContent = styleAdvancedOpen ? "－" : "＋";
+    }
+    $$('[data-style-advanced]').forEach((section) => { section.hidden = !styleAdvancedOpen; });
+    $("#singleRatioRow").hidden = state.characterCount !== 1;
+    $("#singleLayoutRow").hidden = state.characterCount !== 1;
+    $$('button[data-single-ratio]').forEach((button) => {
+      const selected = button.dataset.singleRatio === state.singleRatio;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
+    $$('button[data-single-layout]').forEach((button) => {
+      const selected = button.dataset.singleLayout === state.singleLayout;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
+    $$('button[data-info-mode]').forEach((button) => {
+      const unavailable = button.dataset.infoMode === "silhouette" && !silhouetteReady;
+      button.disabled = unavailable;
+      button.title = unavailable ? t("lineup.silhouetteUnavailable") : "";
+      button.setAttribute("aria-disabled", String(unavailable));
+      const selected = button.dataset.infoMode === state.multiInfoMode;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
+    $$('button[data-pattern]').forEach((button) => {
+      const selected = button.dataset.pattern === state.backgroundPattern;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-checked", String(selected));
+    });
+    $$('button[data-texture]').forEach((button) => {
+      const selected = button.dataset.texture === state.backgroundTexture;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-checked", String(selected));
+    });
+    $$('[role="radiogroup"] [role="radio"]').forEach((button) => {
+      const selected = button.classList.contains("is-selected");
+      button.setAttribute("aria-checked", String(selected));
+      button.tabIndex = selected ? 0 : -1;
+    });
+    $$(".color-swatch, .direction-pad button").forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.classList.contains("is-selected")));
+    });
+    renderBackgroundPresets();
+    const presetTrigger = $("#saveBackgroundPresetButton");
+    if (presetTrigger) presetTrigger.textContent = backgroundPresetCreateOpen ? t("preset.cancel") : t("preset.save");
+    $("#multiCardControls").hidden = state.characterCount < 3;
+    $("#cardDisplaySetting").hidden = state.characterCount < 3;
+    const dimensions = getExportDimensions();
+    const exportReady = activeCharacters.length > 0 && activeCharacters.every((character) => Boolean(resolveCharacterAsset(character, "hero")));
+    const exportButton = $("#exportButton");
+    // Keep the action focusable while the blank workspace is being prepared.
+    // aria-disabled communicates why it cannot run without removing it from
+    // the keyboard route; downloadComposition() owns the same guard.
+    exportButton.disabled = false;
+    exportButton.setAttribute("aria-disabled", String(!exportReady));
+    exportButton.title = exportReady
+      ? t("export.titleReady", { width: dimensions.exportWidth, height: dimensions.exportHeight })
+      : t("export.titleMissing");
+    if (exportInProgress) setExportButtonLabel("export.preparing");
   }
-  if (elements.titleOutlineValue) elements.titleOutlineValue.textContent = titleOutlineWidth ? `${titleOutlineWidth} px` : "없음";
-  elements.shadowRange.value = state.shadow.strength;
-  elements.shadowValue.textContent = `${state.shadow.strength}%`;
-  elements.zoomReadout.textContent = `${state.zoom}%`;
-  if (elements.zoomRange) {
-    elements.zoomRange.value = String(state.zoom);
-    updateRangeProgress(elements.zoomRange);
-    elements.zoomRange.setAttribute("aria-valuetext", `${state.zoom}%`);
-  }
-  if (elements.panXRange) {
-    elements.panXRange.value = String(state.panX);
-    updateRangeProgress(elements.panXRange);
-  }
-  if (elements.panYRange) {
-    elements.panYRange.value = String(state.panY);
-    updateRangeProgress(elements.panYRange);
-  }
-  if (elements.panXReadout) elements.panXReadout.textContent = formatImageOffset(state.panX);
-  if (elements.panYReadout) elements.panYReadout.textContent = formatImageOffset(state.panY);
-  elements.outlineRange.style.setProperty("--range-progress", `${(state.outline.width / 8) * 100}%`);
-  elements.shadowRange.style.setProperty("--range-progress", `${(state.shadow.strength / 70) * 100}%`);
-  $$(".color-swatch").forEach((swatch) => swatch.classList.toggle("is-selected", swatch.dataset.color === state.outline.color));
-  $$(".title-outline-swatch").forEach((swatch) => {
-    const selected = swatch.dataset.titleOutlineColor === state.titleOutline.color;
-    swatch.classList.toggle("is-selected", selected);
-    swatch.setAttribute("aria-checked", String(selected));
-  });
-  $$(".backdrop-swatch").forEach((swatch) => swatch.classList.toggle("is-selected", swatch.dataset.background === state.background));
-  $$(".direction-pad button").forEach((button) => button.classList.toggle("is-selected", button.dataset.shadow === shadowDirection()));
-  $("#cutoutButton").classList.toggle("is-highlighted", state.cutout);
-  $("#cutoutButton span:first-child").textContent = state.cutout ? "원본으로 복원" : "배경 제거";
-  renderSourcePanel();
-  syncImagePlacementSummary();
-  $("#multiInfoToggle").checked = state.multiInfoEnabled;
-  syncTitleFontControls();
-  syncTitleAlignmentControls();
-  syncCopyColorControls();
-  const backgroundCurrentLabel = $("#backgroundCurrentLabel");
-  if (backgroundCurrentLabel) {
-    const currentPreset = backgroundPresets.find((preset) => getBackgroundSelectionSignature(preset) === getBackgroundSelectionSignature());
-    backgroundCurrentLabel.textContent = currentPreset ? `내 프리셋 · ${currentPreset.name}` : describeBackgroundSelection();
-    backgroundCurrentLabel.dataset.custom = String(!currentPreset);
-  }
-  const advancedToggle = $("#styleAdvancedToggle");
-  if (advancedToggle) {
-    advancedToggle.setAttribute("aria-expanded", String(styleAdvancedOpen));
-    advancedToggle.querySelector(".style-advanced-icon").textContent = styleAdvancedOpen ? "－" : "＋";
-  }
-  $$('[data-style-advanced]').forEach((section) => { section.hidden = !styleAdvancedOpen; });
-  $("#singleRatioRow").hidden = state.characterCount !== 1;
-  $("#singleLayoutRow").hidden = state.characterCount !== 1;
-  $$('button[data-single-ratio]').forEach((button) => {
-    const selected = button.dataset.singleRatio === state.singleRatio;
-    button.classList.toggle("is-selected", selected);
-    button.setAttribute("aria-pressed", String(selected));
-  });
-  $$('button[data-single-layout]').forEach((button) => {
-    const selected = button.dataset.singleLayout === state.singleLayout;
-    button.classList.toggle("is-selected", selected);
-    button.setAttribute("aria-pressed", String(selected));
-  });
-  $$('button[data-info-mode]').forEach((button) => {
-    const unavailable = button.dataset.infoMode === "silhouette" && !silhouetteReady;
-    button.disabled = unavailable;
-    button.title = unavailable ? "모든 캐릭터의 배경을 먼저 제거하세요" : "";
-    button.setAttribute("aria-disabled", String(unavailable));
-    const selected = button.dataset.infoMode === state.multiInfoMode;
-    button.classList.toggle("is-selected", selected);
-    button.setAttribute("aria-pressed", String(selected));
-  });
-  $$('button[data-pattern]').forEach((button) => {
-    const selected = button.dataset.pattern === state.backgroundPattern;
-    button.classList.toggle("is-selected", selected);
-    button.setAttribute("aria-checked", String(selected));
-  });
-  $$('button[data-texture]').forEach((button) => {
-    const selected = button.dataset.texture === state.backgroundTexture;
-    button.classList.toggle("is-selected", selected);
-    button.setAttribute("aria-checked", String(selected));
-  });
-  $$('[role="radiogroup"] [role="radio"]').forEach((button) => {
-    const selected = button.classList.contains("is-selected");
-    button.setAttribute("aria-checked", String(selected));
-    button.tabIndex = selected ? 0 : -1;
-  });
-  $$(".color-swatch, .direction-pad button").forEach((button) => {
-    button.setAttribute("aria-pressed", String(button.classList.contains("is-selected")));
-  });
-  renderBackgroundPresets();
-  $("#multiCardControls").hidden = state.characterCount < 3;
-  $("#cardDisplaySetting").hidden = state.characterCount < 3;
-  const dimensions = getExportDimensions();
-  const exportReady = activeCharacters.length > 0 && activeCharacters.every((character) => Boolean(resolveCharacterAsset(character, "hero")));
-  const exportButton = $("#exportButton");
-  // Keep the action focusable while the blank workspace is being prepared.
-  // aria-disabled communicates why it cannot run without removing it from
-  // the keyboard route; downloadComposition() owns the same guard.
-  exportButton.disabled = false;
-  exportButton.setAttribute("aria-disabled", String(!exportReady));
-  exportButton.title = exportReady
-    ? `${dimensions.exportWidth} × ${dimensions.exportHeight} 고화질로 저장`
-    : "이미지를 모두 추가하면 PNG로 저장할 수 있습니다";
   if (refreshPattern) renderPattern();
   if (refreshInfo) renderMultiInfo();
   if (fitTitle) fitBoardTitle();
@@ -1930,23 +2329,27 @@ function focusItemSearch() {
 function renderEquipment() {
   const look = getSelectedLook();
   const outfit = getCharacterOutfit(state.selectedCharacter, look);
-  const characterLabel = `캐릭터 ${String(state.selectedCharacter + 1).padStart(2, "0")}`;
+  const characterNumber = String(state.selectedCharacter + 1).padStart(2, "0");
+  const characterLabel = t("item.summary", { number: characterNumber });
   if (elements.itemsSummaryTitle) elements.itemsSummaryTitle.textContent = characterLabel;
   elements.equipmentList.innerHTML = outfitSlots.map((slot) => {
     const item = getItem(outfit[slot]);
     const selected = slot === state.activeSlot;
-    const itemName = item ? getItemName(item) : "아이템을 연결하세요";
+    const itemName = item ? getItemName(item) : t("item.emptyName");
     const secondaryName = item ? getSecondaryItemName(item) : "";
-    const itemMeta = [getOutfitSlotName(slot), secondaryName || (!item ? "아이템을 검색해 연결" : "")].filter(Boolean).join(" · ");
+    const itemMeta = [getOutfitSlotName(slot), secondaryName || (!item ? t("item.emptyHint") : "")].filter(Boolean).join(" · ");
     const visualLabel = getOutfitSlotVisualLabel(slot);
     const hasItemImage = Boolean(getItemImageUrl(item));
+    const rowLabel = item
+      ? t("item.gearRow", { visual: visualLabel, slot: getOutfitSlotName(slot), name: itemName })
+      : t("item.emptyRow", { visual: visualLabel, slot: getOutfitSlotName(slot) });
     return `<div class="equipment-row-shell">
-      <button class="equipment-row${selected ? " is-selected" : ""}${item ? "" : " is-empty"}" data-slot="${slot}" type="button" aria-pressed="${selected}" aria-label="${escapeHtml(`${visualLabel} (${getOutfitSlotName(slot)}) 슬롯 ${item ? itemName : "아이템 연결"}`)}">
+      <button class="equipment-row${selected ? " is-selected" : ""}${item ? "" : " is-empty"}" data-slot="${slot}" type="button" aria-pressed="${selected}" aria-label="${escapeHtml(rowLabel)}">
         <span class="equipment-icon${hasItemImage ? " has-item-image" : ""}" aria-hidden="true">${renderItemImage(item, slot)}</span>
         <span class="equipment-copy"><strong>${escapeHtml(itemName)}</strong><span>${escapeHtml(itemMeta)}</span></span>
-        <span class="equipment-check">${item ? "변경" : "연결"}</span>
+        <span class="equipment-check">${item ? t("item.change") : t("item.connect")}</span>
       </button>
-      ${item ? `<button class="equipment-remove" data-remove-slot="${slot}" type="button" aria-label="${escapeHtml(`${getOutfitSlotName(slot)} ${itemName} 제거`)}">제거</button>` : ""}
+      ${item ? `<button class="equipment-remove" data-remove-slot="${slot}" type="button" aria-label="${escapeHtml(t("item.remove", { slot: getOutfitSlotName(slot), name: itemName }))}">${escapeHtml(t("item.removeAction"))}</button>` : ""}
     </div>`;
   }).join("");
   elements.equipmentList.querySelectorAll(".equipment-row").forEach((row) => row.addEventListener("click", () => {
@@ -1963,24 +2366,30 @@ function renderEquipment() {
   renderBoardGear();
 }
 
-function renderCatalogMessage(message, detail = "") {
-  const loading = message.includes("검색하는 중");
+function renderCatalogMessage(message, detail = "", { loading = false } = {}) {
   $("#catalogStatus").textContent = [message, detail].filter(Boolean).join(" ");
   elements.catalogResults.setAttribute("aria-busy", String(loading));
   elements.catalogResults.innerHTML = `${loading ? '<span class="catalog-progress" aria-hidden="true"></span>' : ""}<div class="empty-results"><strong>${escapeHtml(message)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ""}</div>`;
 }
 
 function renderCatalogResults(results, { notice = "" } = {}) {
-  $("#catalogStatus").textContent = `${results.length}개의 검색 결과. ${notice}`;
+  const allResults = Array.isArray(results) ? results : [];
+  const visibleResults = allResults.slice(0, catalogRenderLimit);
+  const isLimited = visibleResults.length < allResults.length;
+  const countMessage = isLimited
+    ? t("catalog.resultCountLimited", { shown: visibleResults.length, total: allResults.length })
+    : t(notice ? "catalog.resultCountWithNotice" : "catalog.resultCountPlain", { count: visibleResults.length, notice });
+  const limitNotice = isLimited ? t("catalog.resultLimitNotice", { shown: visibleResults.length }) : "";
+  $("#catalogStatus").textContent = [countMessage, notice].filter(Boolean).join(" ");
   elements.catalogResults.setAttribute("aria-busy", "false");
-  const resultMarkup = results.length ? results.map((item) => {
+  const resultMarkup = visibleResults.length ? visibleResults.map((item, index) => {
     const secondaryName = getSecondaryItemName(item);
     const hasItemImage = Boolean(getItemImageUrl(item));
-    return `<button class="catalog-result" data-item-id="${escapeHtml(item.id)}" type="button"><span class="catalog-result-icon${hasItemImage ? " has-item-image" : ""}">${renderCatalogIcon(item)}</span><span class="catalog-result-copy"><strong>${escapeHtml(getItemName(item))}</strong><span>${escapeHtml(secondaryName || getOutfitSlotName(item.slot))}</span></span><span class="catalog-result-action" aria-hidden="true">＋</span></button>`;
-  }).join("") : `<div class="empty-results"><strong>일치하는 장비가 없습니다.</strong></div>`;
-  elements.catalogResults.innerHTML = `${notice ? `<div class="catalog-results-notice" role="status">${escapeHtml(notice)}</div>` : ""}${resultMarkup}`;
+    return `<button class="catalog-result" data-item-id="${escapeHtml(item.id)}" type="button"><span class="catalog-result-icon${hasItemImage ? " has-item-image" : ""}">${renderCatalogIcon(item, index)}</span><span class="catalog-result-copy"><strong>${escapeHtml(getItemName(item))}</strong><span>${escapeHtml(secondaryName || getOutfitSlotName(item.slot))}</span></span><span class="catalog-result-action" aria-hidden="true">＋</span></button>`;
+  }).join("") : `<div class="empty-results"><strong>${escapeHtml(t("catalog.noMatch"))}</strong></div>`;
+  const notices = [notice, limitNotice].filter(Boolean).join(" ");
+  elements.catalogResults.innerHTML = `${notices ? `<div class="catalog-results-notice" role="status">${escapeHtml(notices)}</div>` : ""}${resultMarkup}`;
   bindItemImageFallbacks(elements.catalogResults);
-  $$(".catalog-result").forEach((button) => button.addEventListener("click", () => { void linkItem(button.dataset.itemId); }));
 }
 
 function renderCatalog() {
@@ -1992,26 +2401,37 @@ function renderCatalog() {
       elements.catalogResults.setAttribute("aria-busy", "false");
       $("#catalogStatus").textContent = "";
     } else if (result.kind === "short") {
-      renderCatalogMessage("두 글자 이상 입력하세요.");
+      renderCatalogMessage(t("catalog.short"));
     } else if (result.kind === "loading") {
-      renderCatalogMessage("장비 목록을 검색하는 중…");
+      renderCatalogMessage(t("catalog.loading"), "", { loading: true });
     } else if (result.kind === "results") {
-      registerItemRecords(result.results);
+      registerItemRecords(result.results.slice(0, catalogRenderLimit));
       renderCatalogResults(result.results, {
-        notice: result.source === "stale" ? "연결이 불안정해 이전에 확인한 결과를 표시합니다." : "",
+        notice: result.source === "stale" ? t("catalog.stale") : "",
       });
     } else {
-      renderCatalogMessage("아이템 검색에 연결할 수 없습니다.", "네트워크 연결을 확인한 뒤 다시 시도해주세요.");
+      renderCatalogMessage(t("catalog.error"), t("catalog.errorDetail"));
     }
   });
 }
-function scheduleCatalogSearch() {
+
+function clearCatalogResults() {
   window.clearTimeout(itemSearchState.timer);
-  // Invalidate immediately, not after debounce: old results must not be selectable.
+  itemSearchState.timer = 0;
   itemSearch.cancel();
+  itemSearchState.mode = "idle";
   elements.catalogResults.innerHTML = "";
   elements.catalogResults.setAttribute("aria-busy", "false");
   $("#catalogStatus").textContent = "";
+}
+
+function shouldRenderCatalog() {
+  return state.activePanel === "itemsPanel" || Boolean(elements.itemSearch?.value.trim());
+}
+
+function scheduleCatalogSearch() {
+  // Invalidate immediately, not after debounce: old results must not be selectable.
+  clearCatalogResults();
   if (!elements.itemSearch.value.trim()) {
     void renderCatalog();
     return;
@@ -2030,7 +2450,7 @@ async function linkItem(itemId) {
   state.activeSlot = newItem.slot;
   renderEquipment();
   renderCatalog();
-  showToast(`${getItemName(newItem)}을(를) ${getItemMeta(newItem)}에 연결했습니다.`);
+  showToast(t("toast.itemLinked", { name: getItemName(newItem), meta: getItemMeta(newItem) }));
   saveState();
   focusItemSearch();
   await hydrateEnglishItemNames([newItem]);
@@ -2052,7 +2472,9 @@ function removeItem(slot) {
   renderEquipment();
   renderCatalog();
   saveState();
-  showToast(item ? `${getItemName(item)}을(를) 장비에서 제거했습니다.` : `${getOutfitSlotName(slot)} 장비를 제거했습니다.`);
+  showToast(item
+    ? t("toast.itemRemoved", { name: getItemName(item) })
+    : t("toast.slotRemoved", { slot: getOutfitSlotName(slot) }));
   focusItemSearch();
 }
 
@@ -2062,6 +2484,7 @@ function normaliseSavedLook(value, index) {
   look.title = typeof value?.title === "string" ? value.title.trim().slice(0, 64) || "새로운 룩" : "새로운 룩";
   look.subtitle = typeof value?.subtitle === "string" ? value.subtitle.trim().slice(0, 160) : "";
   look.background = backgrounds[value?.background] ? value.background : "paper";
+  look.customBackgroundColor = normaliseHexColor(value?.customBackgroundColor, customBackgroundDefault);
   look.backgroundPattern = backgroundPatternOptions.has(value?.backgroundPattern) ? value.backgroundPattern : "none";
   look.backgroundTexture = backgroundTextureOptions.has(value?.backgroundTexture) ? value.backgroundTexture : "none";
   look.titleFont = titleFonts[value?.titleFont] ? value.titleFont : defaultTitleFont;
@@ -2076,13 +2499,14 @@ function normaliseSavedLook(value, index) {
   return look;
 }
 
-function loadDraft() {
+async function loadDraft() {
   try {
-    const raw = localStorage.getItem(draftStorageKey);
-    if (!raw) return null;
-    const saved = JSON.parse(raw);
+    const saved = typeof draftStorage.readValue === "function"
+      ? await draftStorage.readValue(draftStorageKey)
+      : JSON.parse(await draftStorage.read(draftStorageKey));
+    if (!saved || typeof saved !== "object") return null;
     if (saved?.version !== 3) {
-      localStorage.removeItem(draftStorageKey);
+      await draftStorage.remove(draftStorageKey);
       return null;
     }
     if (Array.isArray(saved.catalogItems)) registerItemRecords(saved.catalogItems);
@@ -2105,6 +2529,10 @@ function loadDraft() {
     look.subtitle = typeof saved.subtitle === "string" && looks.length === 1 ? saved.subtitle.trim().slice(0, 160) : look.subtitle;
     if (saved.background && backgrounds[saved.background]) state.background = saved.background;
     else state.background = look.background || legacyStyle?.background || "paper";
+    state.customBackgroundColor = normaliseHexColor(
+      saved.customBackgroundColor ?? look.customBackgroundColor,
+      customBackgroundDefault,
+    );
     if (typeof saved.cutout === "boolean") state.cutout = saved.cutout;
     if (saved.outline) state.outline = normaliseOutline(saved.outline, "#f1dfbb", 8);
     if (saved.titleOutline) state.titleOutline = normaliseOutline(saved.titleOutline, "#ffffff", 6);
@@ -2179,14 +2607,17 @@ function loadDraft() {
 }
 
 function renderAll() {
+  cancelLiveStyleRender();
   syncHistoryControls();
-  renderLook();
+  // renderStyles applies the final ratio/layout/font variables before its
+  // single title-fit pass. Fitting here would measure the pre-style card and
+  // force an avoidable second layout.
+  renderLook({ fitTitle: false });
   renderLookList();
   renderCast();
   renderStyles();
   renderEquipment();
-  renderCatalog();
-  renderSourcePanel();
+  if (shouldRenderCatalog()) renderCatalog();
   hydrateCurrentLookEnglishNames();
 }
 
@@ -2200,6 +2631,7 @@ function selectLook(id) {
   const editor = nextLook.editor || defaultLookEditor();
   Object.assign(state, editor, { characters: editor.characters.map(character => ({ ...character })), shadow: { ...editor.shadow } });
   state.background = backgrounds[nextLook.background] ? nextLook.background : "paper";
+  state.customBackgroundColor = normaliseHexColor(nextLook.customBackgroundColor, customBackgroundDefault);
   restoreBackgroundStyle(nextLook.backgroundPattern, nextLook.backgroundMotif, nextLook.backgroundTexture);
   state.titleFont = titleFonts[nextLook.titleFont] ? nextLook.titleFont : defaultTitleFont;
   state.titleWeight = normaliseTitleWeight(state.titleFont, nextLook.titleWeight ?? defaultTitleWeight);
@@ -2236,60 +2668,141 @@ function formatImageOffset(value) {
   return offset === 0 ? "0 px" : `${offset > 0 ? "+" : "−"}${Math.abs(offset)} px`;
 }
 
+function syncRangeControlUi(input) {
+  if (!input) return;
+  updateRangeProgress(input);
+  const value = Number(input.value);
+  let output;
+  let formattedValue;
+  switch (input.id) {
+    case "outlineRange":
+      output = elements.outlineValue;
+      formattedValue = `${String(value).padStart(2, "0")} px`;
+      input.setAttribute("aria-valuetext", `${value} px`);
+      break;
+    case "titleOutlineRange":
+      output = elements.titleOutlineValue;
+      formattedValue = value ? `${value} px` : t("range.none");
+      input.setAttribute("aria-valuetext", formattedValue);
+      break;
+    case "shadowRange":
+      output = elements.shadowValue;
+      formattedValue = `${value}%`;
+      input.setAttribute("aria-valuetext", formattedValue);
+      break;
+    case "zoomRange":
+      output = elements.zoomReadout;
+      formattedValue = `${value}%`;
+      input.setAttribute("aria-valuetext", formattedValue);
+      break;
+    case "panXRange":
+      output = elements.panXReadout;
+      formattedValue = formatImageOffset(value);
+      input.setAttribute("aria-valuetext", formattedValue);
+      break;
+    case "panYRange":
+      output = elements.panYReadout;
+      formattedValue = formatImageOffset(value);
+      input.setAttribute("aria-valuetext", formattedValue);
+      break;
+    default:
+      return;
+  }
+  if (output) output.textContent = formattedValue;
+}
+
+async function inspectImageDimensions(file) {
+  return ImageValidation.readDimensions(file);
+}
+
 async function handleImageFile(file, characterIndex = state.selectedCharacter, { render = true, notify = true } = {}) {
   const operationEpoch = workspaceEpoch;
-  const fileType = String(file?.type || "").toLowerCase();
-  if (!file || !["image/png", "image/jpeg", "image/webp"].includes(fileType)) {
-    if (notify) showToast("PNG, JPG 또는 WebP 이미지를 선택해주세요.");
+  const fileValidation = ImageValidation.validateFile(file);
+  if (!fileValidation.ok && fileValidation.reason === "type") {
+    if (notify) showToast(t("toast.invalidImage"));
     return false;
   }
-  if (file.size > 16 * 1024 * 1024) {
-    if (notify) showToast("이미지 한 장은 16MB 이하만 사용할 수 있습니다.");
+  if (!fileValidation.ok && fileValidation.reason === "bytes") {
+    if (notify) showToast(t("toast.imageTooLarge"));
     return false;
   }
+  const dimensions = await inspectImageDimensions(file);
+  if (dimensions) {
+    const dimensionValidation = ImageValidation.validateDimensions(dimensions.width, dimensions.height);
+    if (!dimensionValidation.ok) {
+      if (notify) showToast(t("toast.imageDimensionsTooLarge"));
+      return false;
+    }
+  }
+  if (operationEpoch !== workspaceEpoch) return false;
   const targetIndex = clamp(Number(characterIndex) || 0, 0, state.characters.length - 1);
+  const sourceLook = getSelectedLook();
   const character = getCharacterImageState(state.characters[targetIndex] || state.characters[0]);
   // Each original is immutable while cards or undo history may reference it.
   const assetKey = createAssetKey();
   const url = createAssetUrl(file);
-  state.characters[targetIndex] = {
+  const transaction = {
+    operationEpoch,
+    look: sourceLook,
+    targetIndex,
+    targetKey: imageImportTargetKey(sourceLook, targetIndex),
+    assetKey,
+    nextCharacter: {
     ...character,
     src: url,
     originalSrc: url,
     assetKey,
     fileName: file.name,
-    fileMeta: `${Math.round(file.size / 1024)} KB · 원본`,
+    fileMeta: `${Math.round(file.size / 1024)} KB · ${t("image.original")}`,
     cutout: false,
     imageFit: "contain",
     zoom: 100,
     panX: 0,
     panY: 0,
+    },
   };
-  if (targetIndex === state.selectedCharacter) syncSelectedCharacter();
-  if (render) renderAll();
+  invalidatePendingImageImports({ look: sourceLook, characterIndex: targetIndex });
+  pendingImageImports.set(transaction.targetKey, transaction);
   try {
     await writeCharacterAsset(assetKey, { originalBlob: file, cutoutBlob: null });
-    if (operationEpoch !== workspaceEpoch) return false;
   } catch {
-    if (operationEpoch !== workspaceEpoch) return false;
-    setSaveStatus("이미지 저장 실패 · 새로고침 전에 다시 추가하세요", true);
-    if (notify) showToast("이미지는 불러왔지만 새로고침 후 복원하지 못할 수 있습니다.");
+    if (isCurrentImageImport(transaction) && operationEpoch === workspaceEpoch) {
+      setSaveStatus(t("status.imageSaveFailed"), true);
+      if (notify && getSelectedLook() === sourceLook) showToast(t("toast.imageLoadFailed"));
+    }
+    releaseImageImport(transaction);
+    disposeImageImport(transaction);
     return false;
   }
-  if (render) saveState();
-  if (notify) showToast("이미지를 불러왔습니다.");
+  if (!isCurrentImageImport(transaction)) {
+    releaseImageImport(transaction);
+    disposeImageImport(transaction);
+    return false;
+  }
+  commitImageImport(transaction);
+  releaseImageImport(transaction);
+  if (render) {
+    if (getSelectedLook() === sourceLook) renderAll();
+    saveState();
+  }
+  if (notify && getSelectedLook() === sourceLook) showToast(t("toast.imageLoaded"));
   return true;
 }
 
 async function handleImageFiles(fileList) {
-  const files = Array.from(fileList || []).slice(0, 5);
+  const requestedFiles = Array.from(fileList || []);
+  const files = requestedFiles.slice(0, 5);
   if (!files.length) return;
   const operationEpoch = workspaceEpoch;
-  const lookId = state.selectedLookId;
+  const sourceLook = getSelectedLook();
+  const lookId = sourceLook.id;
+  const previousCharacterCount = state.characterCount;
+  const previousSelectedCharacter = state.selectedCharacter;
   recordHistory();
   const startIndex = state.selectedCharacter;
   const capacity = state.characters.length - startIndex;
   const queuedFiles = files.slice(0, capacity);
+  const skippedCount = Math.max(0, requestedFiles.length - queuedFiles.length);
   if (queuedFiles.length > 1) state.characterCount = Math.max(state.characterCount, startIndex + queuedFiles.length);
   // Assign the whole batch to its originating look before yielding to card navigation.
   const imports = queuedFiles.map((file, offset) =>
@@ -2297,14 +2810,38 @@ async function handleImageFiles(fileList) {
   state.selectedCharacter = startIndex;
   syncSelectedCharacter();
   renderAll();
-  saveState();
   const importedCount = (await Promise.all(imports)).filter(Boolean).length;
-  if (operationEpoch !== workspaceEpoch || lookId !== state.selectedLookId) return;
+  if (operationEpoch !== workspaceEpoch) return;
+  if (importedCount) {
+    if (getSelectedLook() === sourceLook) {
+      state.selectedCharacter = startIndex;
+      syncSelectedCharacter();
+      renderAll();
+    }
+    saveState();
+  } else {
+    state.characterCount = previousCharacterCount;
+    state.selectedCharacter = Math.min(previousSelectedCharacter, previousCharacterCount - 1);
+    if (sourceLook.editor) {
+      sourceLook.editor.characterCount = previousCharacterCount;
+      sourceLook.editor.selectedCharacter = Math.min(previousSelectedCharacter, previousCharacterCount - 1);
+    }
+    if (getSelectedLook() === sourceLook) {
+      syncSelectedCharacter();
+      renderAll();
+    }
+    saveState();
+  }
+  if (lookId !== state.selectedLookId) return;
   if (!importedCount) {
-    showToast("불러올 수 있는 PNG, JPG 또는 WebP 이미지가 없습니다.");
+    showToast(t("toast.noValidImages"));
     return;
   }
-  showToast(importedCount > 1 ? `${importedCount}장의 이미지를 캐릭터 슬롯에 배치했습니다.` : "이미지를 불러왔습니다.");
+  if (skippedCount > 0) {
+    showToast(t("toast.imagesPlacedLimited", { count: importedCount, skipped: skippedCount }));
+    return;
+  }
+  showToast(importedCount > 1 ? t("toast.imagesPlaced", { count: importedCount }) : t("toast.imageLoaded"));
 }
 
 function resetSelectedImagePlacement({ notify = true } = {}) {
@@ -2313,7 +2850,7 @@ function resetSelectedImagePlacement({ notify = true } = {}) {
   updateSelectedImageState({ imageFit: "contain", zoom: 100, panX: 0, panY: 0 });
   renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
   if (!imageEditorOpen) saveState();
-  if (notify && !imageEditorOpen) showToast("선택한 이미지를 프레임에 맞췄습니다.");
+  if (notify && !imageEditorOpen) showToast(t("toast.imageFit"));
 }
 
 function resetSelectedImagePosition({ notify = true } = {}) {
@@ -2323,7 +2860,7 @@ function resetSelectedImagePosition({ notify = true } = {}) {
   updateSelectedImageState({ panX: 0, panY: 0 });
   renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
   if (!imageEditorOpen) saveState();
-  if (notify && !imageEditorOpen) showToast("이미지를 카드 중앙에 맞췄습니다.");
+  if (notify && !imageEditorOpen) showToast(t("toast.imageCentered"));
 }
 
 function nudgeSelectedImage(direction) {
@@ -2353,21 +2890,20 @@ async function quickCutout() {
   if ($("#cutoutButton").disabled) return;
   const targetCharacter = state.characters[state.selectedCharacter];
   if (!resolveCharacterAsset(targetCharacter, "source")) {
-    showToast("이미지를 먼저 추가하세요.");
+    showToast(t("image.addFirst"));
     return;
   }
   if (state.cutout) {
     recordHistory();
     const character = state.characters[state.selectedCharacter];
     character.src = character.originalSrc;
-    character.fileMeta = character.fileMeta.replace(/[^·]*배경\s*제거$/, "원본");
+    character.fileMeta = getDisplayImageFileMeta(character.fileMeta, false);
     character.cutout = false;
     syncSelectedCharacter();
     renderCast();
     renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
-    renderSourcePanel();
     saveState();
-    showToast("원본 이미지로 복원했습니다.");
+    showToast(t("toast.originalRestored"));
     return;
   }
   const button = $("#cutoutButton");
@@ -2381,20 +2917,24 @@ async function quickCutout() {
   button.disabled = true;
   button.setAttribute("aria-busy", "true");
   button.classList.add("is-processing");
-  label.textContent = "배경을 분리하는 중 · 원본 유지";
+  cutoutProcessingKey = "cutout.processing";
+  cutoutProgress = null;
+  label.textContent = t("cutout.processing");
 
   const finishProcessing = () => {
     button.disabled = false;
     button.removeAttribute("aria-busy");
     button.classList.remove("is-processing");
-    label.textContent = state.cutout ? "원본으로 복원" : "배경 제거";
+    cutoutProcessingKey = "cutout.processing";
+    cutoutProgress = null;
+    syncCutoutActionLabel();
   };
 
   let resultUrl = "";
   let applied = false;
   try {
     const sourceResponse = await fetch(sourceUrl);
-    if (!sourceResponse.ok) throw new Error("원본 이미지를 읽지 못했습니다.");
+    if (!sourceResponse.ok) throw new Error(t("image.sourceReadFailed"));
     const sourceBlob = await sourceResponse.blob();
     let resultBlob;
     let processingTier = "";
@@ -2407,7 +2947,7 @@ async function quickCutout() {
       });
       if (serverResponse.ok) {
         resultBlob = await serverResponse.blob();
-        processingTier = "GPU 서버";
+        processingTier = "server";
       } else {
         const detail = await serverResponse.json().catch(() => ({}));
         const canUseBrowserFallback = serverResponse.status >= 500
@@ -2419,7 +2959,7 @@ async function quickCutout() {
             "cutout_invalid_response",
           ].includes(detail.code);
         if (!canUseBrowserFallback) {
-          serverError = new Error(detail.error || "배경 제거 서버가 이미지를 처리하지 못했습니다.");
+          serverError = new Error(detail.error || t("image.serverFailed"));
         }
       }
     } catch {
@@ -2427,12 +2967,14 @@ async function quickCutout() {
     }
     if (!resultBlob && serverError) throw serverError;
     if (!resultBlob) {
-      if (!globalThis.TuyeongSetMaker2BackgroundRemoval?.removeInBrowser) throw new Error("브라우저 배경 제거 모듈을 불러오지 못했습니다.");
-      label.textContent = "브라우저 모델 준비 중 · 첫 실행은 다운로드가 필요합니다";
+      if (!globalThis.TuyeongSetMaker2BackgroundRemoval?.removeInBrowser) throw new Error(t("image.moduleMissing"));
+      cutoutProcessingKey = "cutout.browserPreparing";
+      syncCutoutActionLabel();
       const browserResult = await globalThis.TuyeongSetMaker2BackgroundRemoval.removeInBrowser(sourceBlob, {
         onProgress: (progress) => {
           if (progress.status === "progress" && Number.isFinite(progress.progress)) {
-            label.textContent = `브라우저 모델 준비 중 · ${Math.round(progress.progress)}%`;
+            cutoutProgress = Math.round(progress.progress);
+            syncCutoutActionLabel();
           }
         },
       });
@@ -2452,7 +2994,7 @@ async function quickCutout() {
       URL.revokeObjectURL(resultUrl);
       assetUrls.delete(resultUrl);
       scheduleAssetCleanup();
-      showToast("원본이나 작업 상태가 바뀌어 배경 제거 결과를 적용하지 않았습니다.");
+      showToast(t("toast.cutoutStale"));
       return;
     }
     try {
@@ -2460,36 +3002,40 @@ async function quickCutout() {
     } catch {
       URL.revokeObjectURL(resultUrl);
       assetUrls.delete(resultUrl);
-      showToast("배경제거는 완료됐지만 브라우저 저장에 실패했습니다.");
+      showToast(t("toast.cutoutStorageFailed"));
       return;
     }
     if (!isCurrentSource()) {
       URL.revokeObjectURL(resultUrl);
       assetUrls.delete(resultUrl);
       scheduleAssetCleanup();
-      showToast("원본이나 작업 상태가 바뀌어 배경 제거 결과를 적용하지 않았습니다.");
+      showToast(t("toast.cutoutStale"));
       return;
     }
     recordHistory();
     Object.assign(targetCharacter, {
       src: resultUrl,
-      fileMeta: `${image.naturalWidth} × ${image.naturalHeight} · 배경 제거`,
+      fileMeta: `${image.naturalWidth} × ${image.naturalHeight} · ${t("image.backgroundRemoved")}`,
       cutout: true,
     });
     applied = true;
     syncSelectedCharacter();
     renderCast();
     renderStyles();
-    renderSourcePanel();
     saveState();
-    showToast(`배경 제거 완료 · ${image.naturalWidth} × ${image.naturalHeight} 원본 해상도${processingTier ? ` · ${processingTier}` : ""}`);
+    const processingTierLabel = processingTier === "server" ? t("cutout.server") : processingTier;
+    showToast(t("toast.cutoutComplete", {
+      width: image.naturalWidth,
+      height: image.naturalHeight,
+      tier: processingTierLabel ? ` · ${processingTierLabel}` : "",
+    }));
   } catch (error) {
     if (resultUrl && !applied) {
       URL.revokeObjectURL(resultUrl);
       assetUrls.delete(resultUrl);
       scheduleAssetCleanup();
     }
-    showToast(error.message || "이미지를 처리하지 못했습니다.");
+    showToast(getUserFacingError(error, "toast.imageProcessFailed"));
   } finally {
     finishProcessing();
   }
@@ -2511,12 +3057,12 @@ function assertVisibleCutoutImage(image) {
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext("2d", { willReadFrequently: true });
-  if (!context) throw new Error("배경 제거 결과를 확인할 수 없습니다.");
+  if (!context) throw new Error(t("image.resultMissing"));
   context.drawImage(image, 0, 0, width, height);
   const pixels = context.getImageData(0, 0, width, height).data;
   let maxAlpha = 0;
   for (let index = 3; index < pixels.length; index += 4) maxAlpha = Math.max(maxAlpha, pixels[index]);
-  if (maxAlpha <= 8) throw new Error("배경 제거 모델이 빈 결과를 반환했습니다.");
+  if (maxAlpha <= 8) throw new Error(t("image.resultEmpty"));
 }
 
 let exportInProgress = false;
@@ -2526,9 +3072,9 @@ function exportRevision() {
 function captureExportCopy() {
   const board = elements.board.getBoundingClientRect();
   const scale = getExportDimensions().layoutWidth / board.width;
-  return [elements.boardTitle, elements.boardSubtitle].filter((element) => {
+  return [elements.boardTitle, elements.boardSubtitle, elements.boardCopyright].filter((element) => {
     if (!element) return false;
-    return element === elements.boardTitle || Boolean(element.textContent.trim());
+    return element === elements.boardTitle || element === elements.boardCopyright || Boolean(element.textContent.trim());
   }).map(element => {
     const style = getComputedStyle(element);
     const textAlign = ["left", "center", "right"].includes(style.textAlign) ? style.textAlign : "left";
@@ -2596,14 +3142,15 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
   const state = snapshot;
   const look = { ...getSelectedLook(), outfits: cloneOutfits(getLookOutfits(getSelectedLook())) };
   const dimensions = getExportDimensions();
-  const exportTheme = getExportTheme();
+  const background = getBackgroundTheme(state);
+  const exportTheme = getExportTheme(state);
   const gear = state.characters.map((character, index) => getCharacterItemIds(index, look).map(getItem).filter(Boolean).map(item => ({
     name: getItemName(item, state.language), secondaryName: getSecondaryItemName(item, state.language),
     slotName: getOutfitSlotName(item.slot, state.language),
   })));
   const revision = exportRevision();
   const assertUnchanged = () => {
-    if (revision !== exportRevision()) throw new Error("편집 내용이 변경되었습니다. 현재 카드에서 PNG 내보내기를 다시 눌러주세요.");
+    if (revision !== exportRevision()) throw new Error(t("image.resultChanged"));
   };
   const exportButton = $("#exportButton");
   try {
@@ -2611,8 +3158,8 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
     const missingCharacterIndex = activeCharacters.findIndex((character) => !resolveCharacterAsset(character, "hero"));
     if (missingCharacterIndex >= 0) {
       showToast(state.characterCount === 1
-        ? "PNG로 저장하려면 이미지를 먼저 추가하세요."
-        : `캐릭터 ${missingCharacterIndex + 1}의 이미지를 먼저 추가하세요.`);
+        ? t("toast.exportMissing")
+        : t("toast.characterImageMissing", { number: missingCharacterIndex + 1 }));
       return;
     }
     const titleFontConfig = getTitleFontConfig(state.titleFont);
@@ -2622,9 +3169,9 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
       : Promise.resolve();
     exportInProgress = true;
     exportButton.setAttribute("aria-busy", "true");
-    exportButton.textContent = "PNG 준비 중…";
+    setExportButtonLabel("export.preparing");
     const fontReady = await Promise.race([fontLoad.then(() => true), new Promise(resolve => window.setTimeout(() => resolve(false), 8000))]);
-    if (!fontReady) throw new Error("서체 준비 시간이 초과되었습니다. 연결을 확인하거나 기본 서체로 다시 시도해주세요.");
+    if (!fontReady) throw new Error(t("image.fontTimeout"));
     assertUnchanged();
     fitBoardTitle();
     const copyLayout = captureExportCopy();
@@ -2632,12 +3179,12 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
     const images = await Promise.all(activeCharacters.map((character) => loadCanvasImage(resolveCharacterAsset(character, "hero"))));
     assertUnchanged();
     const infoTextTheme = state.multiInfoMode === "silhouette"
-      ? getSilhouetteInfoTheme(backgrounds[state.background])
+      ? getSilhouetteInfoTheme(background)
       : { foreground: exportTheme.text, muted: exportTheme.muted, halo: exportTheme.infoShadow };
     const board = elements.board.getBoundingClientRect();
     const placementScale = board.width > 0 ? dimensions.layoutWidth / board.width : 1;
     const outputBlob = await CardPng.render({ state, dimensions, exportTheme,
-      background: backgrounds[state.background], patternStars, images, copyLayout, gear,
+      background, patternStars, images, copyLayout, gear,
       placementScale, outlineColor: rgba(state.outline.color, 0.8), infoTextColor: infoTextTheme.foreground,
       infoTextMuted: infoTextTheme.muted, infoTextHalo: infoTextTheme.halo });
     assertUnchanged();
@@ -2648,24 +3195,25 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
     link.href = objectUrl;
     link.click();
     window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-    showToast(`PNG를 내보냈습니다 · ${dimensions.exportWidth} × ${dimensions.exportHeight} px`);
+    showToast(t("toast.exported", { width: dimensions.exportWidth, height: dimensions.exportHeight }));
   } catch (error) {
-    showToast(error.message || "내보낼 이미지를 준비하지 못했습니다.");
+    showToast(getUserFacingError(error, "toast.exportFailed"));
   } finally {
     exportInProgress = false;
     exportButton.removeAttribute("aria-busy");
-    exportButton.textContent = "PNG 내보내기 ↗";
+    setExportButtonLabel("export.label");
   }
 }
 
 function resetStyles() {
   recordHistory();
   state.background = "paper";
+  state.customBackgroundColor = customBackgroundDefault;
   state.backgroundPattern = "none";
   state.backgroundTexture = "none";
   const character = state.characters[state.selectedCharacter];
   character.src = character.originalSrc;
-  character.fileMeta = character.fileMeta.replace(" · 배경 제거", " · 원본");
+  character.fileMeta = getDisplayImageFileMeta(character.fileMeta, false);
   character.cutout = false;
   syncSelectedCharacter();
   state.outline = { color: "#f1dfbb", width: 0 };
@@ -2690,7 +3238,7 @@ function resetStyles() {
   styleAdvancedOpen = false;
   renderAll();
   saveState();
-  showToast("스타일과 현재 이미지 배치를 기본값으로 되돌렸습니다.");
+  showToast(t("toast.stylesReset"));
 }
 
 function setResetMenuOpen(open, { focusFirst = false } = {}) {
@@ -2705,6 +3253,7 @@ function setResetMenuOpen(open, { focusFirst = false } = {}) {
 
 function resetCardData() {
   const look = getSelectedLook();
+  invalidatePendingImageImports({ look });
   const defaults = defaultLookSnapshots.get(look.id) || createLookResetSnapshot(look, looks.indexOf(look));
   recordHistory();
   // Keep assets reachable through undo. Full workspace deletion is permanent.
@@ -2713,6 +3262,7 @@ function resetCardData() {
   look.outfits = cloneOutfits(defaults.outfits);
   ensureLookOutfits(look);
   state.background = defaults.background;
+  state.customBackgroundColor = normaliseHexColor(defaults.customBackgroundColor, customBackgroundDefault);
   restoreBackgroundStyle(defaults.backgroundPattern, undefined, defaults.backgroundTexture);
   state.multiInfoEnabled = true;
   state.multiInfoMode = "clear";
@@ -2740,11 +3290,17 @@ function resetCardData() {
   renderAll();
   openPanel(activePanel);
   saveState();
-  showToast("현재 카드를 비웠습니다. 되돌리기로 복원할 수 있어요.");
+  showToast(t("toast.cardReset"));
 }
 
 async function resetWorkspace() {
   workspaceEpoch += 1;
+  invalidatePendingImageImports();
+  draftSaveSequence += 1;
+  if (scheduledSaveTimer) {
+    window.clearTimeout(scheduledSaveTimer);
+    scheduledSaveTimer = 0;
+  }
   clearTimeout(assetCleanupTimer);
   const activePanel = state.activePanel;
   if (imageEditorOpen) finishImageEditor(false);
@@ -2753,7 +3309,7 @@ async function resetWorkspace() {
     await Promise.allSettled([...pendingAssetWrites]);
     await characterAssetVault.clear();
   } catch {
-    showToast("이미지 보관함을 삭제하지 못했습니다. 잠시 후 다시 시도해주세요.");
+    showToast(t("toast.assetDeleteFailed"));
     return false;
   }
   looks.forEach(look => revokeCharacterAssets(look.editor?.characters || []));
@@ -2761,7 +3317,12 @@ async function resetWorkspace() {
   for (const url of assetUrls) revokeObjectUrl(url);
   assetUrls.clear();
   let storageFailed = false;
-  [draftStorageKey, ...legacyStorageKeys, uiPreferencesStorageKey, backgroundPresetStorageKey].forEach((key) => {
+  try {
+    await draftStorage.remove(draftStorageKey);
+  } catch {
+    storageFailed = true;
+  }
+  [...legacyStorageKeys, uiPreferencesStorageKey, backgroundPresetStorageKey, languagePreferenceStorageKey].forEach((key) => {
     try {
       localStorage.removeItem(key);
     } catch {
@@ -2772,6 +3333,7 @@ async function resetWorkspace() {
   itemSearch.clear();
   localizedItemNameRequests.clear();
   elements.itemSearch.value = "";
+  clearCatalogResults();
   $("#lookSearch").value = "";
   backgroundPresets = [];
   backgroundPresetCreateOpen = false;
@@ -2780,7 +3342,7 @@ async function resetWorkspace() {
   looks.forEach(ensureLookOutfits);
   captureDefaultLookSnapshots();
   Object.assign(state, {
-    language: "ko",
+    language: I18n.detectLanguage(),
     selectedLookId: "look-1",
     activeSlot: "head",
     characterCount: 1,
@@ -2814,17 +3376,18 @@ async function resetWorkspace() {
   });
   uiPreferences.libraryCollapsed = true;
   styleAdvancedOpen = false;
+  applyPageLanguage(state.language);
   syncLibraryPanel();
   saveUiPreferences();
   syncSelectedCharacter();
   renderAll();
   openPanel(activePanel);
   if (storageFailed) {
-    setSaveStatus("일부 설정 삭제 실패 · 브라우저 저장 권한을 확인하세요", true);
-    showToast("이미지는 삭제했지만 일부 설정을 지우지 못했습니다. 저장 권한을 확인하고 다시 시도해주세요.");
+    setSaveStatus(t("status.partialDelete"), true);
+    showToast(t("toast.partialDeleteDetail"));
   } else {
-    setSaveStatus("빈 작업공간 · 이 브라우저에 자동 저장");
-    showToast("이 브라우저의 LOOK BOOK, 이미지, 프리셋을 모두 삭제했습니다.");
+    setSaveStatus(t("status.emptyWorkspace"));
+    showToast(t("toast.workspaceDeleted"));
   }
   return !storageFailed;
 }
@@ -2876,14 +3439,18 @@ function openPanel(panelId) {
     panel.classList.toggle("is-hidden", !active);
     panel.hidden = !active;
   });
-  if (elements.inspectorTitle) elements.inspectorTitle.textContent = panelLabels[nextPanel];
+  if (elements.inspectorTitle) elements.inspectorTitle.textContent = t(panelLabels[nextPanel]);
   if (nextPanel === "itemsPanel") ensureMobileControlVisible(elements.itemSearch);
 }
 
 function initialiseInteractions() {
   window.addEventListener("pagehide", flushScheduledSaveState);
   initialiseLookManager();
-  $$(".look-list-item").forEach((button) => button.addEventListener("click", () => selectLook(button.dataset.lookId)));
+  elements.lookList.addEventListener("click", (event) => {
+    const button = event.target.closest(".look-list-item");
+    if (!button || !elements.lookList.contains(button)) return;
+    selectLook(button.dataset.lookId);
+  });
   $("#previousLook").addEventListener("click", () => cycleLook(-1));
   $("#nextLook").addEventListener("click", () => cycleLook(1));
   $("#lookSearch").addEventListener("input", renderLookList);
@@ -2904,7 +3471,7 @@ function initialiseInteractions() {
     if (state.selectedCharacter >= nextCount) state.selectedCharacter = nextCount - 1;
     renderAll();
     saveState();
-    showToast(`${nextCount}인 룩북 레이아웃으로 재배치했습니다.`);
+    showToast(t("toast.relayout", { count: nextCount }));
   }));
   $("#multiInfoToggle").addEventListener("change", (event) => { recordHistory(); state.multiInfoEnabled = event.target.checked; renderStyles(); saveState(); });
   $$('button[data-info-mode]').forEach((button) => button.addEventListener("click", () => {
@@ -2935,7 +3502,7 @@ function initialiseInteractions() {
     const applyButton = event.target.closest("[data-background-preset-id]");
     if (applyButton) applyBackgroundPreset(applyButton.dataset.backgroundPresetId);
   });
-  $$('button[data-single-ratio]').forEach((button) => button.addEventListener("click", () => { recordHistory(); state.singleRatio = button.dataset.singleRatio; renderStyles(); saveState(); showToast(button.dataset.singleRatio === "portrait" ? "1인 카드를 세로 4:5로 바꿨습니다." : "1인 카드를 가로 16:9로 바꿨습니다."); }));
+  $$('button[data-single-ratio]').forEach((button) => button.addEventListener("click", () => { recordHistory(); state.singleRatio = button.dataset.singleRatio; renderStyles(); saveState(); showToast(t(button.dataset.singleRatio === "portrait" ? "toast.ratioPortrait" : "toast.ratioLandscape")); }));
   $$('button[data-single-layout]').forEach((button) => button.addEventListener("click", () => { recordHistory(); state.singleLayout = button.dataset.singleLayout; renderStyles(); saveState(); }));
   $("#titleFontSelect").addEventListener("change", (event) => {
     recordHistory();
@@ -2960,6 +3527,10 @@ function initialiseInteractions() {
     renderStyles({ refreshInfo: false, refreshPattern: false });
     saveState();
   }));
+  $("#focusCardTitleButton")?.addEventListener("click", () => {
+    setCopyEditorTarget("title");
+    elements.boardTitle?.focus({ preventScroll: true });
+  });
   document.addEventListener("keydown", (event) => {
     const radio = event.target.closest('[role="radio"]');
     const group = radio?.closest('[role="radiogroup"]');
@@ -3008,7 +3579,16 @@ function initialiseInteractions() {
       panX: dragState.panX + event.clientX - dragState.startX,
       panY: dragState.panY + event.clientY - dragState.startY,
     });
-    renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
+    renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false, refreshControls: false });
+    if (elements.panXRange) {
+      elements.panXRange.value = String(state.panX);
+      syncRangeControlUi(elements.panXRange);
+    }
+    if (elements.panYRange) {
+      elements.panYRange.value = String(state.panY);
+      syncRangeControlUi(elements.panYRange);
+    }
+    syncImagePlacementSummary();
   });
   const finishDrag = (event) => {
     if (!dragState) return;
@@ -3063,12 +3643,20 @@ function initialiseInteractions() {
       }
       editing = true;
       update(Number(input.value));
-      renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
-      updateRangeProgress(input);
+      scheduleLiveStyleRender({ refreshInfo: false, refreshPattern: false, fitTitle: false, refreshControls: false });
+      syncRangeControlUi(input);
       if (!imageEditorOpen) scheduleSaveState();
     });
-    input.addEventListener("change", () => { editing = false; flushScheduledSaveState(); });
-    input.addEventListener("blur", () => { editing = false; flushScheduledSaveState(); });
+    const finish = () => {
+      if (!editing) return;
+      editing = false;
+      flushScheduledSaveState();
+      if (!flushLiveStyleRender({ refreshControls: true })) {
+        renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
+      }
+    };
+    input.addEventListener("change", finish);
+    input.addEventListener("blur", finish);
   };
   bindHistoryRange(elements.zoomRange, value => { updateSelectedImageState({ zoom: value }); });
   bindHistoryRange(elements.panXRange, value => { updateSelectedImageState({ panX: value }); });
@@ -3085,17 +3673,29 @@ function initialiseInteractions() {
         editing = true;
       }
       update(input.value);
-      renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
+      scheduleLiveStyleRender({ refreshInfo: false, refreshPattern: false, fitTitle: false, refreshControls: false });
       scheduleSaveState();
     });
-    input.addEventListener("change", () => { editing = false; flushScheduledSaveState(); });
-    input.addEventListener("blur", () => { editing = false; flushScheduledSaveState(); });
+    const finish = () => {
+      if (!editing) return;
+      editing = false;
+      flushScheduledSaveState();
+      if (!flushLiveStyleRender({ refreshControls: true })) {
+        renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
+      }
+    };
+    input.addEventListener("change", finish);
+    input.addEventListener("blur", finish);
   };
   bindColorInput($("#titleOutlineColorInput"), (value) => {
     state.titleOutline.color = normaliseHexColor(value, "#ffffff");
   });
   bindColorInput($("#titleColorInput"), (value) => {
     state.titleColor = normaliseHexColor(value, defaultTitleColor());
+  });
+  bindColorInput($("#customBackgroundColorInput"), (value) => {
+    state.background = "custom";
+    state.customBackgroundColor = normaliseHexColor(value, customBackgroundDefault);
   });
   $("#titleColorAutoButton")?.addEventListener("click", () => {
     if (!state.titleColor) return;
@@ -3112,7 +3712,14 @@ function initialiseInteractions() {
     renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
     saveState();
   }));
-  $$(".backdrop-swatch").forEach((swatch) => swatch.addEventListener("click", () => { recordHistory(); state.background = swatch.dataset.background; renderStyles(); saveState(); }));
+  $$(".backdrop-swatch").forEach((swatch) => swatch.addEventListener("click", () => {
+    const nextBackground = backgrounds[swatch.dataset.background] ? swatch.dataset.background : "paper";
+    if (nextBackground === state.background) return;
+    recordHistory();
+    state.background = nextBackground;
+    renderStyles();
+    saveState();
+  }));
   $$(".direction-pad button").forEach((button) => button.addEventListener("click", () => {
     recordHistory();
     const direction = button.dataset.shadow;
@@ -3131,8 +3738,8 @@ function initialiseInteractions() {
   $("#focusCanvasButton").addEventListener("click", (event) => {
     const focused = document.body.classList.toggle("canvas-focus-mode");
     event.currentTarget.setAttribute("aria-pressed", String(focused));
-    event.currentTarget.setAttribute("aria-label", focused ? "일반 보기" : "캔버스 크게 보기");
-    event.currentTarget.title = focused ? "일반 보기" : "캔버스 크게 보기";
+    event.currentTarget.setAttribute("aria-label", t(focused ? "canvas.normal" : "canvas.focus"));
+    event.currentTarget.title = t(focused ? "canvas.normal" : "canvas.focus");
   });
   $("#undoButton").addEventListener("click", undo);
   $("#redoButton").addEventListener("click", redo);
@@ -3158,12 +3765,12 @@ function initialiseInteractions() {
   $("#cancelWorkspaceDelete").addEventListener("click", () => $("#deleteWorkspaceDialog").close());
   $("#deleteWorkspaceDialog").addEventListener("close", () => $("#resetButton").focus({ preventScroll: true }));
   $("#confirmWorkspaceDelete").addEventListener("click", async () => {
-    const button = $("#confirmWorkspaceDelete"); button.disabled = true; button.textContent = "삭제 중…";
+    const button = $("#confirmWorkspaceDelete"); button.disabled = true; button.textContent = t("dialog.deleting");
     try {
       const completed = await resetWorkspace();
       if (completed) $("#deleteWorkspaceDialog").close();
     }
-    finally { button.disabled = false; button.textContent = "모두 삭제"; }
+    finally { button.disabled = false; button.textContent = t("dialog.deleteConfirm"); }
   });
   document.addEventListener("pointerdown", (event) => {
     if (!(event.target instanceof Element)) return;
@@ -3191,13 +3798,18 @@ function initialiseInteractions() {
     }
   });
   $("#exportButton").addEventListener("click", downloadComposition);
+  elements.saveRetryButton?.addEventListener("click", () => { void saveState({ immediate: true }); });
   $("#itemSearch").addEventListener("input", scheduleCatalogSearch);
+  elements.catalogResults.addEventListener("click", (event) => {
+    const result = event.target.closest(".catalog-result");
+    if (!result || !elements.catalogResults.contains(result)) return;
+    void linkItem(result.dataset.itemId);
+  });
   elements.languageSelect.addEventListener("change", (event) => {
-    state.language = event.currentTarget.value;
-    renderEquipment();
-    renderCatalog();
-    renderMultiInfo();
-    hydrateCurrentLookEnglishNames();
+    state.language = I18n.normaliseLanguage(event.currentTarget.value);
+    persistLanguagePreference(state.language);
+    applyPageLanguage(state.language);
+    renderAll();
     saveState();
   });
   $$(".mode-tab").forEach((tab) => {
@@ -3215,22 +3827,24 @@ function initialiseInteractions() {
   });
   $("#addLookButton").addEventListener("click", addLook);
   const bindInlineCardField = (element, field, fallback = "") => {
+    const resolveFallback = () => typeof fallback === "function" ? fallback() : fallback;
     let editSnapshot;
     element.addEventListener("focus", () => {
       editSnapshot = createSnapshot();
       element.dataset.editStart = getSelectedLook()[field] || "";
       element.dataset.editing = "true";
       elements.board.dataset.copyEditing = "true";
+      setCopyEditorTarget(field);
     });
     element.addEventListener("input", () => {
       const look = getSelectedLook();
       const value = normaliseInlineText(element.textContent || "");
-      look[field] = value || fallback;
-      if (field === "title") fitBoardTitle();
+      look[field] = value || resolveFallback();
+      if (field === "title") scheduleBoardTitleFit();
       scheduleCardCopyPreview();
       if (field === "title") {
-        document.title = `${projectName} | ${look.title}`;
-        renderLookList();
+        document.title = getDocumentTitle(look);
+        syncLookListTitle(look);
       }
     });
     element.addEventListener("keydown", (event) => {
@@ -3241,15 +3855,15 @@ function initialiseInteractions() {
       if (event.key === "Escape") {
         event.preventDefault();
         const look = getSelectedLook();
-        look[field] = element.dataset.editStart || fallback;
-        element.textContent = look[field];
+        look[field] = element.dataset.editStart || resolveFallback();
+        element.textContent = field === "title" ? getLookTitle(look) : look[field];
         element.blur();
       }
     });
     element.addEventListener("blur", () => {
       const look = getSelectedLook();
       const value = normaliseInlineText(element.textContent || "");
-      look[field] = value || fallback;
+      look[field] = value || resolveFallback();
       if (editSnapshot && look[field] !== editSnapshot[field]) recordHistory(editSnapshot);
       editSnapshot = null;
       element.dataset.editing = "false";
@@ -3258,25 +3872,27 @@ function initialiseInteractions() {
       saveState();
     });
   };
-  bindInlineCardField(elements.boardTitle, "title", "새로운 룩");
+  bindInlineCardField(elements.boardTitle, "title", () => "새로운 룩");
   bindInlineCardField(elements.boardSubtitle, "subtitle");
   const bindCopyEditorField = (input, count, field, fallback = "") => {
+    const resolveFallback = () => typeof fallback === "function" ? fallback() : fallback;
     let editSnapshot;
     input.addEventListener("focus", () => {
       editSnapshot = createSnapshot();
       input.dataset.editStart = getSelectedLook()[field] || "";
+      setCopyEditorTarget(field);
     });
     input.addEventListener("input", () => {
       const look = getSelectedLook();
       look[field] = input.value;
-      elements.boardTitle.textContent = look.title || "새로운 룩";
+      elements.boardTitle.textContent = getLookTitle(look);
       elements.boardSubtitle.textContent = look.subtitle || "";
       elements.boardSubtitle.dataset.empty = String(!look.subtitle);
-      if (field === "title") fitBoardTitle();
+      if (field === "title") scheduleBoardTitleFit();
       scheduleCardCopyPreview();
       if (field === "title") {
-        document.title = `${projectName} | ${look.title || "새로운 룩"}`;
-        renderLookList();
+        document.title = getDocumentTitle(look);
+        syncLookListTitle(look);
       }
       updateCopyEditorCount(input, count);
       resizeCopyEditorField(input);
@@ -3289,22 +3905,22 @@ function initialiseInteractions() {
       if (event.key === "Escape") {
         event.preventDefault();
         const look = getSelectedLook();
-        look[field] = input.dataset.editStart || fallback;
-        input.value = look[field];
+        look[field] = input.dataset.editStart || resolveFallback();
+        input.value = field === "title" ? getLookTitle(look) : look[field];
         input.blur();
       }
     });
     input.addEventListener("blur", () => {
       const look = getSelectedLook();
       const value = normaliseInlineText(input.value);
-      look[field] = value || fallback;
+      look[field] = value || resolveFallback();
       if (editSnapshot && look[field] !== editSnapshot[field]) recordHistory(editSnapshot);
       editSnapshot = null;
       renderLook();
       saveState();
     });
   };
-  bindCopyEditorField(elements.cardTitleInput, elements.cardTitleCount, "title", "새로운 룩");
+  bindCopyEditorField(elements.cardTitleInput, elements.cardTitleCount, "title", () => "새로운 룩");
   bindCopyEditorField(elements.cardSubtitleInput, elements.cardSubtitleCount, "subtitle");
   const titleBlock = elements.boardTitle?.parentElement;
   if (titleBlock instanceof HTMLElement && "ResizeObserver" in window) {
@@ -3334,7 +3950,7 @@ function initialiseInteractions() {
       return;
     }
     if (imageEditorOpen && (event.metaKey || event.ctrlKey)) { event.preventDefault(); return; }
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") { event.preventDefault(); saveState(); showToast("저장했습니다."); }
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") { event.preventDefault(); saveState(); showToast(t("toast.saved")); }
     const editingCardCopy = event.target instanceof HTMLElement && (event.target.isContentEditable || event.target.matches("input, textarea, select"));
     if (!editingCardCopy && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") { event.preventDefault(); event.shiftKey ? redo() : undo(); }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -3357,7 +3973,7 @@ function addLook() {
   captureDefaultLookSnapshots();
   $("#lookSearch").value = "";
   selectLook(id);
-  showToast("새 룩을 만들었습니다.");
+  showToast(t("toast.lookCreated"));
 }
 
 function initialiseLookManager() {
@@ -3367,17 +3983,18 @@ function initialiseLookManager() {
   const duplicate = $("#duplicateLookButton");
   const restore = $("#restoreDeletedLookButton");
   const update = () => {
-    input.value = getSelectedLook().title || "새로운 룩";
+    input.value = getLookTitle(getSelectedLook());
     input.setCustomValidity("");
     dialog.querySelectorAll('form button, form input, #deleteLookButton').forEach(control => { control.disabled = lookCopyInProgress; });
     duplicate.disabled = lookCopyInProgress;
-    duplicate.textContent = lookCopyInProgress ? "복제 중…" : "복제";
+    duplicate.textContent = lookCopyInProgress ? t("manager.duplicateInProgress") : t("manager.duplicate");
     duplicate.setAttribute("aria-busy", String(lookCopyInProgress));
     restore.disabled = lookCopyInProgress || !deletedLooks.length;
-    restore.textContent = deletedLooks.length ? `삭제 취소 (${deletedLooks.length})` : "삭제 취소";
+    restore.textContent = deletedLooks.length ? t("manager.restoreCount", { count: deletedLooks.length }) : t("manager.restore");
   };
   $("#manageLookButton").addEventListener("click", () => {
     setMobileLookSearchOpen(false);
+    status.removeAttribute("data-i18n");
     status.textContent = "";
     update();
     dialog.showModal();
@@ -3388,7 +4005,7 @@ function initialiseLookManager() {
   $("#renameLookForm").addEventListener("submit", event => {
     event.preventDefault();
     const title = normaliseInlineText(input.value).slice(0, 64);
-    if (!title) { input.setCustomValidity("룩 이름을 입력해주세요."); input.reportValidity(); return; }
+    if (!title) { input.setCustomValidity(t("manager.nameRequired")); input.reportValidity(); return; }
     if (getSelectedLook().title !== title) {
       recordHistory();
       getSelectedLook().title = title;
@@ -3397,7 +4014,7 @@ function initialiseLookManager() {
       saveState();
     }
     dialog.close();
-    showToast("룩 이름과 카드 제목을 변경했습니다.");
+    showToast(t("toast.lookRenamed"));
   });
   input.addEventListener("input", () => input.setCustomValidity(""));
   duplicate.addEventListener("click", async () => {
@@ -3408,13 +4025,15 @@ function initialiseLookManager() {
     const epoch = workspaceEpoch;
     const isCurrent = () => epoch === workspaceEpoch && looks.includes(source);
     lookCopyInProgress = true;
-    status.textContent = "사진과 편집 내용을 복제하고 있습니다.";
+    status.dataset.i18n = "manager.duplicating";
+    status.textContent = t("manager.duplicating");
     update();
     try {
       await Promise.all([...pendingAssetWrites]);
       if (!isCurrent()) return;
       const copy = await LookBook.copy(snapshot, { createId: createAssetKey,
-        readAsset: characterAssetVault.read, writeAsset: writeCharacterAsset, isCurrent });
+        readAsset: characterAssetVault.read, writeAsset: writeCharacterAsset, isCurrent,
+        copyTitle: (sourceLook) => `${getLookTitle(sourceLook)} ${t("look.copySuffix")}` });
       if (!copy || !isCurrent()) return;
       // The copy owns a new IndexedDB key. Rehydrate fresh Blob URLs before it
       // becomes visible; revoking the source URL later must never break both
@@ -3431,10 +4050,11 @@ function initialiseLookManager() {
       if (state.selectedLookId === source.id) selectLook(copy.id);
       else { renderLookList(); saveState(); }
       dialog.close();
-      showToast("독립된 사진과 편집 내용을 가진 복사본을 만들었습니다.");
+      showToast(t("toast.lookDuplicated"));
     } catch (error) {
       if (isCurrent()) {
-        status.textContent = error.message || "복제하지 못했습니다. 브라우저 저장 공간을 확인해주세요.";
+        status.removeAttribute("data-i18n");
+        status.textContent = getUserFacingError(error, "manager.duplicateFailed");
         if (!dialog.open) showToast(status.textContent);
       }
     } finally {
@@ -3460,7 +4080,8 @@ function initialiseLookManager() {
     renderAll();
     saveState();
     update();
-    status.textContent = `“${source.title}”을 삭제했습니다. 삭제 취소로 복원할 수 있습니다.`;
+    status.removeAttribute("data-i18n");
+    status.textContent = t("toast.lookDeleted", { title: getLookTitle(source) });
     restore.focus();
   });
   restore.addEventListener("click", () => {
@@ -3471,7 +4092,8 @@ function initialiseLookManager() {
     $("#lookSearch").value = "";
     selectLook(look.id);
     update();
-    status.textContent = `“${look.title}”을 복원했습니다.`;
+    status.removeAttribute("data-i18n");
+    status.textContent = t("toast.lookRestored", { title: getLookTitle(look) });
     input.focus();
   });
 }
@@ -3482,7 +4104,8 @@ async function bootstrap() {
   restoreUiPreferences();
   syncLibraryPanel();
   loadBackgroundPresets();
-  const savedDraft = loadDraft();
+  await loadDraft();
+  applyPageLanguage(state.language);
   const selectedLook = getSelectedLook();
   // Legacy v3 shared images can only be assigned reliably to the selected look.
   if (!selectedLook.editor) selectedLook.editor = captureEditorState(state);

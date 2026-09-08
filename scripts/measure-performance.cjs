@@ -60,6 +60,7 @@ async function instrument(page) {
     "renderBoardGear",
     "renderCatalog",
     "renderCatalogResults",
+    "renderLookList",
     "renderPattern",
     "renderMultiInfo",
     "renderSourcePanel",
@@ -188,10 +189,17 @@ async function measureSearch(page) {
     const start = performance.now();
     input.value = "성능";
     input.dispatchEvent(new Event("input", { bubbles: true }));
-    while (document.querySelectorAll(".catalog-result").length < 250) {
+    // The real API returns eight rows. This fixture intentionally sends an
+    // oversized response to verify that the UI degrades to a bounded result
+    // window instead of waiting for every injected row to reach the DOM.
+    while (document.querySelectorAll(".catalog-result").length === 0) {
       await new Promise((resolve) => requestAnimationFrame(resolve));
     }
-    return performance.now() - start;
+    return {
+      elapsedMs: performance.now() - start,
+      renderedCount: document.querySelectorAll(".catalog-result").length,
+      status: document.querySelector("#catalogStatus")?.textContent || "",
+    };
   });
 }
 
@@ -218,12 +226,73 @@ async function runStyleInput(browser) {
   }
 }
 
+async function runLookListTitleInput(browser) {
+  const { context, page } = await createScenario(browser);
+  try {
+    await page.evaluate(() => {
+      while (looks.length < 250) {
+        const index = looks.length + 1;
+        looks.push(createBlankLook(index, `title-perf-look-${index}`));
+      }
+      renderLookList();
+    });
+    await resetProbe(page);
+    const titleEditMs = await page.evaluate(async () => {
+      const title = document.querySelector("#boardTitle");
+      title.focus();
+      const start = performance.now();
+      for (let index = 0; index < 40; index += 1) {
+        title.textContent = `성능 제목 ${index}`;
+        title.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      return performance.now() - start;
+    });
+    return { scenario: "250-look-title-input-events", titleEditMs, ...(await readProbe(page)) };
+  } finally {
+    await context.close();
+  }
+}
+
+async function runScopedRender(browser) {
+  const { context, page } = await createScenario(browser);
+  try {
+    await page.evaluate(() => {
+      while (looks.length < 250) {
+        const index = looks.length + 1;
+        looks.push(createBlankLook(index, `scope-perf-look-${index}`));
+      }
+      elements.itemSearch.value = "";
+      openPanel("stylePanel");
+      renderLookList();
+    });
+    await resetProbe(page);
+    const styleRenderMs = await page.evaluate(() => {
+      const start = performance.now();
+      renderAll();
+      return performance.now() - start;
+    });
+    const stylePanel = await readProbe(page);
+    await resetProbe(page);
+    const itemsRenderMs = await page.evaluate(() => {
+      openPanel("itemsPanel");
+      const start = performance.now();
+      renderAll();
+      return performance.now() - start;
+    });
+    const itemsPanel = await readProbe(page);
+    return { scenario: "panel-scoped-render", styleRenderMs, stylePanel, itemsRenderMs, itemsPanel };
+  } finally {
+    await context.close();
+  }
+}
+
 async function runCatalog(browser) {
   const { context, page } = await createScenario(browser, { items: true });
   try {
     await page.locator("#itemsTab").click();
     await resetProbe(page);
-    const searchMs = await measureSearch(page);
+    const searchMeasurement = await measureSearch(page);
     const searchProbe = await readProbe(page);
     await resetProbe(page);
     const linkMs = await page.evaluate(async () => {
@@ -237,7 +306,9 @@ async function runCatalog(browser) {
     await waitForFrames(page);
     return {
       scenario: "catalog-250-results",
-      searchMs,
+      searchMs: searchMeasurement.elapsedMs,
+      searchRenderedCount: searchMeasurement.renderedCount,
+      searchStatus: searchMeasurement.status,
       search: searchProbe,
       linkMs,
       link: await readProbe(page),
@@ -290,12 +361,15 @@ async function runDraftScaling(browser) {
         }
       }, targetSize);
       await resetProbe(page);
-      const saveBurstMs = await page.evaluate(() => {
+      const saveBurst = await page.evaluate(async () => {
         const start = performance.now();
-        for (let index = 0; index < 10; index += 1) saveState();
-        return performance.now() - start;
+        const writes = [];
+        for (let index = 0; index < 10; index += 1) writes.push(saveState());
+        const synchronousMs = performance.now() - start;
+        await Promise.all(writes);
+        return { synchronousMs };
       });
-      measurements.push({ targetSize, saveBurstMs, probe: await readProbe(page) });
+      measurements.push({ targetSize, saveBurstMs: saveBurst.synchronousMs, probe: await readProbe(page) });
     }
     return { scenario: "save-state-scaling", measurements };
   } finally {
@@ -309,7 +383,7 @@ async function runDraftScaling(browser) {
     const results = [];
     results.push(await runInitialLoad(browser));
     results.push(await runInitialLoad(browser, { blockRemoteFont: true }));
-    for (const runner of [runStyleInput, runCatalog, runCharacterFilter, runDraftScaling]) results.push(await runner(browser));
+    for (const runner of [runStyleInput, runLookListTitleInput, runScopedRender, runCatalog, runCharacterFilter, runDraftScaling]) results.push(await runner(browser));
     const outputPath = path.join(__dirname, "..", "artifacts", "performance-baseline.json");
     fs.mkdirSync(path.dirname(outputPath), { recursive: true });
     fs.writeFileSync(outputPath, JSON.stringify({ generatedAt: new Date().toISOString(), baseUrl, results }, null, 2));

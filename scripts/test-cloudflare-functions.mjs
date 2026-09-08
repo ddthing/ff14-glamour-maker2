@@ -30,19 +30,41 @@ try {
     "XIVAPI relative icon paths must use the same image host as snapshot records",
   );
   assert.equal(
+    normaliseXivItem({ row_id: "15479", fields: { Name: "Swine Body", Icon: { id: 42523 }, EquipSlotCategory: { value: 16 } } }, "en").slot,
+    "body",
+    "special costume categories must remain searchable when the API omits nested slot fields",
+  );
+  assert.equal(
     searchKoreanItems([
       { id: "32799", slot: "body", names: { ko: "송아지 가죽 라이더 재킷" }, itemLevel: 1 },
     ], "송아지 가죽 라이더 자켓", "body")[0].id,
     "32799",
     "common Korean jacket spelling variants must resolve to the indexed item",
   );
+  const orderedIndex = [
+    { id: "1", slot: "head", names: { ko: "같은 이름" }, itemLevel: 1 },
+    { id: "2", slot: "body", names: { ko: "같은 이름" }, itemLevel: 1 },
+    { id: "3", slot: "head", names: { ko: "같은 이름" }, itemLevel: 1 },
+  ];
+  assert.deepEqual(
+    searchKoreanItems(orderedIndex, "같은 이름", "head").map((item) => item.id),
+    ["1", "3"],
+    "slot-specific search should preserve source order for equal scores",
+  );
+  assert.deepEqual(
+    orderedIndex.map((item) => item.id),
+    ["1", "2", "3"],
+    "search indexing must not mutate the source records",
+  );
 
   let indexFetches = 0;
+  const assetUrls = [];
   const itemSearchResponse = await onRequestGet({
     request: new Request("https://tuyeong-set-maker2.example/api/items/search?q=%EB%9A%B1%EB%83%A5%EC%9D%B4%20%EB%91%90%EA%B1%B4&slot=head&language=ko"),
     env: {
       ASSETS: {
-        fetch: async () => {
+        fetch: async (url) => {
+          assetUrls.push(String(url));
           indexFetches++;
           if (indexFetches === 1) return new Response("temporary failure", { status: 503 });
           return new Response(JSON.stringify([
@@ -54,6 +76,7 @@ try {
   });
   assert.equal(itemSearchResponse.status, 200, "item search should recover from a transient snapshot failure");
   assert.equal(indexFetches, 2, "item snapshot fetch should retry a transient failure");
+  assert.ok(assetUrls[0].endsWith("/assets/data/items-ko-head.json"), "slot searches should request only the active slot index");
   assert.equal((await itemSearchResponse.json()).results[0].id, "38238");
 
   let response = await onRequestPost({ request: request(), env: {} });

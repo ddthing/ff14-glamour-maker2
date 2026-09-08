@@ -12,6 +12,41 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
 
     assert.equal(await page.locator("#copyEditorSection #titleFontSelect").count(), 1, "title typography is separated from card copy editing");
     assert.equal(await page.locator("#multiCardControls #titleFontSelect, .card-style-section #titleFontSelect").count(), 0, "title typography remains buried in card settings");
+    assert.equal(await page.locator("#copyEditorContextbar").count(), 1, "card-first copy toolbar is missing");
+    assert.equal(await page.locator("#copyEditorContextbar [role=toolbar]").count(), 1, "copy toolbar semantics are missing");
+    assert.equal(await page.locator("#copyEditorAdvanced").getAttribute("open"), null, "fine styling should start collapsed");
+    const copySurface = await page.evaluate(() => {
+      const contextbar = document.querySelector("#copyEditorContextbar");
+      const section = document.querySelector("#copyEditorSection");
+      const contextStyle = getComputedStyle(contextbar);
+      const sectionStyle = getComputedStyle(section);
+      return {
+        contextBackground: contextStyle.backgroundColor,
+        contextBorderWidth: contextStyle.borderWidth,
+        contextRadius: contextStyle.borderRadius,
+        contextShadow: contextStyle.boxShadow,
+        sectionBackground: sectionStyle.backgroundColor,
+      };
+    });
+    assert.equal(copySurface.contextBackground, "rgba(0, 0, 0, 0)", `copy tools should share the inspector surface: ${JSON.stringify(copySurface)}`);
+    assert.equal(copySurface.contextBorderWidth, "0px", `copy tools should not become a nested card: ${JSON.stringify(copySurface)}`);
+    assert.equal(copySurface.contextRadius, "0px", `copy tools should not have a separate card radius: ${JSON.stringify(copySurface)}`);
+    assert.equal(copySurface.contextShadow, "none", `copy tools should not cast a separate shadow: ${JSON.stringify(copySurface)}`);
+    assert.equal(copySurface.sectionBackground, "rgba(0, 0, 0, 0)", `copy section should not introduce another surface: ${JSON.stringify(copySurface)}`);
+    await page.locator("#focusCardTitleButton").click();
+    assert.equal(await page.locator("#canvasBoard").getAttribute("data-copy-target"), "title", "card focus action did not select the title");
+    assert.equal(await page.locator(":focus").getAttribute("id"), "boardTitle", "card focus action did not move focus to the title");
+    const directEditStyle = await page.locator("#boardTitle").evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        backgroundColor: style.backgroundColor,
+        borderRadius: style.borderRadius,
+        boxShadow: style.boxShadow,
+      };
+    });
+    assert.equal(directEditStyle.backgroundColor, "rgba(0, 0, 0, 0)", `direct card editing should keep the card surface continuous: ${JSON.stringify(directEditStyle)}`);
+    assert.equal(directEditStyle.borderRadius, "0px", `direct card editing should not create a rounded text box: ${JSON.stringify(directEditStyle)}`);
+    assert.equal(directEditStyle.boxShadow, "none", `direct card editing should not create a shadowed text box: ${JSON.stringify(directEditStyle)}`);
 
     const initial = await page.evaluate(() => {
       const select = document.querySelector("#titleFontSelect");

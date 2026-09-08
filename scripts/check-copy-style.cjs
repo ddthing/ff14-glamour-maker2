@@ -78,7 +78,10 @@ async function setColor(page, selector, value) {
     assert.ok(Math.abs(capturedCenter.lineX - capturedCenter.expected) < 3, `PNG copy anchor drifted from centered title: ${JSON.stringify(capturedCenter)}`);
     assert.equal(JSON.parse(await page.evaluate(() => localStorage.getItem("tuyeong-set-maker2-draft-v3"))).looks[0].titleAlign, "center");
 
-    await page.locator("#styleAdvancedToggle").click();
+    const styleAdvancedToggle = page.locator("#styleAdvancedToggle");
+    if (await styleAdvancedToggle.getAttribute("aria-expanded") !== "true") await styleAdvancedToggle.click();
+    const copyEditorAdvanced = page.locator("#copyEditorAdvanced");
+    if (await copyEditorAdvanced.getAttribute("open") === null) await copyEditorAdvanced.locator("summary").click();
     const controlShape = await page.evaluate(() => ({
       directPickerRadius: getComputedStyle(document.querySelector("#titleOutlineColorInput").closest("label")).borderRadius,
       directSwatchRadius: getComputedStyle(document.querySelector("#titleOutlineColorInput")).borderRadius,
@@ -94,6 +97,7 @@ async function setColor(page, selector, value) {
     assert.equal(controlShape.scrollbarWidth, "thin", `inspector scrollbar is not thin: ${JSON.stringify(controlShape)}`);
     assert.equal(controlShape.webkitScrollbarWidth, "6px", `WebKit scrollbar remains too wide: ${JSON.stringify(controlShape)}`);
 
+    await page.locator("#titleOutlineRange").scrollIntoViewIfNeeded();
     await page.locator("#titleOutlineRange").fill("2");
     await setColor(page, "#titleOutlineColorInput", "#ff00aa");
     const titleStyle = await page.locator("#boardTitle").evaluate((element) => getComputedStyle(element).webkitTextStroke);

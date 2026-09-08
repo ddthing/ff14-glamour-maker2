@@ -29,6 +29,8 @@ const baseUrl = process.env.TEST_BASE_URL || "http://localhost:4173";
       look.outfits[0].head = "900001";
       ensureLookOutfits(look);
       itemRecordCache.set("900001", { id: "900001", slot: "head", names: { ko: "테스트 모자" }, meta: { ko: "장비" } });
+      elements.itemSearch.value = "";
+      elements.catalogResults.innerHTML = '<button data-stale-catalog="true">stale</button>';
       void hydrateCurrentLookEnglishNames();
     });
     await requestSeen;
@@ -37,7 +39,9 @@ const baseUrl = process.env.TEST_BASE_URL || "http://localhost:4173";
     await page.locator("#resetWorkspaceButton").click();
     await page.locator("#confirmWorkspaceDelete").click();
     await page.waitForFunction(() => document.querySelectorAll(".look-list-item").length === 1);
+    await page.waitForFunction(() => !document.querySelector('[data-stale-catalog="true"]'));
     assert.equal(await page.evaluate(() => localStorage.getItem("tuyeong-set-maker2-draft-v3")), null);
+    assert.equal(await page.locator('[data-stale-catalog="true"]').count(), 0, "workspace reset must clear hidden catalog results");
 
     releaseSearch();
     await page.waitForTimeout(150);

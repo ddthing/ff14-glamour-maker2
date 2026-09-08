@@ -22,7 +22,7 @@ function drawExportPattern(context, width, height, background, snapshot, pattern
     dots: 0.16,
     stars: 0.2,
     halftone: 0.2,
-    bitmap: 0.18,
+    bitmap: 0.26,
   };
   const strength = exportStrength[state.backgroundPattern] ?? 0;
   const ink = background.pattern[0];
@@ -62,23 +62,16 @@ function drawExportPattern(context, width, height, background, snapshot, pattern
       }
     }
   } else if (state.backgroundPattern === "bitmap") {
-    const clusters = [
-      [width * 0.12, height * 0.18, width * 0.31, height * 0.22],
-      [width * 0.66, height * 0.68, width * 0.38, height * 0.24],
-    ];
-    clusters.forEach(([left, top, clusterWidth, clusterHeight], clusterIndex) => {
-      const step = Math.max(8, width / 118);
-      for (let y = top; y < top + clusterHeight; y += step) {
-        for (let x = left; x < left + clusterWidth; x += step) {
-          const edge = Math.min(x - left, left + clusterWidth - x, y - top, top + clusterHeight - y);
-          const fade = Math.min(1, Math.max(0, edge / (step * 3)));
-          if (fade <= 0 || (Math.round(x / step) + Math.round(y / step) + clusterIndex) % 5 === 0) continue;
-          context.globalAlpha = strength * fade * (0.65 + ((Math.round(x / step) + Math.round(y / step)) % 3) * 0.12);
-          context.fillStyle = (Math.round(x / step) + Math.round(y / step)) % 2 ? ink : light;
-          context.fillRect(Math.floor(x), Math.floor(y), Math.max(2, step * 0.42), Math.max(2, step * 0.42));
-        }
+    // The legacy bitmap key now renders as a deliberate checkerboard. Keep
+    // the tile size in the same card-coordinate scale as the CSS preview.
+    const square = Math.max(18, width / 60);
+    for (let row = 0, y = 0; y < height; row += 1, y += square) {
+      for (let column = 0, x = 0; x < width; column += 1, x += square) {
+        context.globalAlpha = strength;
+        context.fillStyle = (row + column) % 2 ? ink : light;
+        context.fillRect(Math.floor(x), Math.floor(y), Math.ceil(square), Math.ceil(square));
       }
-    });
+    }
   }
 
   if (state.backgroundTexture === "grain") {
@@ -146,16 +139,17 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       context.roundRect(x, y, width, height, radius);
     };
     const drawPlacedImage = (image, character, x, y, width, height) => {
-      const placement = character;
-      const fitScale = placement.imageFit === "cover"
-        ? Math.max(width / image.naturalWidth, height / image.naturalHeight)
-        : Math.min(width / image.naturalWidth, height / image.naturalHeight);
-      const scale = fitScale * (placement.zoom / 100);
-      const imageWidth = image.naturalWidth * scale;
-      const imageHeight = image.naturalHeight * scale;
-      const imageX = x + (width - imageWidth) / 2 + placement.panX * resolvedPlacementScale;
-      const imageY = y + (height - imageHeight) / 2 + placement.panY * resolvedPlacementScale;
-      context.drawImage(image, imageX, imageY, imageWidth, imageHeight);
+      const imageRect = CardLayout.imageRectFor({
+        frame: { x, y, width, height },
+        naturalWidth: image.naturalWidth,
+        naturalHeight: image.naturalHeight,
+        imageFit: character.imageFit,
+        zoom: character.zoom,
+        panX: character.panX,
+        panY: character.panY,
+        panScale: resolvedPlacementScale,
+      });
+      context.drawImage(image, imageRect.x, imageRect.y, imageRect.width, imageRect.height);
     };
     const drawCharacter = (image, character, x, y, width, height) => {
       context.save();
@@ -176,17 +170,17 @@ async function render({ state, dimensions, exportTheme, background, patternStars
         context.restore();
         return;
       }
-      const placement = character;
-      const fitScale = placement.imageFit === "cover"
-        ? Math.max(width / image.naturalWidth, height / image.naturalHeight)
-        : Math.min(width / image.naturalWidth, height / image.naturalHeight);
-      const imageScale = fitScale * (placement.zoom / 100);
-      const imageW = image.naturalWidth * imageScale;
-      const imageH = image.naturalHeight * imageScale;
-      const imageX = x + (width - imageW) / 2 + placement.panX * resolvedPlacementScale;
-      const imageY = placement.imageFit === "cover"
-        ? y + (height - imageH) / 2 + placement.panY * resolvedPlacementScale
-        : y + height - imageH + placement.panY * resolvedPlacementScale;
+      const imageRect = CardLayout.imageRectFor({
+        frame: { x, y, width, height },
+        naturalWidth: image.naturalWidth,
+        naturalHeight: image.naturalHeight,
+        imageFit: character.imageFit,
+        zoom: character.zoom,
+        panX: character.panX,
+        panY: character.panY,
+        cutout: true,
+        panScale: resolvedPlacementScale,
+      });
       const outline = state.outline.width * 2;
       const characterTreatment = silhouetteMode
         ? "brightness(0)"
@@ -194,7 +188,7 @@ async function render({ state, dimensions, exportTheme, background, patternStars
           ? "grayscale(82%) saturate(35%) contrast(86%) brightness(108%)"
           : "";
       context.filter = `${outline ? `drop-shadow(${outline}px 0 0 ${outlineColor}) drop-shadow(-${outline}px 0 0 ${outlineColor})` : ""} drop-shadow(${state.shadow.x * 2}px ${state.shadow.y * 2}px ${state.shadow.blur * 2}px rgba(10,11,18,${state.shadow.strength / 100})) ${characterTreatment}`.trim();
-      context.drawImage(image, imageX, imageY, imageW, imageH);
+      context.drawImage(image, imageRect.x, imageRect.y, imageRect.width, imageRect.height);
       context.restore();
     };
     const fitText = (value, maxWidth) => {

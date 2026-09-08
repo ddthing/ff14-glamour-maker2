@@ -2,7 +2,7 @@
 const TitleTypography = (() => {
   const defaultFonts = {
     pretendard: {
-      label: "Pretendard · 기본",
+      label: "Pretendard",
       family: '"Pretendard Variable", Pretendard, sans-serif',
       weights: [400, 500, 700],
     },

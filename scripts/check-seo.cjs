@@ -13,13 +13,13 @@ function escaped(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-assert.match(html, new RegExp(`<title>${escaped(title)}<\\/title>`), "the document title should use the current product name");
-assert.match(html, new RegExp(`<meta\\s+name="description"\\s+content="${escaped(description)}"\\s*\\/>`), "the description should be natural and product-specific");
+assert.match(html, new RegExp(`<title\\b[^>]*>${escaped(title)}<\\/title>`), "the document title should use the current product name");
+assert.match(html, new RegExp(`<meta\\b(?=[^>]*\\bname="description")(?=[^>]*\\bcontent="${escaped(description)}")[^>]*\\/?>`), "the description should be natural and product-specific");
 assert.match(html, /<meta\s+name="robots"\s+content="index,follow"\s*\/>/);
 assert.match(html, new RegExp(`<link\\s+rel="canonical"\\s+href="${escaped(siteUrl)}"\\s*\\/>`), "the Pages URL should be canonical");
-assert.match(html, new RegExp(`<meta\\s+property="og:title"\\s+content="${escaped(title)}"\\s*\\/>`));
-assert.match(html, new RegExp(`<meta\\s+property="og:description"\\s+content="${escaped(description)}"\\s*\\/>`));
-assert.match(html, new RegExp(`<meta\\s+property="og:url"\\s+content="${escaped(siteUrl)}"\\s*\\/>`));
+assert.match(html, new RegExp(`<meta\\b(?=[^>]*\\bproperty="og:title")(?=[^>]*\\bcontent="${escaped(title)}")[^>]*\\/?>`));
+assert.match(html, new RegExp(`<meta\\b(?=[^>]*\\bproperty="og:description")(?=[^>]*\\bcontent="${escaped(description)}")[^>]*\\/?>`));
+assert.match(html, new RegExp(`<meta\\b(?=[^>]*\\bproperty="og:url")(?=[^>]*\\bcontent="${escaped(siteUrl)}")[^>]*\\/?>`));
 assert.doesNotMatch(html, /글래머 아틀리에/);
 assert.doesNotMatch(html, /AI로 작성|AI가 작성|인공지능이 작성/);
 

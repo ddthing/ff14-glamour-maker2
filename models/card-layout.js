@@ -46,6 +46,45 @@ const CardLayout = (() => {
     }));
   }
 
+  // Resolve the painted image rectangle from the same frame used by the
+  // preview and PNG renderer. Keeping this math here prevents a future fit,
+  // zoom, or cutout change from drifting between the two surfaces.
+  function imageRectFor({
+    frame = {},
+    naturalWidth,
+    naturalHeight,
+    imageFit = "contain",
+    zoom = 100,
+    panX = 0,
+    panY = 0,
+    cutout = false,
+    panScale = 1,
+  } = {}) {
+    const x = Number(frame.x) || 0;
+    const y = Number(frame.y) || 0;
+    const width = Math.max(0, Number(frame.width) || 0);
+    const height = Math.max(0, Number(frame.height) || 0);
+    const sourceWidth = Math.max(1, Number(naturalWidth) || 1);
+    const sourceHeight = Math.max(1, Number(naturalHeight) || 1);
+    const fitScale = imageFit === "cover"
+      ? Math.max(width / sourceWidth, height / sourceHeight)
+      : Math.min(width / sourceWidth, height / sourceHeight);
+    const imageScale = fitScale * (Number.isFinite(Number(zoom)) ? Number(zoom) : 100) / 100;
+    const imageWidth = sourceWidth * imageScale;
+    const imageHeight = sourceHeight * imageScale;
+    const resolvedPanScale = Number.isFinite(Number(panScale)) ? Number(panScale) : 1;
+    const resolvedPanX = Number.isFinite(Number(panX)) ? Number(panX) : 0;
+    const resolvedPanY = Number.isFinite(Number(panY)) ? Number(panY) : 0;
+    return {
+      x: x + (width - imageWidth) / 2 + resolvedPanX * resolvedPanScale,
+      y: cutout && imageFit !== "cover"
+        ? y + height - imageHeight + resolvedPanY * resolvedPanScale
+        : y + (height - imageHeight) / 2 + resolvedPanY * resolvedPanScale,
+      width: imageWidth,
+      height: imageHeight,
+    };
+  }
+
   function infoRails({ characterCount = 2 } = {}) {
     if (Number(characterCount) !== 2) return [];
     const { layoutWidth } = dimensions.landscape;
@@ -83,7 +122,7 @@ const CardLayout = (() => {
     ].map((value) => `${value}%`).join(" ");
   }
 
-  return { ratioFor, dimensionsFor, characterFrames, infoRails, boundsFor, cssInsetFor };
+  return { ratioFor, dimensionsFor, characterFrames, imageRectFor, infoRails, boundsFor, cssInsetFor };
 })();
 
 if (typeof module !== "undefined") module.exports = CardLayout;

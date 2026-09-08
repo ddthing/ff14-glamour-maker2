@@ -22,7 +22,7 @@ const fixturePng = Buffer.from(
       };
     });
     assert.ok(Math.abs(emptyGeometry.figureCenter - emptyGeometry.placeholderCenter) <= 2, `empty photo slot is not centered: ${JSON.stringify(emptyGeometry)}`);
-    assert.equal(await page.locator(".character-figure.is-empty").getAttribute("aria-label"), "캐릭터 1 사진 추가", "the empty card itself should expose a direct add action");
+    assert.equal(await page.locator(".character-figure.is-empty").getAttribute("aria-label"), "캐릭터 01 사진 추가", "the empty card itself should expose a direct add action");
     assert.equal(await page.locator("#imageDropZone").count(), 0, "photo import should not rely on a duplicate bottom upload target");
 
     const addChooser = page.waitForEvent("filechooser");
@@ -49,7 +49,7 @@ const fixturePng = Buffer.from(
     await page.locator('[data-character-image-action="remove"]').click();
     await page.waitForFunction(() => document.querySelector("#portraitWrap .character-figure")?.classList.contains("is-empty"));
     assert.equal(await page.locator("#portraitWrap img").count(), 0, "remove should clear the preview image");
-    assert.equal(await page.locator(".character-figure.is-empty").getAttribute("aria-label"), "캐릭터 1 사진 추가", "remove should restore the direct add action");
+    assert.equal(await page.locator(".character-figure.is-empty").getAttribute("aria-label"), "캐릭터 01 사진 추가", "remove should restore the direct add action");
     assert.equal(await page.locator("#imageState").getAttribute("data-state"), "empty");
 
     await page.locator("#undoButton").click();

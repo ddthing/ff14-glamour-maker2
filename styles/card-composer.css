@@ -189,9 +189,12 @@
 }
 
 .board-title-block [contenteditable="true"]:focus {
-  border-radius: 4px;
-  background: rgb(255 255 255 / .1);
-  box-shadow: 0 0 0 2px color-mix(in oklch, currentColor 52%, transparent);
+  /* Direct editing stays on the continuous card surface. The readability
+     layer supplies the selection outline; do not turn the text into a
+     floating, shadowed input box. */
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   text-decoration: none;
 }
 
@@ -889,6 +892,20 @@
   background: transparent !important;
 }
 
+/* Two-person cards keep the information rails at the outer edges, so the
+   editorial copy must use the full inner card width. Without this override
+   the legacy 64% title block stays left-biased even when its text is set to
+   center, making preview and export disagree with the card's visual center. */
+.canvas-board[data-cast="2"] .board-editorial-header {
+  justify-content: center;
+  padding: 3.5% 5% 0 !important;
+}
+
+.canvas-board[data-cast="2"] .board-editorial-header .board-title-block {
+  width: 100%;
+  max-width: 100%;
+}
+
 .canvas-board[data-ratio="portrait"][data-cast="1"] .board-editorial-header {
   min-height: 0 !important;
   padding: 4.5% 6% 0 !important;
@@ -933,6 +950,27 @@
 .canvas-board .scene-pattern[data-pattern="stars"]::after {
   display: none;
 }
+
+/* The persisted `bitmap` key is intentionally presented as a visible
+   checkerboard. The old preview had no bitmap pseudo-element at all, so the
+   option changed state without painting anything; PNG and preview now share
+   the same full-card tile geometry. */
+.canvas-board .scene-pattern[data-pattern="bitmap"] {
+  display: block;
+  --checker-tile: clamp(12px, 3.333cqw, 40px);
+}
+
+.canvas-board .scene-pattern[data-pattern="bitmap"]::before {
+  inset: 0;
+  background-color: var(--pattern-light, #fff);
+  background-image:
+    linear-gradient(45deg, currentColor 25%, transparent 25%, transparent 75%, currentColor 75%),
+    linear-gradient(45deg, currentColor 25%, transparent 25%, transparent 75%, currentColor 75%);
+  background-position: 0 0, calc(var(--checker-tile) / 2) calc(var(--checker-tile) / 2);
+  background-size: var(--checker-tile) var(--checker-tile);
+}
+
+.canvas-board .scene-pattern[data-pattern="bitmap"]::after { display: none; }
 
 /* Reference star: filled, five-point, slightly narrow inner radius. */
 .pattern-motif--star > span {

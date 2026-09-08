@@ -9,6 +9,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     await page.goto(process.env.TEST_BASE_URL || "http://localhost:4173/?title-font-safety=1");
     await page.waitForSelector("#canvasBoard");
     await page.locator("#cardTitleInput").fill("밤하늘을 걷는 모험가의 투영세트메이커2 룩");
+    await page.locator("#copyEditorAdvanced summary").click();
+    await page.locator("#titleOutlineRange").scrollIntoViewIfNeeded();
     await page.locator("#titleOutlineRange").fill("6");
 
     const options = await page.locator("#titleFontSelect option").evaluateAll((items) => items.map((item) => ({

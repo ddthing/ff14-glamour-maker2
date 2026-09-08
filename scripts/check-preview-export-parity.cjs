@@ -177,7 +177,7 @@ function maxRectDelta(previewRect, exportRect) {
       );
       const deltas = preview.images.map((image, index) => maxRectDelta(image.rect, exportRects[index]));
       const maxDelta = Math.max(...deltas);
-      assert.ok(maxDelta <= 8, `${mode} ${count}인 image frame drifted ${maxDelta.toFixed(2)} layout px from the preview`);
+      assert.ok(maxDelta <= 0.75, `${mode} ${count}인 image frame drifted ${maxDelta.toFixed(2)} layout px from the preview`);
       results.push({
         mode,
         count,
@@ -224,18 +224,19 @@ function maxRectDelta(previewRect, exportRect) {
         characters: [character],
       })[0];
       const dimensions = CardLayout.dimensionsFor(1, state.singleRatio);
-      const fitScale = Math.min(frame.width / image.naturalWidth, frame.height / image.naturalHeight);
-      const imageScale = fitScale * (character.zoom / 100);
-      const imageWidth = image.naturalWidth * imageScale;
-      const imageHeight = image.naturalHeight * imageScale;
       const panScale = dimensions.layoutWidth / board.width;
       return {
-        expected: {
-          x: frame.x + (frame.width - imageWidth) / 2 + character.panX * panScale,
-          y: frame.y + (frame.height - imageHeight) / 2 + character.panY * panScale,
-          width: imageWidth,
-          height: imageHeight,
-        },
+        expected: CardLayout.imageRectFor({
+          frame,
+          naturalWidth: image.naturalWidth,
+          naturalHeight: image.naturalHeight,
+          imageFit: character.imageFit,
+          zoom: character.zoom,
+          panX: character.panX,
+          panY: character.panY,
+          cutout: character.cutout,
+          panScale,
+        }),
         panScale,
       };
     });
@@ -289,20 +290,17 @@ function maxRectDelta(previewRect, exportRect) {
           rects: frames.map((frame, index) => {
             const image = images[index];
             const character = characters[index];
-            const fitScale = next.imageFit === "cover"
-              ? Math.max(frame.width / image.naturalWidth, frame.height / image.naturalHeight)
-              : Math.min(frame.width / image.naturalWidth, frame.height / image.naturalHeight);
-            const imageScale = fitScale * (next.zoom / 100);
-            const width = image.naturalWidth * imageScale;
-            const height = image.naturalHeight * imageScale;
-            return {
-              x: frame.x + (frame.width - width) / 2 + character.panX * panScale,
-              y: next.cutout && next.imageFit !== "cover"
-                ? frame.y + frame.height - height + character.panY * panScale
-                : frame.y + (frame.height - height) / 2 + character.panY * panScale,
-              width,
-              height,
-            };
+            return CardLayout.imageRectFor({
+              frame,
+              naturalWidth: image.naturalWidth,
+              naturalHeight: image.naturalHeight,
+              imageFit: next.imageFit,
+              zoom: next.zoom,
+              panX: character.panX,
+              panY: character.panY,
+              cutout: next.cutout,
+              panScale,
+            });
           }),
         };
       }, scenario);

@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const net = require("node:net");
 const { spawn } = require("node:child_process");
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
 const { stopChild } = require("./test-process.cjs");
@@ -11,10 +12,22 @@ const emptyPng = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg==",
   "base64",
 );
-const port = 4198;
-const baseUrl = `http://127.0.0.1:${port}`;
+async function findFreePort() {
+  const probe = net.createServer();
+  await new Promise((resolve, reject) => {
+    probe.once("error", reject);
+    probe.listen(0, "127.0.0.1", resolve);
+  });
+  const port = probe.address().port;
+  await new Promise((resolve, reject) => {
+    probe.close((error) => error ? reject(error) : resolve());
+  });
+  return port;
+}
 
 async function startServer() {
+  const port = await findFreePort();
+  const baseUrl = `http://127.0.0.1:${port}`;
   const child = spawn(process.execPath, ["server.js"], {
     env: { ...process.env, PORT: String(port), HOST: "127.0.0.1", CUTOUT_SERVICE_URL: "http://127.0.0.1:9/remove" },
     stdio: ["ignore", "pipe", "pipe"],
@@ -29,7 +42,7 @@ async function startServer() {
   });
   try {
     await startup;
-    return child;
+    return { child, baseUrl };
   } catch (error) {
     await stopChild(child);
     throw error;
@@ -37,7 +50,7 @@ async function startServer() {
 }
 
 (async () => {
-  const server = await startServer();
+  const { child: server, baseUrl } = await startServer();
   const browser = await chromium.launch({ headless: true, channel: "msedge" });
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });

@@ -83,6 +83,12 @@ const fixturePng = Buffer.from(
     assert.equal(await page.locator(".catalog-progress").evaluate((element) => getComputedStyle(element).animationName), "none", "catalog motion ignores reduced-motion");
     releaseSearch();
     await page.waitForSelector('.catalog-result[data-item-id="9000001"]');
+    const boundedCatalog = await page.evaluate(() => ({
+      renderedCount: document.querySelectorAll(".catalog-result").length,
+      status: document.querySelector("#catalogStatus")?.textContent || "",
+    }));
+    assert.ok(boundedCatalog.renderedCount <= 24, `catalog DOM should stay bounded for oversized responses: ${JSON.stringify(boundedCatalog)}`);
+    assert.match(boundedCatalog.status, /250|24/, "bounded catalog should expose its result window to assistive technology");
     await page.waitForFunction(() => document.querySelector('.catalog-result[data-item-id="9000001"] .item-image')?.naturalWidth > 0);
     const catalogImage = await page.locator('.catalog-result[data-item-id="9000001"] .item-image').evaluate((image) => ({
       src: image.getAttribute("src"),
@@ -94,6 +100,20 @@ const fixturePng = Buffer.from(
     assert.equal(catalogImage.loading, "eager", "visible catalog item images must not be deferred behind the scroll container");
     assert.ok(catalogImage.naturalWidth > 0, `catalog item image did not load: ${JSON.stringify(catalogImage)}`);
     assert.equal(catalogImage.fallback, false, "a loaded item image must not expose the slot glyph fallback");
+
+    const loadingModes = await page.evaluate(() => {
+      const results = Array.from({ length: 10 }, (_, index) => ({
+        id: index === 0 ? "9000001" : String(9000100 + index),
+        slot: "head",
+        iconUrl: `https://xivapi.com/i/9000/${index === 0 ? "9000001" : 9000100 + index}.png`,
+        names: { ko: `지연 로드 검증 ${index}` },
+        meta: { ko: "머리 · 검증" },
+      }));
+      renderCatalogResults(results);
+      return [...document.querySelectorAll(".catalog-result .item-image")].map((image) => image.loading);
+    });
+    assert.deepEqual(loadingModes.slice(0, 8), Array(8).fill("eager"), "the first catalog viewport should load item icons immediately");
+    assert.deepEqual(loadingModes.slice(8), ["lazy", "lazy"], "catalog icons past the first viewport should be deferred");
     await page.unroute("**/api/items/search*");
 
     await page.locator('.catalog-result[data-item-id="9000001"]').click();
@@ -143,6 +163,22 @@ const fixturePng = Buffer.from(
     assert.equal(removed.outfitValue, null, "remove should persist an empty outfit slot");
     assert.equal(removed.savedCatalogSize, 0, "unreferenced item records should be dropped after removal");
 
+    await page.setViewportSize({ width: 320, height: 800 });
+    const mobileCatalogFlow = await page.locator("#catalogResults").evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        maxHeight: style.maxHeight,
+        overflowY: style.overflowY,
+        scrollHeight: element.scrollHeight,
+        clientHeight: element.clientHeight,
+      };
+    });
+    assert.equal(mobileCatalogFlow.maxHeight, "none", `mobile catalog must not be capped: ${JSON.stringify(mobileCatalogFlow)}`);
+    assert.equal(mobileCatalogFlow.overflowY, "visible", `mobile catalog must stay in document flow: ${JSON.stringify(mobileCatalogFlow)}`);
+    assert.equal(mobileCatalogFlow.scrollHeight, mobileCatalogFlow.clientHeight, `mobile catalog created a nested scroll surface: ${JSON.stringify(mobileCatalogFlow)}`);
+    await page.evaluate(() => window.scrollTo(0, Math.max(0, document.querySelector("#catalogResults").offsetTop - 72)));
+    await page.screenshot({ path: "artifacts/ui-equipment-panel-mobile-flow.png", fullPage: false });
+
     const result = await page.evaluate(() => {
       const action = document.querySelector(".catalog-result-action");
       const rect = action.getBoundingClientRect();
@@ -157,7 +193,6 @@ const fixturePng = Buffer.from(
     assert.equal(result.radius, "999px", "catalog action should share the compact pill shape");
     assert.equal(result.hidden, "true", "catalog action glyph should stay decorative in the accessibility tree");
 
-    await page.setViewportSize({ width: 320, height: 800 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "equipment panel overflows at 320px");
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.screenshot({ path: "artifacts/ui-equipment-panel-after.png", fullPage: true });

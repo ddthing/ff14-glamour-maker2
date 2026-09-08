@@ -11,19 +11,27 @@ from __future__ import annotations
 import hmac
 import json
 import os
+from io import BytesIO
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from threading import Lock
+from threading import BoundedSemaphore, Lock
+
+from PIL import Image, UnidentifiedImageError
 
 from rembg import new_session, remove
 
 
 MAX_UPLOAD_BYTES = 16 * 1024 * 1024
+MAX_RESULT_BYTES = 32 * 1024 * 1024
+MAX_IMAGE_PIXELS = 50_000_000
 SUPPORTED_TYPES = {"image/png", "image/jpeg", "image/webp"}
 MODEL_NAME = os.environ.get("BACKGROUND_MODEL", "birefnet-general")
 HOST = os.environ.get("BACKGROUND_SERVICE_HOST", "0.0.0.0")
 PORT = int(os.environ.get("BACKGROUND_SERVICE_PORT", os.environ.get("PORT", "8788")))
 ACCESS_TOKEN = os.environ.get("CUTOUT_SERVICE_TOKEN", "").strip()
+ALLOW_ANONYMOUS = os.environ.get("ALLOW_ANONYMOUS_CUTOUT", "").strip().lower() == "true"
 GPU_LOCK = Lock()
+GPU_SLOT = BoundedSemaphore(1)
+Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
 
 
 def create_gpu_session():
@@ -47,7 +55,11 @@ SESSION = create_gpu_session()
 
 
 class CutoutHandler(BaseHTTPRequestHandler):
-    server_version = "TuyeongSetMaker2Cutout/1.0"
+    server_version = "TuyeongSetMaker2Cutout/1.1"
+
+    def setup(self):  # noqa: D401 - BaseHTTPRequestHandler lifecycle hook
+        super().setup()
+        self.connection.settimeout(30)
 
     def do_GET(self):  # noqa: N802 - BaseHTTPRequestHandler API
         if self.path.split("?", 1)[0] == "/health":
@@ -74,31 +86,55 @@ class CutoutHandler(BaseHTTPRequestHandler):
         if declared_size is not None and declared_size > MAX_UPLOAD_BYTES:
             self.send_json(413, {"error": "16MB 이하 이미지를 사용해주세요."})
             return
-        body = self.read_body(declared_size)
-        if body is None:
+        if not GPU_SLOT.acquire(blocking=False):
+            self.send_json(429, {"error": "배경 제거 서버가 처리 중입니다. 잠시 후 다시 시도해주세요."}, {"Retry-After": "5"})
             return
         try:
-            with GPU_LOCK:
-                output = remove(body, session=SESSION)
-        except Exception as error:  # pragma: no cover - provider-specific runtime errors
-            self.log_error("background removal failed: %s", error)
-            self.send_json(500, {"error": "배경 제거에 실패했습니다."})
-            return
-        self.send_response(200)
-        self.send_header("Content-Type", "image/png")
-        self.send_header("Content-Length", str(len(output)))
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("X-Background-Model", MODEL_NAME)
-        self.send_header("X-Background-Provider", "CUDAExecutionProvider")
-        self.end_headers()
-        self.wfile.write(output)
+            body = self.read_body(declared_size)
+            if body is None or not self.validate_image_dimensions(body):
+                return
+            try:
+                with GPU_LOCK:
+                    output = remove(body, session=SESSION)
+            except Exception as error:  # pragma: no cover - provider-specific runtime errors
+                self.log_error("background removal failed: %s", error)
+                self.send_json(500, {"error": "배경 제거에 실패했습니다."})
+                return
+            if len(output) > MAX_RESULT_BYTES:
+                self.send_json(413, {"error": "배경 제거 결과가 너무 큽니다."})
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Length", str(len(output)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Background-Model", MODEL_NAME)
+            self.send_header("X-Background-Provider", "CUDAExecutionProvider")
+            self.end_headers()
+            self.wfile.write(output)
+        finally:
+            GPU_SLOT.release()
 
     def authorized(self):
         if not ACCESS_TOKEN:
-            return True
+            return ALLOW_ANONYMOUS
         received = self.headers.get("Authorization", "")
         expected = f"Bearer {ACCESS_TOKEN}"
         return hmac.compare_digest(received, expected)
+
+    def validate_image_dimensions(self, body):
+        try:
+            with Image.open(BytesIO(body)) as image:
+                width, height = image.size
+                if width * height > MAX_IMAGE_PIXELS:
+                    self.send_json(413, {"error": "이미지 해상도가 너무 큽니다."})
+                    return False
+        except Image.DecompressionBombError:
+            self.send_json(413, {"error": "이미지 해상도가 너무 큽니다."})
+            return False
+        except (UnidentifiedImageError, OSError):
+            self.send_json(400, {"error": "유효한 이미지를 읽지 못했습니다."})
+            return False
+        return True
 
     def read_body(self, declared_size):
         if declared_size is not None:
@@ -113,12 +149,14 @@ class CutoutHandler(BaseHTTPRequestHandler):
             return None
         return body
 
-    def send_json(self, status, payload):
+    def send_json(self, status, payload, headers=None):
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        for name, value in (headers or {}).items():
+            self.send_header(name, value)
         self.end_headers()
         self.wfile.write(body)
 
@@ -128,6 +166,8 @@ class CutoutHandler(BaseHTTPRequestHandler):
 
 def main():
     server = ThreadingHTTPServer((HOST, PORT), CutoutHandler)
+    if not ACCESS_TOKEN and not ALLOW_ANONYMOUS:
+        print("CUTOUT_SERVICE_TOKEN is not set; POST /remove will reject anonymous requests.")
     print(f"투영세트메이커2 cutout service listening on http://{HOST}:{PORT}")
     print(f"model={MODEL_NAME} provider=CUDAExecutionProvider")
     server.serve_forever()

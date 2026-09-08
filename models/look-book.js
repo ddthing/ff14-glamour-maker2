@@ -1,11 +1,13 @@
 /* Copy a saved look, including independent original/cutout storage records.
    Blob URLs are immutable display handles; asset keys must never be shared. */
 const LookBook = (() => {
-  async function copy(source, { createId, readAsset, writeAsset, isCurrent }) {
+  async function copy(source, { createId, readAsset, writeAsset, isCurrent, copyTitle }) {
     const { history, redo, ...saved } = source;
     const result = structuredClone(saved);
     result.id = createId();
-    result.title = `${(source.title || "새로운 룩").slice(0, 60)} 복사본`;
+    result.title = typeof copyTitle === "function"
+      ? String(copyTitle(source) || "").slice(0, 64)
+      : `${(source.title || "새로운 룩").slice(0, 60)} 복사본`;
     const copiedKeys = new Map();
     for (const character of result.editor?.characters || []) {
       if (!isCurrent()) return null;

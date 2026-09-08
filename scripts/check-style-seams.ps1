@@ -2,6 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $styleFiles = @(
+  "styles/tokens.css",
   "styles.css",
   "styles/card-composer.css",
   "styles/editor-controls.css",
@@ -42,7 +43,7 @@ foreach ($selector in $editorOnlySelectors) {
 }
 
 $html = Get-Content -Raw -LiteralPath (Join-Path $projectRoot "index.html")
-$expectedOrder = @("styles.css", "styles/card-composer.css", "styles/editor-controls.css", "styles/card-readability.css")
+$expectedOrder = @("styles/tokens.css", "styles.css", "styles/card-composer.css", "styles/editor-controls.css", "styles/card-readability.css")
 $lastIndex = -1
 foreach ($stylesheet in $expectedOrder) {
   $currentIndex = $html.IndexOf($stylesheet)
@@ -52,4 +53,4 @@ foreach ($stylesheet in $expectedOrder) {
   $lastIndex = $currentIndex
 }
 
-Write-Output "Style seams valid: core -> card composition -> editor controls -> card readability"
+Write-Output "Style seams valid: shared tokens -> core -> card composition -> editor controls -> card readability"

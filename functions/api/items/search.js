@@ -7,14 +7,16 @@ import {
   supportedSlots,
 } from "../../_shared/item-search.mjs";
 
-const koreanIndexPath = "/assets/data/items-ko.json";
+const koreanIndexBasePath = "/assets/data/items-ko";
+const koreanIndexFallbackPath = "/assets/data/items-ko.json";
+const koreanIndexSlots = supportedSlots;
 const cacheTtlSeconds = 300;
 const staleTtlMs = 24 * 60 * 60 * 1000;
 const assetRetryDelays = [50, 200];
 const retryableAssetStatuses = new Set([502, 503, 504]);
 const memoryCache = new Map();
 const inflight = new Map();
-let koreanIndexPromise = null;
+const koreanIndexPromises = new Map();
 
 const cacheHeaders = {
   "Cache-Control": `public, max-age=0, s-maxage=${cacheTtlSeconds}, stale-while-revalidate=86400`,
@@ -95,7 +97,7 @@ export async function onRequestGet(context) {
 
 async function resolveSearch(context, query, language, slot) {
   if (language === "ko") {
-    const index = await loadKoreanIndex(context);
+    const index = await loadKoreanIndex(context, slot);
     return {
       results: searchKoreanItems(index, query, slot),
       language,
@@ -111,15 +113,38 @@ async function resolveSearch(context, query, language, slot) {
   };
 }
 
-async function loadKoreanIndex(context) {
-  if (koreanIndexPromise) return koreanIndexPromise;
+async function loadKoreanIndex(context, slot = "") {
+  const cacheKey = supportedSlots.includes(slot) ? slot : "all";
+  const cached = koreanIndexPromises.get(cacheKey);
+  if (cached) return cached;
   if (!context.env.ASSETS?.fetch) throw new Error("한국어 아이템 인덱스 바인딩이 없습니다.");
-  const assetUrl = new URL(koreanIndexPath, context.request.url);
-  koreanIndexPromise = fetchKoreanIndexAsset(context.env.ASSETS, assetUrl).catch((error) => {
-    koreanIndexPromise = null;
+  const promise = (async () => {
+    if (cacheKey !== "all") {
+      const slotUrl = new URL(`${koreanIndexBasePath}-${cacheKey}.json`, context.request.url);
+      try {
+        return await fetchKoreanIndexAsset(context.env.ASSETS, slotUrl);
+      } catch (error) {
+        if (error.status !== 404) throw error;
+        return fetchKoreanIndexAsset(context.env.ASSETS, new URL(koreanIndexFallbackPath, context.request.url));
+      }
+    }
+
+    try {
+      return await fetchKoreanIndexAsset(context.env.ASSETS, new URL(koreanIndexFallbackPath, context.request.url));
+    } catch (error) {
+      if (error.status !== 404) throw error;
+      const parts = await Promise.all(koreanIndexSlots.map((part) => fetchKoreanIndexAsset(
+        context.env.ASSETS,
+        new URL(`${koreanIndexBasePath}-${part}.json`, context.request.url),
+      )));
+      return parts.flat();
+    }
+  })().catch((error) => {
+    koreanIndexPromises.delete(cacheKey);
     throw error;
   });
-  return koreanIndexPromise;
+  koreanIndexPromises.set(cacheKey, promise);
+  return promise;
 }
 
 async function fetchKoreanIndexAsset(assets, assetUrl) {
@@ -136,7 +161,11 @@ async function fetchKoreanIndexAsset(assets, assetUrl) {
       await delay(assetRetryDelays[attempt]);
       continue;
     }
-    if (!response.ok) throw new Error(`한국어 아이템 인덱스 응답 오류 (${response.status})`);
+    if (!response.ok) {
+      const error = new Error(`한국어 아이템 인덱스 응답 오류 (${response.status})`);
+      error.status = response.status;
+      throw error;
+    }
     const index = await response.json();
     if (!Array.isArray(index) || !index.length) throw new Error("한국어 아이템 인덱스가 비어 있습니다.");
     return index;

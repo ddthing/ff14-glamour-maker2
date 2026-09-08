@@ -37,17 +37,19 @@ node server.js
 - 캐릭터별 5슬롯 의상 정보 연결과 자동 카드 반영
 - 장비 부위는 이미지 크롭 없이 텍스트 정보로 표시하며, 한국어·일본어에서는 영어명을 보조 표기
 - KR / EN / JP 아이템명 전환
+- 페이지 전체 UI·상태 메시지·접근성 라벨·문서 메타데이터의 한국어·영어·일본어 전환. 첫 방문에는 브라우저 언어와 접속 지역/시간대를 참고하고, 사용자가 고른 언어는 이 브라우저에 저장합니다.
 - 원본 이미지는 자동 크롭하지 않고 프레임 안에 보존하며, 배경 제거는 선택 기능
 - 선택한 비율에 맞춘 고화질 PNG 내보내기(세로 2160 × 2700 / 가로 2400 × 1350)
 
 시각 디자인과 편집기 정보 위계는 [DESIGN.md](DESIGN.md)에 기록합니다. Neutral 토큰, Pretendard UI, 인원수별 카드 비율, 텍스트 전용 장비 정보와 전신 이미지의 역할 분리, 그리고 편집기 주변에 노출할 최소 정보가 이 문서를 기준으로 유지됩니다.
 
-아이템 검색은 `/api/items/search` 서버 어댑터를 사용합니다. 한국어 검색은 한국 클라이언트 데이터셋에서, 영문·일문 검색은 XIVAPI에서 가져오며, 브라우저는 검색어·슬롯·언어만 전달합니다. 280ms debounce와 서버 메모리 캐시를 적용해 매 키 입력마다 외부 소스를 직접 호출하지 않습니다. 한국어 데이터셋은 패치별 정적 인덱스로 교체할 수 있도록 분리되어 있습니다.
+아이템 검색은 `/api/items/search` 서버 어댑터를 사용합니다. 한국어 검색은 한국 클라이언트 데이터셋에서, 영문·일문 검색은 XIVAPI에서 가져오며, 브라우저는 검색어·슬롯·언어만 전달합니다. 280ms debounce와 서버 메모리 캐시를 적용해 매 키 입력마다 외부 소스를 직접 호출하지 않습니다. 한국어 원본 snapshot은 패치별로 교체할 수 있고, Pages 빌드에서는 장비 부위별 정적 인덱스로 나뉘어 현재 슬롯에 필요한 데이터만 처음 불러옵니다.
 
 Cloudflare Pages 배포 전에는 한국어 인덱스를 한 번 생성합니다. 네트워크가 끊겼거나 레코드가 0개인 경우 빌드를 실패시키므로 임의 데이터가 운영 데이터로 들어가지 않습니다. 운영 첫 화면은 빈 LOOK BOOK로 시작하며 이미지·장비·프리셋은 사용자가 추가한 뒤에만 저장됩니다.
 
 ```powershell
 node scripts/build_item_index.mjs
+npm run build:pages
 ```
 
 이미지 픽셀만으로 장비 아이템을 확정하는 기능은 포함하지 않습니다. 사용자가 검색 결과를 선택하거나 itemId를 제공하면 슬롯, 다국어 이름, 카드 정보가 자동으로 채워지는 흐름을 기준으로 합니다.
@@ -56,11 +58,11 @@ node scripts/build_item_index.mjs
 
 ## Cloudflare 배포 메모
 
-현재 `server.js`는 정적 파일, 아이템 검색 프록시, Python BiRefNet 워커를 한 프로세스로 실행하는 로컬 구성입니다. Cloudflare Pages에서는 `functions/api/items/search.js`가 같은 `/api/items/search` 계약을 담당하고, `assets/data/items-ko.json`을 정적 한국어 인덱스로 사용합니다. `XIVAPI_VERSION` 환경 변수를 설정하면 글로벌 데이터 버전을 고정할 수 있습니다.
+현재 `server.js`는 정적 파일, 아이템 검색 프록시, Python BiRefNet 워커를 한 프로세스로 실행하는 로컬 구성입니다. Cloudflare Pages에서는 `functions/api/items/search.js`가 같은 `/api/items/search` 계약을 담당하고, `build-site.cjs`가 `assets/data/items-ko.json` 원본 snapshot을 `assets/data/items-ko-{slot}.json` 부위별 정적 인덱스로 분할해 배포합니다. 검색 요청은 활성 슬롯 인덱스만 읽고, 전체 snapshot은 Pages 산출물에 포함하지 않습니다. `XIVAPI_VERSION` 환경 변수를 설정하면 글로벌 데이터 버전을 고정할 수 있습니다.
 
 Cloudflare Pages 정적 배포에서는 Python BiRefNet 워커를 실행할 수 없으므로, 공개 사이트는 브라우저 추론을 기본 경로로 사용합니다. `models/background-removal.js`가 Transformers.js와 `jiabins0303/birefnet-lite-1024-webgpu`를 불러와 WebGPU에서 가장 높은 품질의 1024px BiRefNet을 실행합니다. WebGPU를 사용할 수 없거나 모델 로드가 실패하면 512px WebGPU, 마지막으로 512px WASM으로 자동 전환합니다.
 
-`functions/api/background-removal.js`는 선택적인 빠른 경로입니다. Pages 환경의 `CUTOUT_SERVICE_URL`에 HTTPS GPU 엔드포인트를, 인증을 사용할 때 `CUTOUT_SERVICE_TOKEN`을 Secret으로 설정하면 서버 결과를 먼저 사용하고, 설정하지 않거나 연결할 수 없으면 브라우저 모델로 계속 처리합니다. 따라서 무료 Pages 배포에는 GPU 서버가 필요하지 않습니다. 자세한 계약은 [Cloudflare 배포 메모](docs/cloudflare-deployment.md)를 확인하세요.
+`functions/api/background-removal.js`는 선택적인 빠른 경로입니다. Pages 환경의 `CUTOUT_SERVICE_URL`에 HTTPS GPU 엔드포인트와 `CUTOUT_SERVICE_TOKEN` Secret을 설정하면 서버 결과를 먼저 사용하고, 설정하지 않거나 연결할 수 없으면 브라우저 모델로 계속 처리합니다. 따라서 무료 Pages 배포에는 GPU 서버가 필요하지 않습니다. 자세한 계약은 [Cloudflare 배포 메모](docs/cloudflare-deployment.md)를 확인하세요.
 
 브라우저 경로는 Hugging Face CDN에서 모델 가중치를 첫 사용 때 내려받으므로 기기와 선택된 폴백에 따라 100MB 이상을 준비할 수 있습니다. 이미지 바이트는 GPU 서버를 설정하지 않은 경우 브라우저 밖으로 전송하지 않습니다. 자동 검사는 모듈 공개 경로와 서버 장애 시 폴백 연결을 확인하며, 실제 모델 추론 품질·지연 시간은 사용하는 브라우저와 FF14 이미지 골든셋에서 별도로 확인해야 합니다.
 
