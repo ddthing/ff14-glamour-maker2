@@ -252,8 +252,8 @@ function maxRectDelta(previewRect, exportRect) {
     assert.ok(Math.abs(placementRect[1] - placementBeforeExport.expected.y) <= 0.5, `PNG pan scale changed y: expected ${placementBeforeExport.expected.y}, got ${placementRect[1]} (scale ${placementBeforeExport.panScale})`);
 
     const placementCases = [
-      { name: "solo-cover", count: 1, singleRatio: "portrait", cutout: false, imageFit: "cover", zoom: 130, panX: -40, panY: 30 },
-      { name: "lineup-cutout-contain", count: 3, singleRatio: "landscape", cutout: true, imageFit: "contain", zoom: 138, panX: 35, panY: -45 },
+      { name: "solo-cover", count: 1, singleRatio: "portrait", cutout: false, imageFit: "cover", focalPoint: { x: 0.27, y: 0.31 }, zoom: 130, panX: -40, panY: 30 },
+      { name: "lineup-cutout-contain", count: 3, singleRatio: "landscape", cutout: true, imageFit: "contain", focalPoint: { x: 0.61, y: 0.34 }, zoom: 138, panX: 35, panY: -45 },
       { name: "lineup-original-cover", count: 3, singleRatio: "landscape", cutout: false, imageFit: "cover", zoom: 125, panX: -32, panY: 28 },
     ];
     for (const scenario of placementCases) {
@@ -265,6 +265,7 @@ function maxRectDelta(previewRect, exportRect) {
         state.characters.slice(0, next.count).forEach((character) => {
           character.cutout = next.cutout;
           character.imageFit = next.imageFit;
+          character.focalPoint = next.focalPoint ? { ...next.focalPoint } : null;
           character.zoom = next.zoom;
           character.panX = next.panX;
           character.panY = next.panY;
@@ -299,6 +300,7 @@ function maxRectDelta(previewRect, exportRect) {
               panX: character.panX,
               panY: character.panY,
               cutout: next.cutout,
+              focalPoint: character.focalPoint,
               panScale,
             });
           }),

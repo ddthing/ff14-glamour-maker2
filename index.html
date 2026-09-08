@@ -35,9 +35,9 @@
     </noscript>
     <link rel="stylesheet" href="styles/tokens.css?v=20260908-shared-tokens-1" />
     <link rel="stylesheet" href="styles.css?v=20260908-legacy-seams-1" />
-    <link rel="stylesheet" href="styles/card-composer.css?v=20260907-title-controls-1" />
-    <link rel="stylesheet" href="styles/editor-controls.css?v=20260908-mobile-flow-1" />
-    <link rel="stylesheet" href="styles/card-readability.css?v=20260908-card-copyright-1" />
+    <link rel="stylesheet" href="styles/card-composer.css?v=20260908-title-fonts-2" />
+    <link rel="stylesheet" href="styles/editor-controls.css?v=20260908-scrapbook-1" />
+    <link rel="stylesheet" href="styles/card-readability.css?v=20260908-scrapbook-tape-2" />
   </head>
   <body>
     <a class="skip-link" data-i18n="skip.editor" href="#canvas">편집 영역으로 건너뛰기</a>
@@ -332,6 +332,12 @@
                       <button class="background-art-choice" data-pattern="bitmap" type="button" role="radio" aria-checked="false">
                         <span class="background-art-preview background-art-preview--bitmap" aria-hidden="true"></span><span data-i18n="pattern.bitmap">체커보드</span>
                       </button>
+                      <button class="background-art-choice" data-pattern="collage" type="button" role="radio" aria-checked="false">
+                        <span class="background-art-preview background-art-preview--collage" aria-hidden="true"></span><span data-i18n="pattern.collage">콜라주</span>
+                      </button>
+                      <button class="background-art-choice" data-pattern="scrapbook" type="button" role="radio" aria-checked="false">
+                        <span class="background-art-preview background-art-preview--scrapbook" aria-hidden="true"></span><span data-i18n="pattern.scrapbook">스크랩북</span>
+                      </button>
                     </div>
                   </div>
                   <div class="background-art-group">
@@ -347,6 +353,14 @@
                   </div>
                 </div>
                 <div class="background-preset-panel" id="backgroundPresetPanel">
+                  <button class="background-preset-apply" id="scrapbookPreset" type="button" aria-pressed="false">
+                    <span class="background-preset-preview scrapbook-paper-preview" data-pattern="scrapbook" style="--preset-bg:#efe7da;--preset-ink:#3b4040;--preset-light:#fbf7ef" aria-hidden="true"></span>
+                    <span class="background-preset-copy"><strong data-i18n="preset.scrapbook">빈티지 스크랩북</strong><small data-i18n="preset.scrapbookDescription">원본 사진을 보존한 종이·테이프 레이아웃</small></span>
+                  </button>
+                  <button class="background-preset-apply" id="collagePreset" type="button" aria-pressed="false">
+                    <span class="background-preset-preview collage-paper-preview" style="--preset-bg:#f4eee4;--preset-ink:#687984;--preset-light:#fffaf3" aria-hidden="true"></span>
+                    <span class="background-preset-copy"><strong data-i18n="preset.collage">종이 콜라주</strong><small data-i18n="preset.collageDescription">이미지와 장비 정보를 종이 레이어로 묶기</small></span>
+                  </button>
                   <div class="background-preset-panel-head">
                     <div><span data-i18n="preset.title">내 프리셋</span><small id="backgroundPresetCount" aria-live="polite"></small></div>
                     <button class="background-preset-save-button" id="saveBackgroundPresetButton" type="button" data-i18n="preset.save" aria-expanded="false">＋ 저장</button>
@@ -432,19 +446,20 @@
     <script src="models/look-editor.js?v=20260906-redesign-1"></script>
     <script src="models/look-book.js?v=20260906-management-1"></script>
     <script src="models/image-assets.js?v=20260907-project-name-1"></script>
-    <script src="models/image-validation.js?v=20260908-image-validation-1"></script>
+    <script src="models/image-validation.js?v=20260908-source-preserving-1"></script>
     <script src="models/draft-storage.js?v=20260908-draft-storage-3"></script>
-    <script src="models/i18n.js?v=20260908-i18n-4"></script>
+    <script src="models/i18n.js?v=20260908-scrapbook-1"></script>
     <script src="models/item-records.js?v=20260908-item-records-1"></script>
     <script src="models/item-search.js?v=20260908-language-aware-search-1"></script>
-    <script src="models/card-layout.js?v=20260908-image-rect-1"></script>
+    <script src="models/crop-plan.js?v=20260908-crop-plan-1"></script>
+    <script src="models/card-layout.js?v=20260908-gear-layout-2"></script>
     <script src="models/card-copy.js?v=20260907-render-parity-1"></script>
     <script src="models/color-contrast.js?v=20260907-silhouette-contrast-1"></script>
-    <script src="models/card-png.js?v=20260908-image-rect-1"></script>
+    <script src="models/card-png.js?v=20260908-scrapbook-tape-2"></script>
     <script src="models/editor-navigation.js?v=20260906-navigation-1"></script>
     <script src="models/background-presets.js?v=20260907-background-presets-1"></script>
-    <script src="models/title-typography.js?v=20260908-typography-1"></script>
+    <script src="models/title-typography.js?v=20260908-title-fonts-1"></script>
     <script src="models/background-removal.js?v=20260907-browser-birefnet-3"></script>
-    <script src="app.js?v=20260908-localized-brand-1"></script>
+    <script src="app.js?v=20260908-gear-note-markup-1"></script>
   </body>
 </html>

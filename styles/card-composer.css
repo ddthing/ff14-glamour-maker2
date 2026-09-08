@@ -102,31 +102,56 @@
 
 .canvas-board[data-ratio="portrait"][data-cast="1"] .board-gear-item {
   position: absolute;
-  width: 38%;
-  height: 10.2%;
+  width: 34.2593%;
+  height: 8.5926%;
   grid-template-rows: minmax(0, 1fr);
   border-color: rgb(255 255 255 / .5);
   background: rgb(15 18 21 / .72);
   box-shadow: 0 8px 22px rgb(28 31 38 / .14);
 }
 
-.canvas-board[data-ratio="portrait"][data-cast="1"] .board-gear-item:nth-child(1) { top: 22%; left: 3%; }
-.canvas-board[data-ratio="portrait"][data-cast="1"] .board-gear-item:nth-child(2) { top: 34%; right: 3%; }
-.canvas-board[data-ratio="portrait"][data-cast="1"] .board-gear-item:nth-child(3) { top: 49%; left: 3%; }
-.canvas-board[data-ratio="portrait"][data-cast="1"] .board-gear-item:nth-child(4) { top: 65%; right: 3%; }
-.canvas-board[data-ratio="portrait"][data-cast="1"] .board-gear-item:nth-child(5) { top: 81%; left: 3%; }
+.canvas-board[data-ratio="portrait"][data-cast="1"] .board-gear-item:nth-child(1) { top: 18.5185%; left: 3.1481%; }
+.canvas-board[data-ratio="portrait"][data-cast="1"] .board-gear-item:nth-child(2) { top: 30.3704%; right: 3.1481%; }
+.canvas-board[data-ratio="portrait"][data-cast="1"] .board-gear-item:nth-child(3) { top: 43.7037%; left: 3.1481%; }
+.canvas-board[data-ratio="portrait"][data-cast="1"] .board-gear-item:nth-child(4) { top: 58.5185%; right: 3.1481%; }
+.canvas-board[data-ratio="portrait"][data-cast="1"] .board-gear-item:nth-child(5) { top: 73.3333%; left: 3.1481%; }
+
+/* Keep the supported solo landscape export on the same five fixed notes as
+   the PNG renderer. The older grid fill used a proportional bottom inset,
+   which made the browser preview drift from the saved image. */
+.canvas-board[data-ratio="landscape"][data-cast="1"] .board-gear-list {
+  inset: 0 !important;
+  display: block !important;
+}
+
+.canvas-board[data-ratio="landscape"][data-cast="1"] .board-gear-item {
+  position: absolute;
+  width: 30%;
+  height: 12.1481%;
+}
+
+.canvas-board[data-ratio="landscape"][data-cast="1"] .board-gear-item:nth-child(1) { top: 21.6296%; left: 2%; }
+.canvas-board[data-ratio="landscape"][data-cast="1"] .board-gear-item:nth-child(2) { top: 37.0370%; left: 2%; }
+.canvas-board[data-ratio="landscape"][data-cast="1"] .board-gear-item:nth-child(3) { top: 52.4444%; left: 2%; }
+.canvas-board[data-ratio="landscape"][data-cast="1"] .board-gear-item:nth-child(4) { top: 67.8519%; left: 2%; }
+.canvas-board[data-ratio="landscape"][data-cast="1"] .board-gear-item:nth-child(5) { top: 83.2593%; left: 2%; }
+
+.canvas-board[data-ratio="landscape"][data-cast="1"][data-single-layout="info-right"] .board-gear-item {
+  right: 2%;
+  left: auto;
+}
 
 .canvas-board[data-ratio="portrait"][data-cast="1"][data-single-layout="info-right"] .board-gear-item:nth-child(1),
 .canvas-board[data-ratio="portrait"][data-cast="1"][data-single-layout="info-right"] .board-gear-item:nth-child(3),
 .canvas-board[data-ratio="portrait"][data-cast="1"][data-single-layout="info-right"] .board-gear-item:nth-child(5) {
-  right: 3%;
+  right: 3.1481%;
   left: auto;
 }
 
 .canvas-board[data-ratio="portrait"][data-cast="1"][data-single-layout="info-right"] .board-gear-item:nth-child(2),
 .canvas-board[data-ratio="portrait"][data-cast="1"][data-single-layout="info-right"] .board-gear-item:nth-child(4) {
   right: auto;
-  left: 3%;
+  left: 3.1481%;
 }
 
 .canvas-board[data-ratio="portrait"][data-cast="1"] .board-gear-item:nth-child(odd),
@@ -154,7 +179,7 @@
   }
 
   .canvas-board[data-ratio="portrait"][data-cast="1"] .board-gear-item {
-    width: 41%;
+    width: 34.2593%;
   }
 }
 
@@ -406,7 +431,7 @@
   object-position: center center;
 }
 
-/* Title typefaces: the selector is intentionally limited to the ten user-specified
+/* Title typefaces: the selector is intentionally limited to the user-selected
    Noonnu/source families. UI copy stays Pretendard; these faces are only for the
    editable card title and its exported counterpart. */
 @font-face {
@@ -547,6 +572,48 @@
   font-weight: 400;
   font-display: swap;
 }
+@font-face {
+  font-family: "GoryeongStrawberry";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2304-01@1.0/GoryeongStrawberry.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Cafe24ClassicType";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2210-2@1.0/Cafe24ClassicType-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SinchonRhapsody";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2503@1.0/SinchonRhapsody.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Shouting";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2510-1@1.0/Callifont-Medium.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "KIMWILDgag-Bold";
+  src: url("https://cdn.jsdelivr.net/gh/woffz/b3@main/KIMWILDgag-Bold/KIMWILDgag-Bold.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "x12y12pxMaruMinyaHangul";
+  src: url("https://cdn.jsdelivr.net/gh/quiple/x12y12pxMaruMinyaHangul@main/fonts/x12y12pxMaruMinyaHangul.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "DosHandwriting";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2304-2@1.0/DOSPilgiMedium.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
 
 .board-title-block > strong,
 .board-editorial-header .board-title-block > strong {
@@ -666,6 +733,13 @@
   background: currentColor;
   content: "";
   opacity: .55;
+}
+
+/* Material skins opt out of the generic leading rule; the note edge and tape
+   already provide the visual anchor. */
+.board-gear-tiles .gear-note-surface,
+.board-gear-tiles .gear-tile-tape {
+  display: none;
 }
 
 .board-gear-tiles .gear-item-secondary {
@@ -980,6 +1054,17 @@
 }
 
 .canvas-board .scene-pattern[data-pattern="bitmap"]::after { display: none; }
+
+/* Collage is a material layer, not a field of free-floating marks. The paper
+   plate lives on .scene-background so the preview and PNG can share one
+   raster asset; item notes supply the semantic paper scraps above it. */
+.canvas-board .scene-pattern[data-pattern="collage"] {
+  display: none !important;
+}
+
+.canvas-board .scene-pattern[data-pattern="scrapbook"] {
+  display: none !important;
+}
 
 /* Reference star: filled, five-point, slightly narrow inner radius. */
 .pattern-motif--star > span {

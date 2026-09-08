@@ -66,6 +66,48 @@ const TitleTypography = (() => {
       weights: [400],
       source: "https://noonnu.cc/font_page/1686",
     },
+    "goryeong-strawberry": {
+      label: "고령딸기체",
+      family: '"GoryeongStrawberry", sans-serif',
+      weights: [400],
+      source: "https://noonnu.cc/font_page/1132",
+    },
+    "cafe24-classic-type": {
+      label: "카페24 클래식타입",
+      family: '"Cafe24ClassicType", serif',
+      weights: [400],
+      source: "https://noonnu.cc/font_page/1035",
+    },
+    "sinchon-rhapsody": {
+      label: "신촌랩소디체",
+      family: '"SinchonRhapsody", sans-serif',
+      weights: [400],
+      source: "https://noonnu.cc/font_page/1577",
+    },
+    shouting: {
+      label: "샤우팅체",
+      family: '"Shouting", cursive',
+      weights: [400],
+      source: "https://noonnu.cc/font_page/1670",
+    },
+    "wild-gak": {
+      label: "와일드각",
+      family: '"KIMWILDgag-Bold", sans-serif',
+      weights: [400],
+      source: "https://noonnu.cc/font_page/1682",
+    },
+    "maru-minya-hangul": {
+      label: "마루미냐 한글",
+      family: '"x12y12pxMaruMinyaHangul", monospace',
+      weights: [400],
+      source: "https://noonnu.cc/font_page/1816",
+    },
+    "dos-pilgi": {
+      label: "도스필기",
+      family: '"DosHandwriting", monospace',
+      weights: [400],
+      source: "https://noonnu.cc/font_page/1141",
+    },
   };
 
   const defaultWeightLabels = new Map([
@@ -129,6 +171,7 @@ const TitleTypography = (() => {
 
     const fontOrder = Object.keys(registry).sort((left, right) => (
       registry[left].label.localeCompare(registry[right].label, "ko-KR")
+      || left.localeCompare(right)
     ));
     return {
       fonts: registry,

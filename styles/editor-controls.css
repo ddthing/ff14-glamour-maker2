@@ -615,6 +615,76 @@
   background-size: 8px 8px;
 }
 
+.background-art-preview--collage {
+  overflow: hidden;
+  border-color: #b9a99a;
+  background:
+    linear-gradient(8deg, transparent 0 32%, #c4d3dc 33% 61%, transparent 62%),
+    linear-gradient(-7deg, transparent 0 53%, #d3b8b1 54% 79%, transparent 80%),
+    #f7f2e9;
+}
+
+.background-art-preview--collage::before,
+.background-art-preview--collage::after {
+  position: absolute;
+  display: block;
+  content: "";
+}
+
+.background-art-preview--collage::before {
+  top: 5px;
+  right: 7px;
+  width: 22px;
+  height: 29px;
+  background: #fffaf1;
+  box-shadow: -19px 14px 0 #dfe7e8;
+  transform: rotate(5deg);
+}
+
+.background-art-preview--collage::after {
+  top: 3px;
+  left: 12px;
+  width: 18px;
+  height: 5px;
+  background: rgb(214 191 157 / .78);
+  transform: rotate(-13deg);
+}
+
+.background-art-preview--scrapbook {
+  border-color: #a89580;
+  background:
+    linear-gradient(12deg, transparent 0 42%, #c8d2d0 43% 68%, transparent 69%),
+    linear-gradient(-10deg, transparent 0 58%, #c5a59a 59% 82%, transparent 83%),
+    #efe7da;
+}
+
+.background-art-preview--scrapbook::before,
+.background-art-preview--scrapbook::after {
+  position: absolute;
+  display: block;
+  content: "";
+}
+
+.background-art-preview--scrapbook::before {
+  top: 6px;
+  right: 4px;
+  width: 18px;
+  height: 22px;
+  border: 1px solid rgb(59 64 64 / .22);
+  background: #fbf7ef;
+  box-shadow: -13px 12px 0 rgb(59 64 64 / .45), -6px 23px 0 rgb(198 165 142 / .48);
+  transform: rotate(2deg);
+}
+
+.background-art-preview--scrapbook::after {
+  top: 2px;
+  left: 7px;
+  width: 16px;
+  height: 5px;
+  background: rgb(215 187 141 / .78);
+  transform: rotate(-12deg);
+}
+
 @media (max-width: 560px) {
   .background-art-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1301,7 +1371,8 @@
   transform: translateY(-1px);
 }
 
-.background-preset-item.is-current .background-preset-apply {
+.background-preset-item.is-current .background-preset-apply,
+.background-preset-apply[aria-pressed="true"] {
   border-color: var(--primary);
   background: color-mix(in oklch, var(--primary) 6%, var(--card));
   box-shadow: inset 0 0 0 1px var(--primary);
@@ -1736,6 +1807,54 @@
 /* Put the high-attention placement work in one focused surface. */
 .image-placement-launch-row {
   min-height: var(--image-control-height);
+}
+
+.background-preset-preview[data-pattern="collage"]::before,
+.collage-paper-preview::before {
+  inset: 5px 12px 10px 7px;
+  border: 1px solid rgb(104 121 132 / .38);
+  background: rgb(255 250 243 / .74);
+  box-shadow: -9px 9px 0 rgb(193 211 219 / .52), 10px 7px 0 rgb(208 181 174 / .4);
+  content: "";
+  transform: rotate(-2deg);
+}
+
+.background-preset-preview[data-pattern="collage"]::after,
+.collage-paper-preview::after {
+  top: 5px;
+  left: 11px;
+  width: 18px;
+  height: 5px;
+  background: rgb(211 184 150 / .78);
+  content: "";
+  transform: rotate(-12deg);
+}
+
+.background-preset-preview[data-pattern="scrapbook"] {
+  border-color: #a89580;
+  background:
+    linear-gradient(10deg, transparent 0 38%, #c8d2d0 39% 65%, transparent 66%),
+    linear-gradient(-8deg, transparent 0 57%, #c5a59a 58% 79%, transparent 80%),
+    #efe7da;
+}
+
+.background-preset-preview[data-pattern="scrapbook"]::before {
+  inset: 5px 9px 8px 15px;
+  border: 1px solid rgb(59 64 64 / .24);
+  background: #fbf7ef;
+  box-shadow: -12px 9px 0 rgb(59 64 64 / .48), 12px 9px 0 rgb(198 165 142 / .48);
+  content: "";
+  transform: rotate(-2deg);
+}
+
+.background-preset-preview[data-pattern="scrapbook"]::after {
+  top: 4px;
+  left: 11px;
+  width: 17px;
+  height: 6px;
+  background: rgb(215 187 141 / .78);
+  content: "";
+  transform: rotate(-12deg);
 }
 
 .image-placement-summary {

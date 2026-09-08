@@ -120,7 +120,21 @@ const ImageValidation = (() => {
     }
   }
 
-  return Object.freeze({ maxUploadBytes, maxPixels, supportedTypes, validateFile, validateDimensions, dimensionsFromBytes, readDimensions });
+  // Apply only model opacity. Never accept generated RGB or increase source opacity.
+  function applyCutoutAlpha(source, mask) {
+    if (!source || !mask || source.width !== mask.width || source.height !== mask.height
+      || source.data?.length !== source.width * source.height * 4
+      || mask.data?.length !== source.data.length) {
+      throw new Error("배경 제거 결과의 크기가 원본과 다릅니다.");
+    }
+    const data = new Uint8ClampedArray(source.data);
+    for (let index = 3; index < data.length; index += 4) {
+      data[index] = Math.min(data[index], mask.data[index]);
+    }
+    return data;
+  }
+
+  return Object.freeze({ maxUploadBytes, maxPixels, supportedTypes, validateFile, validateDimensions, dimensionsFromBytes, readDimensions, applyCutoutAlpha });
 })();
 
 if (typeof globalThis !== "undefined") globalThis.ImageValidation = ImageValidation;

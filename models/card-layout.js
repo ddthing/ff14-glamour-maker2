@@ -1,11 +1,32 @@
 /* Shared card geometry: the live preview and PNG renderer must place the same
    character frames. Keep this module pure so both surfaces can consume it
    without reading editor state or the DOM. */
+const CropPlanModule = typeof module !== "undefined" && module.exports
+  ? require("./crop-plan.js")
+  : globalThis.CropPlan;
 const CardLayout = (() => {
   const dimensions = {
     portrait: { layoutWidth: 1080, layoutHeight: 1350, exportWidth: 2160, exportHeight: 2700 },
     landscape: { layoutWidth: 1200, layoutHeight: 675, exportWidth: 2400, exportHeight: 1350 },
   };
+  // This order is the persisted outfit order used by the editor. Keeping the
+  // semantic slot beside each coordinate makes it harder to move a note and
+  // accidentally leave one of the five equipment positions behind.
+  const gearSlotOrder = Object.freeze(["head", "body", "hands", "legs", "feet"]);
+  const portraitGearLayout = Object.freeze([
+    Object.freeze({ slot: "head", x: 34, y: 250, width: 370, height: 116 }),
+    Object.freeze({ slot: "body", x: 676, y: 410, width: 370, height: 116 }),
+    Object.freeze({ slot: "hands", x: 34, y: 590, width: 370, height: 116 }),
+    Object.freeze({ slot: "legs", x: 676, y: 790, width: 370, height: 116 }),
+    Object.freeze({ slot: "feet", x: 34, y: 990, width: 370, height: 116 }),
+  ]);
+  const landscapeSoloGearLayout = Object.freeze([
+    Object.freeze({ slot: "head", x: 24, y: 146, width: 360, height: 82 }),
+    Object.freeze({ slot: "body", x: 24, y: 250, width: 360, height: 82 }),
+    Object.freeze({ slot: "hands", x: 24, y: 354, width: 360, height: 82 }),
+    Object.freeze({ slot: "legs", x: 24, y: 458, width: 360, height: 82 }),
+    Object.freeze({ slot: "feet", x: 24, y: 562, width: 360, height: 82 }),
+  ]);
 
   function ratioFor(characterCount, singleRatio) {
     return Number(characterCount) === 1 && singleRatio === "portrait" ? "portrait" : "landscape";
@@ -13,6 +34,24 @@ const CardLayout = (() => {
 
   function dimensionsFor(characterCount, singleRatio) {
     return { ...dimensions[ratioFor(characterCount, singleRatio)] };
+  }
+
+  function portraitGearPositions({ singleLayout = "info-left" } = {}) {
+    const { layoutWidth } = dimensions.portrait;
+    return portraitGearLayout.map((position) => (
+      singleLayout === "info-right"
+        ? { ...position, x: layoutWidth - position.x - position.width }
+        : { ...position }
+    ));
+  }
+
+  function landscapeSoloGearPositions({ singleLayout = "info-left" } = {}) {
+    const { layoutWidth } = dimensions.landscape;
+    return landscapeSoloGearLayout.map((position) => (
+      singleLayout === "info-right"
+        ? { ...position, x: layoutWidth - position.x - position.width }
+        : { ...position }
+    ));
   }
 
   function characterFrames({ characterCount, singleRatio = "portrait", singleLayout = "info-left", characters = [] }) {
@@ -49,40 +88,8 @@ const CardLayout = (() => {
   // Resolve the painted image rectangle from the same frame used by the
   // preview and PNG renderer. Keeping this math here prevents a future fit,
   // zoom, or cutout change from drifting between the two surfaces.
-  function imageRectFor({
-    frame = {},
-    naturalWidth,
-    naturalHeight,
-    imageFit = "contain",
-    zoom = 100,
-    panX = 0,
-    panY = 0,
-    cutout = false,
-    panScale = 1,
-  } = {}) {
-    const x = Number(frame.x) || 0;
-    const y = Number(frame.y) || 0;
-    const width = Math.max(0, Number(frame.width) || 0);
-    const height = Math.max(0, Number(frame.height) || 0);
-    const sourceWidth = Math.max(1, Number(naturalWidth) || 1);
-    const sourceHeight = Math.max(1, Number(naturalHeight) || 1);
-    const fitScale = imageFit === "cover"
-      ? Math.max(width / sourceWidth, height / sourceHeight)
-      : Math.min(width / sourceWidth, height / sourceHeight);
-    const imageScale = fitScale * (Number.isFinite(Number(zoom)) ? Number(zoom) : 100) / 100;
-    const imageWidth = sourceWidth * imageScale;
-    const imageHeight = sourceHeight * imageScale;
-    const resolvedPanScale = Number.isFinite(Number(panScale)) ? Number(panScale) : 1;
-    const resolvedPanX = Number.isFinite(Number(panX)) ? Number(panX) : 0;
-    const resolvedPanY = Number.isFinite(Number(panY)) ? Number(panY) : 0;
-    return {
-      x: x + (width - imageWidth) / 2 + resolvedPanX * resolvedPanScale,
-      y: cutout && imageFit !== "cover"
-        ? y + height - imageHeight + resolvedPanY * resolvedPanScale
-        : y + (height - imageHeight) / 2 + resolvedPanY * resolvedPanScale,
-      width: imageWidth,
-      height: imageHeight,
-    };
+  function imageRectFor(options = {}) {
+    return CropPlanModule.imageRectFor(options);
   }
 
   function infoRails({ characterCount = 2 } = {}) {
@@ -122,7 +129,7 @@ const CardLayout = (() => {
     ].map((value) => `${value}%`).join(" ");
   }
 
-  return { ratioFor, dimensionsFor, characterFrames, imageRectFor, infoRails, boundsFor, cssInsetFor };
+  return { ratioFor, dimensionsFor, characterFrames, imageRectFor, portraitGearPositions, landscapeSoloGearPositions, infoRails, boundsFor, cssInsetFor, gearSlotOrder };
 })();
 
 if (typeof module !== "undefined") module.exports = CardLayout;

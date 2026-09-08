@@ -122,8 +122,8 @@ body.canvas-focus-mode .canvas-board[data-ratio="portrait"] {
 }
 
 .canvas-board[data-ratio="portrait"][data-cast="1"] .board-gear-item {
-  width: 35%;
-  height: 9.5%;
+  width: 34.2593%;
+  height: 8.5926%;
 }
 
 /* Two-person cards keep each outfit attached to the character it describes.
@@ -706,6 +706,14 @@ body.image-placement-mode .character-image-actions {
   display: none;
 }
 
+.canvas-board .scene-pattern[data-pattern="collage"] {
+  display: none !important;
+}
+
+.canvas-board .scene-pattern[data-pattern="scrapbook"] {
+  display: none !important;
+}
+
 .toolbar-button:focus-visible,
 .toolbar-icon:focus-visible,
 .background-art-choice:focus-visible,
@@ -932,4 +940,230 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
 .canvas-board[data-cutout="false"][data-cast="4"] .portrait-wrap .character-figure:last-child,
 .canvas-board[data-cutout="false"][data-cast="5"] .portrait-wrap .character-figure:last-child {
   box-shadow: none;
+}
+
+/* Paper collage theme ----------------------------------------------------
+   The visual treatment is reserved for meaningful information surfaces:
+   each note is a paper scrap, its top tab identifies the equipment slot, and
+   one small tape strip explains why the note is attached to the collage.
+   The tape stays flat and deterministic so the PNG renderer can reproduce it
+   without a second layout pass or expensive filters. */
+.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item {
+  position: relative;
+  overflow: visible;
+  border: 1px solid rgb(65 52 40 / .2) !important;
+  border-radius: 4px !important;
+  background: #fffaf1 !important;
+  box-shadow: 4px 5px 0 rgb(65 52 40 / .13), 0 12px 18px rgb(65 52 40 / .09) !important;
+}
+
+/* The portrait composition uses alternating absolute notes. Keep that layout
+   contract when the material skin is active; two-person rails remain normal
+   grid items and therefore keep their existing flow geometry. */
+.canvas-board[data-background-pattern="collage"][data-ratio="portrait"][data-cast="1"] .board-gear-tiles .board-gear-item {
+  position: absolute;
+}
+
+.canvas-board[data-background-pattern="collage"][data-ratio="landscape"][data-cast="1"] .board-gear-tiles .board-gear-item {
+  position: absolute;
+}
+
+.canvas-board[data-background-pattern="collage"][data-cast="2"] .board-gear-rail .board-gear-item {
+  position: relative;
+}
+
+.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: max(4px, .45cqw);
+  background: var(--collage-slot-color, #82909a);
+  content: "";
+  pointer-events: none;
+}
+
+.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item::after {
+  position: absolute;
+  top: -3%;
+  left: 37%;
+  z-index: 2;
+  width: 25%;
+  height: 10%;
+  border: 1px solid rgb(92 74 54 / .08);
+  background: rgb(215 196 164 / .72);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .32);
+  content: "";
+  pointer-events: none;
+}
+
+.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item[data-card-slot="head"] { --collage-slot-color: #7d96a5; }
+.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item[data-card-slot="body"] { --collage-slot-color: #a97778; }
+.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item[data-card-slot="hands"] { --collage-slot-color: #8b9b86; }
+.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item[data-card-slot="legs"] { --collage-slot-color: #b29467; }
+.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item[data-card-slot="feet"] { --collage-slot-color: #817b98; }
+.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item[data-card-slot="weapon"],
+.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item[data-card-slot="offhand"] { --collage-slot-color: #646b70; }
+
+.canvas-board[data-background-pattern="collage"] .board-gear-tiles .gear-tile-copy,
+.canvas-board[data-background-pattern="collage"] .board-gear-tiles .gear-tile-copy strong {
+  color: #2f302e !important;
+}
+
+.canvas-board[data-background-pattern="collage"] .board-gear-tiles .gear-tile-copy span,
+.canvas-board[data-background-pattern="collage"] .board-gear-tiles .gear-item-secondary {
+  color: rgb(47 48 46 / .62) !important;
+}
+
+.canvas-board[data-background-pattern="collage"] .scene-background {
+  z-index: 0;
+}
+
+.canvas-board[data-background-pattern="collage"] .prism {
+  display: none !important;
+}
+
+/* Vintage scrapbook is an editorial material skin: the source image remains
+   the subject while cool paper, archive scraps, tape, and fine ink marks sit
+   behind it. Notes are intentionally paper-like rather than rounded UI cards.
+   The PNG renderer repeats these same surfaces without changing geometry. */
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item {
+  position: relative;
+  overflow: visible;
+  border: 0 !important;
+  border-radius: 2px !important;
+  clip-path: none;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* The solo note rail is an absolute editorial composition. The relative
+   positioning above is only the containing block for the pseudo-elements;
+   never let the material skin turn the five fixed notes into normal flow. */
+.canvas-board[data-background-pattern="scrapbook"][data-cast="1"] .board-gear-tiles .board-gear-item {
+  position: absolute;
+}
+
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-note-surface {
+  display: block;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  box-sizing: border-box;
+  border: 1px solid rgb(48 69 75 / .25);
+  clip-path: polygon(0 3%, 7% 1%, 15% 2%, 24% 0, 34% 2%, 44% 1%, 55% 2%, 65% 0, 76% 2%, 87% 1%, 100% 3%, 99% 22%, 100% 44%, 98% 65%, 100% 82%, 98% 100%, 87% 98%, 77% 100%, 67% 98%, 56% 100%, 45% 98%, 35% 100%, 24% 98%, 14% 100%, 4% 98%, 0 100%, 1% 80%, 0 61%, 2% 41%, 0 20%);
+  background:
+    linear-gradient(90deg, var(--scrapbook-slot-color, #6f8790) 0 var(--scrapbook-stripe-width), transparent var(--scrapbook-stripe-width) 100%),
+    linear-gradient(180deg, rgb(255 252 244 / .48), transparent 28%),
+    #f7f0e3;
+  filter: drop-shadow(6px 7px 0 rgb(48 69 75 / .14)) drop-shadow(0 14px 22px rgb(48 69 75 / .11));
+  content: "";
+  pointer-events: none;
+}
+
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-tile-tape {
+  --scrapbook-tape-left: 16%;
+  --scrapbook-tape-width: 24%;
+  display: block;
+  position: absolute;
+  top: -7%;
+  left: var(--scrapbook-tape-left);
+  z-index: 2;
+  width: var(--scrapbook-tape-width);
+  height: 12%;
+  clip-path: polygon(1% 8%, 98% 0, 100% 91%, 3% 100%);
+  background: rgb(215 187 141 / .72);
+  transform: rotate(-1deg);
+  content: "";
+  pointer-events: none;
+}
+
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item:nth-child(even) .gear-tile-tape {
+  --scrapbook-tape-left: auto;
+  --scrapbook-tape-right: 15%;
+  --scrapbook-tape-width: 21%;
+  right: var(--scrapbook-tape-right);
+  left: auto;
+  background: rgb(194 205 195 / .78);
+  transform: rotate(1deg);
+}
+
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item:nth-child(3n) .gear-tile-tape {
+  --scrapbook-tape-left: 52%;
+  --scrapbook-tape-width: 27%;
+  left: 52%;
+  background: rgb(205 174 145 / .72);
+  transform: rotate(-1.4deg);
+}
+
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item:nth-child(2n) .gear-note-surface {
+  background:
+    linear-gradient(90deg, var(--scrapbook-slot-color, #6f8790) 0 var(--scrapbook-stripe-width), transparent var(--scrapbook-stripe-width) 100%),
+    linear-gradient(180deg, rgb(255 255 255 / .38), transparent 30%),
+    #eef1ed;
+  filter: drop-shadow(3px 8px 0 rgb(48 69 75 / .13)) drop-shadow(0 14px 22px rgb(48 69 75 / .09));
+}
+
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item:nth-child(3n) .gear-note-surface {
+  background:
+    linear-gradient(90deg, var(--scrapbook-slot-color, #6f8790) 0 var(--scrapbook-stripe-width), transparent var(--scrapbook-stripe-width) 100%),
+    linear-gradient(180deg, rgb(255 250 240 / .42), transparent 30%),
+    #f2e5d7;
+}
+
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item[data-card-slot="head"] { --scrapbook-slot-color: #6f8790; }
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item[data-card-slot="body"] { --scrapbook-slot-color: #9c6e63; }
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item[data-card-slot="hands"] { --scrapbook-slot-color: #7f8d78; }
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item[data-card-slot="legs"] { --scrapbook-slot-color: #b18457; }
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item[data-card-slot="feet"] { --scrapbook-slot-color: #766b80; }
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item[data-card-slot="weapon"],
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item[data-card-slot="offhand"] { --scrapbook-slot-color: #4d5b5d; }
+
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-tile-copy,
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-tile-copy strong {
+  color: #3b4040 !important;
+}
+
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-tile-copy span,
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-item-secondary {
+  color: rgb(59 64 64 / .68) !important;
+}
+
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-tile-copy {
+  position: relative;
+  z-index: 1;
+}
+
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-slot-label::before {
+  display: none;
+}
+
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles {
+  --scrapbook-stripe-width: max(5px, .6cqw);
+}
+
+.canvas-board[data-background-pattern="scrapbook"] .board-editorial-header {
+  color: #294650;
+}
+
+.canvas-board[data-background-pattern="scrapbook"] .board-editorial-header .board-title-block {
+  background: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.canvas-board[data-background-pattern="scrapbook"] .scene-background,
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-list {
+  z-index: 0;
+}
+
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-list {
+  z-index: 9;
+}
+
+.canvas-board[data-background-pattern="scrapbook"] .prism {
+  display: none !important;
 }

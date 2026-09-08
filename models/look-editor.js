@@ -11,6 +11,7 @@ function createEmptyCharacter() {
     zoom: 100,
     panX: 0,
     panY: 0,
+    focalPoint: null,
   };
 }
 
@@ -30,6 +31,17 @@ function clamp(value, min, max, fallback = min) {
   return Number.isFinite(numericValue) ? Math.min(max, Math.max(min, numericValue)) : fallback;
 }
 
+function normaliseFocalPoint(value) {
+  if (!value || typeof value !== "object") return null;
+  const x = Number(value.x);
+  const y = Number(value.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return {
+    x: Math.min(1, Math.max(0, x)),
+    y: Math.min(1, Math.max(0, y)),
+  };
+}
+
 function normaliseShadow(value = {}) {
   return Object.fromEntries(Object.entries(shadowRanges).map(([key, [min, max, fallback]]) => [
     key,
@@ -43,6 +55,7 @@ function ensureCharacterImageState(character) {
   character.zoom = Number.isFinite(character.zoom) ? clamp(character.zoom, 70, 180) : 100;
   character.panX = Number.isFinite(character.panX) ? clamp(character.panX, -260, 260) : 0;
   character.panY = Number.isFinite(character.panY) ? clamp(character.panY, -260, 260) : 0;
+  character.focalPoint = normaliseFocalPoint(character.focalPoint);
   return character;
 }
 
@@ -79,7 +92,7 @@ function normaliseLookEditor(value = {}) {
     if (typeof item.fileName === "string") character.fileName = item.fileName.slice(0, 160);
     if (typeof item.fileMeta === "string") character.fileMeta = item.fileMeta.slice(0, 240);
     character.cutout = item.cutout === true;
-    for (const key of ["imageFit", "zoom", "panX", "panY"]) if (item[key] !== undefined) character[key] = item[key];
+    for (const key of ["imageFit", "zoom", "panX", "panY", "focalPoint"]) if (item[key] !== undefined) character[key] = item[key];
     ensureCharacterImageState(character);
   });
   return editor;

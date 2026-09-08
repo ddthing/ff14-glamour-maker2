@@ -107,14 +107,80 @@ function drawExportPattern(context, width, height, background, snapshot, pattern
   context.restore();
 }
 
-function drawExportBackground(context, width, height, background) {
+function drawCoverImage(context, image, x, y, width, height) {
+  const imageWidth = Number(image?.naturalWidth || image?.width || 0);
+  const imageHeight = Number(image?.naturalHeight || image?.height || 0);
+  if (!(imageWidth > 0 && imageHeight > 0 && width > 0 && height > 0)) {
+    context.drawImage(image, x, y, width, height);
+    return;
+  }
+  const scale = Math.max(width / imageWidth, height / imageHeight);
+  const sourceWidth = width / scale;
+  const sourceHeight = height / scale;
+  const sourceX = Math.max(0, (imageWidth - sourceWidth) / 2);
+  const sourceY = Math.max(0, (imageHeight - sourceHeight) / 2);
+  context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, x, y, width, height);
+}
+
+function traceScrapbookNote(context, x, y, width, height) {
+  const points = [
+    [0, 0.03],
+    [0.08, 0.01],
+    [0.17, 0.02],
+    [0.27, 0],
+    [0.38, 0.02],
+    [0.49, 0.01],
+    [0.61, 0.02],
+    [0.72, 0],
+    [0.84, 0.02],
+    [1, 0.03],
+    [0.99, 0.22],
+    [1, 0.44],
+    [0.98, 0.66],
+    [1, 0.83],
+    [0.98, 1],
+    [0.87, 0.98],
+    [0.76, 1],
+    [0.66, 0.98],
+    [0.55, 1],
+    [0.44, 0.98],
+    [0.34, 1],
+    [0.23, 0.98],
+    [0.13, 1],
+    [0.04, 0.98],
+    [0, 1],
+    [0.01, 0.8],
+    [0, 0.61],
+    [0.02, 0.41],
+  ];
+  context.beginPath();
+  points.forEach(([pointX, pointY], index) => {
+    const resolvedX = x + pointX * width;
+    const resolvedY = y + pointY * height;
+    if (index === 0) context.moveTo(resolvedX, resolvedY);
+    else context.lineTo(resolvedX, resolvedY);
+  });
+  context.closePath();
+}
+
+function traceScrapbookTape(context, x, y, width, height) {
+  context.beginPath();
+  context.moveTo(x + width * 0.01, y + height * 0.08);
+  context.lineTo(x + width * 0.98, y);
+  context.lineTo(x + width, y + height * 0.91);
+  context.lineTo(x + width * 0.03, y + height);
+  context.closePath();
+}
+
+function drawExportBackground(context, width, height, background, backgroundImage) {
   context.save();
   context.fillStyle = background.solid;
   context.fillRect(0, 0, width, height);
+  if (backgroundImage) drawCoverImage(context, backgroundImage, 0, 0, width, height);
   context.restore();
 }
 
-async function render({ state, dimensions, exportTheme, background, patternStars, images, copyLayout, gear, outlineColor, placementScale = 1, infoTextColor = exportTheme.text, infoTextMuted = exportTheme.muted, infoTextHalo = exportTheme.infoShadow }) {
+async function render({ state, dimensions, exportTheme, background, patternStars, images, backgroundImage = null, copyLayout, gear, outlineColor, placementScale = 1, infoTextColor = exportTheme.text, infoTextMuted = exportTheme.muted, infoTextHalo = exportTheme.infoShadow }) {
   const activeCharacters = state.characters.slice(0, state.characterCount);
   const isPortrait = dimensions.layoutHeight > dimensions.layoutWidth;
     const characterFrames = CardLayout.characterFrames({
@@ -131,7 +197,7 @@ async function render({ state, dimensions, exportTheme, background, patternStars
     canvas.height = exportHeight;
     const context = canvas.getContext("2d");
     context.scale(outputScale, outputScale);
-    drawExportBackground(context, layoutWidth, layoutHeight, background);
+    drawExportBackground(context, layoutWidth, layoutHeight, background, backgroundImage);
     drawExportPattern(context, layoutWidth, layoutHeight, background, state, patternStars);
 
     const roundRect = (x, y, width, height, radius) => {
@@ -147,6 +213,7 @@ async function render({ state, dimensions, exportTheme, background, patternStars
         zoom: character.zoom,
         panX: character.panX,
         panY: character.panY,
+        focalPoint: character.focalPoint,
         panScale: resolvedPlacementScale,
       });
       context.drawImage(image, imageRect.x, imageRect.y, imageRect.width, imageRect.height);
@@ -179,6 +246,7 @@ async function render({ state, dimensions, exportTheme, background, patternStars
         panX: character.panX,
         panY: character.panY,
         cutout: true,
+        focalPoint: character.focalPoint,
         panScale: resolvedPlacementScale,
       });
       const outline = state.outline.width * 2;
@@ -197,36 +265,105 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       while (shortened.length > 1 && context.measureText(shortened + "…").width > maxWidth) shortened = shortened.slice(0, -1);
       return shortened + "…";
     };
-    const drawGearTile = (item, x, y, width, height, { textAlign = "left" } = {}) => {
+    const collageSlotColors = Object.freeze({
+      head: "#7d96a5",
+      body: "#a97778",
+      hands: "#8b9b86",
+      legs: "#b29467",
+      feet: "#817b98",
+      weapon: "#646b70",
+      offhand: "#646b70",
+    });
+    const scrapbookSlotColors = Object.freeze({
+      head: "#6f8790",
+      body: "#9c6e63",
+      hands: "#7f8d78",
+      legs: "#b18457",
+      feet: "#766b80",
+      weapon: "#4d5b5d",
+      offhand: "#4d5b5d",
+    });
+    const drawGearTile = (item, x, y, width, height, { textAlign = "left", noteIndex = 0 } = {}) => {
       const padding = Math.max(10, Math.round(width * 0.045));
       const secondaryName = item.secondaryName;
       const slotSize = Math.max(9, Math.min(13, Math.round(height * 0.13)));
       const primarySize = Math.max(11, Math.min(17, Math.round(height * 0.18)));
       const secondarySize = Math.max(8, Math.min(11, Math.round(height * 0.11)));
       const textX = textAlign === "right" ? x + width - padding : x + padding;
+      const collageTheme = state.backgroundPattern === "collage";
+      const scrapbookTheme = state.backgroundPattern === "scrapbook";
+      const paperNoteTheme = collageTheme || scrapbookTheme;
       context.save();
-      roundRect(x, y, width, height, exportTheme.radius);
-      context.fillStyle = exportTheme.panel;
+      if (collageTheme) {
+        roundRect(x + 4, y + 5, width, height, 4);
+        context.fillStyle = "rgba(65, 52, 40, .13)";
+        context.fill();
+        roundRect(x, y, width, height, 4);
+        context.fillStyle = "#fffaf1";
+      } else if (scrapbookTheme) {
+        traceScrapbookNote(context, x + 5, y + 6, width, height);
+        context.fillStyle = "rgba(48, 69, 75, .14)";
+        context.fill();
+        traceScrapbookNote(context, x, y, width, height);
+        context.fillStyle = noteIndex % 3 === 1 ? "#eef1ed" : noteIndex % 3 === 2 ? "#f2e5d7" : "#f7f0e3";
+      } else {
+        roundRect(x, y, width, height, exportTheme.radius);
+        context.fillStyle = exportTheme.panel;
+      }
       context.fill();
-      context.strokeStyle = exportTheme.panelBorder;
+      context.strokeStyle = paperNoteTheme ? "rgba(48, 69, 75, .25)" : exportTheme.panelBorder;
       context.lineWidth = 2;
       context.stroke();
-      context.fillStyle = exportTheme.muted;
+      if (paperNoteTheme) {
+        context.fillStyle = scrapbookTheme
+          ? scrapbookSlotColors[item.slot] || "#6f8790"
+          : collageSlotColors[item.slot] || "#82909a";
+        if (scrapbookTheme) {
+          context.fillRect(x, y, Math.max(5, Math.round(width * 0.016)), height);
+        } else {
+          context.fillRect(x, y, width, Math.max(4, Math.round(height * 0.045)));
+        }
+      }
+      if (collageTheme) {
+        const tapeX = x + Math.round(width * 0.37);
+        const tapeY = y - Math.max(2, Math.round(height * 0.03));
+        const tapeWidth = Math.max(18, Math.round(width * 0.25));
+        const tapeHeight = Math.max(4, Math.round(height * 0.1));
+        context.fillStyle = "rgba(215, 196, 164, .72)";
+        context.fillRect(tapeX, tapeY, tapeWidth, tapeHeight);
+        context.strokeStyle = "rgba(92, 74, 54, .08)";
+        context.lineWidth = 1;
+        context.strokeRect(tapeX + 0.5, tapeY + 0.5, tapeWidth - 1, tapeHeight - 1);
+      }
+      if (scrapbookTheme) {
+        const tapeLeft = noteIndex % 3 === 1 ? 0.64 : noteIndex % 3 === 2 ? 0.52 : 0.16;
+        const tapeWidthRatio = noteIndex % 3 === 1 ? 0.21 : noteIndex % 3 === 2 ? 0.27 : 0.24;
+        context.fillStyle = noteIndex % 2 === 1 ? "rgba(194, 205, 195, .78)" : "rgba(215, 187, 141, .72)";
+        const tapeX = x + Math.round(width * tapeLeft);
+        // Let the tape cross the paper edge: part of it is above the note and
+        // the rest visibly presses onto the surface, matching the live CSS.
+        const tapeY = y - Math.max(8, Math.round(height * 0.07));
+        const tapeWidth = Math.max(18, Math.round(width * tapeWidthRatio));
+        const tapeHeight = Math.max(5, Math.round(height * 0.12));
+        traceScrapbookTape(context, tapeX, tapeY, tapeWidth, tapeHeight);
+        context.fill();
+      }
+      context.fillStyle = paperNoteTheme ? "rgba(59, 64, 64, .68)" : exportTheme.muted;
       context.font = `600 ${slotSize}px "Pretendard Variable", sans-serif`;
       const slotWidth = context.measureText(item.slotName).width;
       const slotLineWidth = Math.max(14, Math.round(width * 0.08));
       const slotLineX = textAlign === "right"
         ? textX - slotWidth - Math.max(4, Math.round(slotSize * 0.55)) - slotLineWidth
         : textX;
-      context.fillRect(slotLineX, y + Math.round(height * 0.22), slotLineWidth, 2);
+      if (!scrapbookTheme) context.fillRect(slotLineX, y + Math.round(height * 0.22), slotLineWidth, 2);
       context.textAlign = textAlign;
       context.fillText(item.slotName, textX, y + Math.round(height * 0.38));
-      context.fillStyle = exportTheme.text;
+      context.fillStyle = paperNoteTheme ? "#3b4040" : exportTheme.text;
       context.font = `700 ${primarySize}px "Pretendard Variable", sans-serif`;
       const primaryY = y + Math.round(height * (secondaryName ? 0.64 : 0.72));
       context.fillText(fitText(item.name, width - padding * 2), textX, primaryY);
       if (secondaryName) {
-        context.fillStyle = exportTheme.muted;
+        context.fillStyle = paperNoteTheme ? "rgba(59, 64, 64, .62)" : exportTheme.muted;
         context.font = `500 ${secondarySize}px "Pretendard Variable", sans-serif`;
         context.fillText(fitText(secondaryName, width - padding * 2), textX, y + Math.round(height * 0.84));
       }
@@ -234,21 +371,13 @@ async function render({ state, dimensions, exportTheme, background, patternStars
     };
 
     const exportItems = gear[state.selectedCharacter] || [];
-    const portraitGearPositions = () => {
-      const base = [
-        [34, 300, 370, 116],
-        [676, 442, 370, 116],
-        [34, 642, 370, 116],
-        [676, 850, 370, 116],
-        [34, 1060, 370, 116],
-      ];
-      return state.singleLayout === "info-right"
-        ? base.map(([x, y, width, height]) => [layoutWidth - x - width, y, width, height])
-        : base;
-    };
-    const drawPortraitGear = () => portraitGearPositions().forEach((position, index) => {
+    const drawPortraitGear = () => CardLayout.portraitGearPositions({ singleLayout: state.singleLayout }).forEach((position, index) => {
       const item = exportItems[index];
-      if (item) drawGearTile(item, ...position);
+      if (item) drawGearTile(item, position.x, position.y, position.width, position.height, { noteIndex: index });
+    });
+    const drawLandscapeSoloGear = () => CardLayout.landscapeSoloGearPositions({ singleLayout: state.singleLayout }).forEach((position, index) => {
+      const item = exportItems[index];
+      if (item) drawGearTile(item, position.x, position.y, position.width, position.height, { noteIndex: index });
     });
     const drawTwoPersonGear = () => {
       const rails = CardLayout.infoRails({ characterCount: state.characterCount });
@@ -262,7 +391,7 @@ async function render({ state, dimensions, exportTheme, background, patternStars
             rail.y + itemIndex * (rail.itemHeight + rail.gap),
             rail.width,
             rail.itemHeight,
-            { textAlign: rail.textAlign },
+            { textAlign: rail.textAlign, noteIndex: itemIndex },
           );
         });
       });
@@ -286,9 +415,7 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       if (isPortrait) {
         drawPortraitGear();
       } else {
-        const informationX = state.singleLayout === "info-right" ? 816 : 24;
-        const positions = [170, 262, 354, 446, 538].map((y) => [informationX, y, 360, 82]);
-        exportItems.forEach((item, index) => drawGearTile(item, ...positions[index]));
+        drawLandscapeSoloGear();
       }
     } else if (state.characterCount === 2) {
       drawTwoPersonGear();

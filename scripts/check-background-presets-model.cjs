@@ -7,11 +7,12 @@ const model = BackgroundPresets.create({
     paper: { label: "종이" },
     mist: { label: "미스트" },
     ink: { label: "먹빛" },
+    linen: { label: "린넨" },
     custom: { label: "사용자 지정" },
   },
-  patternLabels: { none: "패턴 없음", dots: "도트", stars: "별" },
+  patternLabels: { none: "패턴 없음", dots: "도트", stars: "별", collage: "콜라주" },
   textureLabels: { none: "질감 없음", grain: "그레인" },
-  patterns: new Set(["none", "dots", "stars"]),
+  patterns: new Set(["none", "dots", "stars", "collage"]),
   textures: new Set(["none", "grain"]),
   limit: 2,
   now: () => 1700000000000,
@@ -26,6 +27,13 @@ assert.deepEqual(model.selection({ background: "missing", backgroundPattern: "in
 });
 assert.equal(model.signature({ background: "mist", backgroundPattern: "dots", backgroundTexture: "grain" }), "mist|dots|grain");
 assert.equal(model.describe({ background: "mist", backgroundPattern: "dots", backgroundTexture: "grain" }), "미스트 · 도트 · 그레인");
+assert.deepEqual(model.selection({ background: "linen", backgroundPattern: "collage", backgroundTexture: "grain" }), {
+  background: "linen",
+  customBackgroundColor: "",
+  backgroundPattern: "collage",
+  backgroundTexture: "grain",
+});
+assert.equal(model.describe({ background: "mist", backgroundPattern: "collage", backgroundTexture: "grain" }), "미스트 · 콜라주 · 그레인");
 assert.deepEqual(model.selection({ background: "custom", customBackgroundColor: "#ABCDEF", backgroundPattern: "stars", backgroundTexture: "grain" }), {
   background: "custom",
   customBackgroundColor: "#abcdef",

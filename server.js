@@ -589,8 +589,8 @@ const server = http.createServer(async (request, response) => {
     "/support/": "support/index.html",
   };
   const relativePath = requestPath === "/" ? "index.html" : cleanPagePaths[requestPath] || requestPath.replace(/^\/+/, "");
-  const publicFile = ["index.html", "app.js", "styles.css", "robots.txt", "sitemap.xml", "models/look-editor.js", "models/look-book.js", "models/image-assets.js", "models/image-validation.js", "models/draft-storage.js", "models/i18n.js", "models/public-pages.js", "models/item-records.js", "models/item-search.js", "models/card-layout.js", "models/card-copy.js", "models/color-contrast.js", "models/card-png.js", "models/editor-navigation.js", "models/background-presets.js", "models/title-typography.js", "models/background-removal.js", "terms/index.html", "privacy/index.html", "guide/index.html", "contact/index.html", "support/index.html"].includes(relativePath)
-    || /^(styles\/[^/]+\.css|assets\/(data|fonts|icons)\/[^/]+\.(json|ttf|woff2?|svg))$/.test(relativePath);
+  const publicFile = ["index.html", "app.js", "styles.css", "robots.txt", "sitemap.xml", "models/look-editor.js", "models/look-book.js", "models/image-assets.js", "models/image-validation.js", "models/draft-storage.js", "models/i18n.js", "models/public-pages.js", "models/item-records.js", "models/item-search.js", "models/crop-plan.js", "models/card-layout.js", "models/card-copy.js", "models/color-contrast.js", "models/card-png.js", "models/editor-navigation.js", "models/background-presets.js", "models/title-typography.js", "models/background-removal.js", "terms/index.html", "privacy/index.html", "guide/index.html", "contact/index.html", "support/index.html"].includes(relativePath)
+    || /^(styles\/[^/]+\.css|assets\/(data|fonts|icons|themes)\/[^/]+\.(json|ttf|woff2?|svg|png|jpe?g|webp))$/.test(relativePath);
   const filePath = path.resolve(root, relativePath);
   const isInsideRoot = filePath === root || filePath.startsWith(`${root}${path.sep}`);
 

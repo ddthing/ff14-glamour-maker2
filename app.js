@@ -230,7 +230,12 @@ const patternStars = [
   { x: 90, y: 94, size: 3.4, rotate: 4, tone: "ink", opacity: 0.48 },
 ];
 
-const backgroundPatternOptions = new Set(["none", "dots", "stars", "halftone", "bitmap"]);
+const backgroundPatternOptions = new Set(["none", "dots", "stars", "halftone", "bitmap", "collage", "scrapbook"]);
+const legacyBackgroundPatternAliases = Object.freeze({ index: "collage" });
+const backgroundSurfaceAssets = Object.freeze({
+  collage: "assets/themes/collage-paper-plate.png",
+  scrapbook: "assets/themes/vintage-scrapbook-plate.svg",
+});
 const backgroundTextureOptions = new Set(["none", "grain"]);
 const storageNamespace = "tuyeong-set-maker2";
 const languagePreferenceStorageKey = `${storageNamespace}-language-v1`;
@@ -258,6 +263,8 @@ const backgroundPatternLabels = Object.freeze({
   stars: "별",
   halftone: "하프톤",
   bitmap: "체커보드",
+  collage: "콜라주",
+  scrapbook: "스크랩북",
 });
 const backgroundTextureLabels = Object.freeze({ none: "질감 없음", grain: "그레인" });
 let backgroundPresets = [];
@@ -315,6 +322,14 @@ function saveBackgroundPresets() {
 }
 
 function renderBackgroundPresets() {
+  const starter = $("#scrapbookPreset");
+  if (starter) starter.setAttribute("aria-pressed", String(
+    state.background === "paper" && state.backgroundPattern === "scrapbook" && state.backgroundTexture === "grain",
+  ));
+  const collageStarter = $("#collagePreset");
+  if (collageStarter) collageStarter.setAttribute("aria-pressed", String(
+    state.background === "linen" && state.backgroundPattern === "collage" && state.backgroundTexture === "grain",
+  ));
   const list = $("#backgroundPresetList");
   const empty = $("#backgroundPresetEmpty");
   const count = $("#backgroundPresetCount");
@@ -376,6 +391,10 @@ function saveCurrentBackgroundPreset() {
 function applyBackgroundPreset(id) {
   const preset = backgroundPresetModel.find(backgroundPresets, id);
   if (!preset) return;
+  applyBackgroundSelection(preset);
+}
+
+function applyBackgroundSelection(preset) {
   recordHistory();
   state.background = preset.background;
   state.customBackgroundColor = normaliseHexColor(preset.customBackgroundColor, customBackgroundDefault);
@@ -612,6 +631,7 @@ const state = {
   panX: 0,
   panY: 0,
   imageFit: "contain",
+  focalPoint: null,
   imageSrc: "",
   originalSrc: "",
   fileName: "사진 미선택",
@@ -802,7 +822,7 @@ function syncStateIntoLook(look = getSelectedLook()) {
   look.editor = captureEditorState(state);
   look.background = backgrounds[state.background] ? state.background : "paper";
   look.customBackgroundColor = normaliseHexColor(state.customBackgroundColor, customBackgroundDefault);
-  look.backgroundPattern = backgroundPatternOptions.has(state.backgroundPattern) ? state.backgroundPattern : "none";
+  look.backgroundPattern = normaliseBackgroundPattern(state.backgroundPattern);
   look.backgroundTexture = backgroundTextureOptions.has(state.backgroundTexture) ? state.backgroundTexture : "none";
   look.titleFont = titleFonts[state.titleFont] ? state.titleFont : defaultTitleFont;
   look.titleWeight = normaliseTitleWeight(look.titleFont, state.titleWeight ?? defaultTitleWeight);
@@ -972,6 +992,11 @@ function getBackgroundSurfaceCss(background) {
   return background.solid;
 }
 
+function normaliseBackgroundPattern(value) {
+  const restoredPattern = legacyBackgroundPatternAliases[value] || value;
+  return backgroundPatternOptions.has(restoredPattern) ? restoredPattern : "none";
+}
+
 function restoreBackgroundStyle(pattern, legacyMotif = "none", texture = "none") {
   const legacyPatterns = {
     ascii: "dots",
@@ -987,7 +1012,7 @@ function restoreBackgroundStyle(pattern, legacyMotif = "none", texture = "none")
   if (pattern === "grain") restoredTexture = "grain";
   if (legacyMotif === "stars" && (!restoredPattern || restoredPattern === "none")) restoredPattern = "stars";
 
-  state.backgroundPattern = backgroundPatternOptions.has(restoredPattern) ? restoredPattern : "none";
+  state.backgroundPattern = normaliseBackgroundPattern(restoredPattern);
   state.backgroundTexture = backgroundTextureOptions.has(restoredTexture) ? restoredTexture : "none";
 }
 
@@ -1167,6 +1192,7 @@ function serializeCharacter(character = {}) {
     zoom: normalized.zoom,
     panX: normalized.panX,
     panY: normalized.panY,
+    focalPoint: normalized.focalPoint ? { ...normalized.focalPoint } : null,
   };
 }
 
@@ -1177,6 +1203,7 @@ function getCharacterImageState(character) {
     zoom: 100,
     panX: 0,
     panY: 0,
+    focalPoint: null,
   };
 }
 
@@ -1188,12 +1215,18 @@ function updateSelectedImageState(nextState = {}) {
   state.panX = character.panX;
   state.panY = character.panY;
   state.imageFit = character.imageFit;
+  state.focalPoint = character.focalPoint ? { ...character.focalPoint } : null;
   return character;
 }
 
 function isImagePlacementChanged(snapshot = imageEditorSnapshot) {
   if (!snapshot) return false;
-  return state.zoom !== snapshot.zoom || state.panX !== snapshot.panX || state.panY !== snapshot.panY || state.imageFit !== snapshot.imageFit;
+  return state.zoom !== snapshot.zoom
+    || state.panX !== snapshot.panX
+    || state.panY !== snapshot.panY
+    || state.imageFit !== snapshot.imageFit
+    || state.focalPoint?.x !== snapshot.focalPoint?.x
+    || state.focalPoint?.y !== snapshot.focalPoint?.y;
 }
 
 function syncImagePlacementSummary() {
@@ -1233,8 +1266,8 @@ function finishImageEditor(apply) {
       saveState();
     }
   } else if (changed && imageEditorSnapshot) {
-    const { zoom, panX, panY, imageFit } = imageEditorSnapshot;
-    updateSelectedImageState({ zoom, panX, panY, imageFit });
+    const { zoom, panX, panY, imageFit, focalPoint } = imageEditorSnapshot;
+    updateSelectedImageState({ zoom, panX, panY, imageFit, focalPoint });
     renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
   }
   imageEditorOpen = false;
@@ -1259,6 +1292,8 @@ async function restoreCharacterAssets(savedCharacters = [], characters = state.c
     character.fileName = saved.fileName || character.fileName;
     character.fileMeta = saved.fileMeta || character.fileMeta;
     character.cutout = saved.cutout === true;
+    character.focalPoint = saved.focalPoint ? { ...saved.focalPoint } : null;
+    LookEditor.normalizeCharacter(character);
     try {
       const record = await characterAssetVault.read(saved.assetKey);
       if (!record?.originalBlob) {
@@ -1293,7 +1328,7 @@ function serializeLook(look) {
     outfits: cloneOutfits(getLookOutfits(look)),
     background: backgrounds[look.background] ? look.background : "paper",
     customBackgroundColor: normaliseHexColor(look.customBackgroundColor, customBackgroundDefault),
-    backgroundPattern: backgroundPatternOptions.has(look.backgroundPattern) ? look.backgroundPattern : "none",
+    backgroundPattern: normaliseBackgroundPattern(look.backgroundPattern),
     backgroundTexture: backgroundTextureOptions.has(look.backgroundTexture) ? look.backgroundTexture : "none",
     titleFont: titleFonts[look.titleFont] ? look.titleFont : defaultTitleFont,
     titleWeight: normaliseTitleWeight(look.titleFont || defaultTitleFont, look.titleWeight ?? defaultTitleWeight),
@@ -1492,7 +1527,11 @@ function createSnapshot() {
     backgroundPattern: state.backgroundPattern,
     backgroundTexture: state.backgroundTexture,
     imageFit: state.imageFit,
-    characters: state.characters.map((character) => ({ ...character })),
+    focalPoint: state.focalPoint ? { ...state.focalPoint } : null,
+    characters: state.characters.map((character) => ({
+      ...character,
+      focalPoint: character.focalPoint ? { ...character.focalPoint } : null,
+    })),
   };
 }
 
@@ -1512,6 +1551,7 @@ function restoreSnapshot(snapshot) {
     zoom: snapshot.zoom,
     panX: snapshot.panX,
     panY: snapshot.panY,
+    focalPoint: snapshot.focalPoint,
   });
   state.zoom = placement.zoom;
   state.panX = placement.panX;
@@ -1759,6 +1799,7 @@ function syncSelectedCharacter() {
   state.panX = character.panX;
   state.panY = character.panY;
   state.imageFit = character.imageFit;
+  state.focalPoint = character.focalPoint ? { ...character.focalPoint } : null;
 }
 
 function syncCharacterSelectionUI() {
@@ -1979,6 +2020,7 @@ function renderBoardGear() {
     const characterNumber = String(characterIndex + 1).padStart(2, "0");
     const characterLabel = showCharacter ? `${t("item.summary", { number: characterNumber })} · ` : "";
     return `<button class="board-gear-item gear-slot-${item.slot}" data-character-index="${characterIndex}" data-gear-index="${index}" data-card-slot="${item.slot}" type="button" aria-label="${escapeHtml(t("item.gearEdit", { number: characterNumber, slot: slotName, name: primaryName }))}">
+      <span class="gear-note-surface" aria-hidden="true"></span><span class="gear-tile-tape" aria-hidden="true"></span>
       <div class="gear-tile-copy"><span class="gear-slot-label">${characterLabel}${escapeHtml(slotName)}</span><strong>${escapeHtml(primaryName)}</strong>${secondaryName ? `<small class="gear-item-secondary">${escapeHtml(secondaryName)}</small>` : ""}</div>
     </button>`;
   };
@@ -2095,13 +2137,18 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
     stars: 0.2,
     halftone: 0.2,
     bitmap: 0.26,
+    collage: 0,
+    scrapbook: 0,
   };
   elements.board.style.setProperty("--pattern-opacity", patternOpacity[state.backgroundPattern] ?? 0);
   elements.board.dataset.background = state.background;
   elements.board.dataset.backgroundPattern = state.backgroundPattern;
   elements.board.dataset.backgroundTexture = state.backgroundTexture;
   elements.board.removeAttribute("data-background-motif");
-  elements.sceneBackground.style.background = backgroundCss;
+  const backgroundSurfaceAsset = backgroundSurfaceAssets[state.backgroundPattern];
+  elements.sceneBackground.style.background = backgroundSurfaceAsset
+    ? `url("${backgroundSurfaceAsset}") center / cover no-repeat, ${backgroundCss}`
+    : backgroundCss;
   const activeCharacters = state.characters.slice(0, state.characterCount);
   const allCutout = activeCharacters.every((character) => character.cutout);
   const cutoutCount = activeCharacters.filter((character) => character.cutout).length;
@@ -2182,8 +2229,13 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
         ? "grayscale(.82) saturate(.35) contrast(.86) brightness(1.08)"
         : "";
     image.style.objectFit = character.imageFit;
-    image.style.objectPosition = character.cutout && character.imageFit !== "cover" ? "center bottom" : "center center";
-    image.style.transformOrigin = character.cutout && character.imageFit !== "cover" ? "center bottom" : "center center";
+    const cropPlan = {
+      cutout: character.cutout,
+      imageFit: character.imageFit,
+      focalPoint: character.focalPoint,
+    };
+    image.style.objectPosition = CropPlan.objectPositionFor(cropPlan);
+    image.style.transformOrigin = CropPlan.transformOriginFor(cropPlan);
     image.style.transform = `translate(${character.panX}px, ${character.panY}px) scale(${character.zoom / 100})`;
     image.style.filter = `${baseFilter} ${infoTreatment}`.trim() || "none";
   });
@@ -2485,7 +2537,7 @@ function normaliseSavedLook(value, index) {
   look.subtitle = typeof value?.subtitle === "string" ? value.subtitle.trim().slice(0, 160) : "";
   look.background = backgrounds[value?.background] ? value.background : "paper";
   look.customBackgroundColor = normaliseHexColor(value?.customBackgroundColor, customBackgroundDefault);
-  look.backgroundPattern = backgroundPatternOptions.has(value?.backgroundPattern) ? value.backgroundPattern : "none";
+  look.backgroundPattern = normaliseBackgroundPattern(value?.backgroundPattern);
   look.backgroundTexture = backgroundTextureOptions.has(value?.backgroundTexture) ? value.backgroundTexture : "none";
   look.titleFont = titleFonts[value?.titleFont] ? value.titleFont : defaultTitleFont;
   look.titleWeight = normaliseTitleWeight(look.titleFont, value?.titleWeight ?? defaultTitleWeight);
@@ -2583,6 +2635,7 @@ async function loadDraft() {
         if (Number.isFinite(savedCharacter.zoom)) character.zoom = savedCharacter.zoom;
         if (Number.isFinite(savedCharacter.panX)) character.panX = savedCharacter.panX;
         if (Number.isFinite(savedCharacter.panY)) character.panY = savedCharacter.panY;
+        character.focalPoint = savedCharacter.focalPoint ? { ...savedCharacter.focalPoint } : null;
         LookEditor.normalizeCharacter(character);
       });
     }
@@ -2759,6 +2812,7 @@ async function handleImageFile(file, characterIndex = state.selectedCharacter, {
     zoom: 100,
     panX: 0,
     panY: 0,
+    focalPoint: null,
     },
   };
   invalidatePendingImageImports({ look: sourceLook, characterIndex: targetIndex });
@@ -2847,7 +2901,7 @@ async function handleImageFiles(fileList) {
 function resetSelectedImagePlacement({ notify = true } = {}) {
   if (imageEditorOpen) imageEditorDirty = true;
   else recordHistory();
-  updateSelectedImageState({ imageFit: "contain", zoom: 100, panX: 0, panY: 0 });
+  updateSelectedImageState({ imageFit: "contain", zoom: 100, panX: 0, panY: 0, focalPoint: null });
   renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
   if (!imageEditorOpen) saveState();
   if (notify && !imageEditorOpen) showToast(t("toast.imageFit"));
@@ -2899,6 +2953,7 @@ async function quickCutout() {
     character.src = character.originalSrc;
     character.fileMeta = getDisplayImageFileMeta(character.fileMeta, false);
     character.cutout = false;
+    character.focalPoint = null;
     syncSelectedCharacter();
     renderCast();
     renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false });
@@ -2981,11 +3036,13 @@ async function quickCutout() {
       resultBlob = browserResult.blob;
       processingTier = browserResult.tier;
     }
+    resultBlob = await preserveCutoutSource(sourceBlob, resultBlob);
     resultUrl = createAssetUrl(resultBlob);
     let image;
+    let subjectBounds;
     try {
       image = await loadCanvasImage(resultUrl);
-      assertVisibleCutoutImage(image);
+      subjectBounds = assertVisibleCutoutImage(image);
     } catch (error) {
       URL.revokeObjectURL(resultUrl);
       throw error;
@@ -3017,6 +3074,7 @@ async function quickCutout() {
       src: resultUrl,
       fileMeta: `${image.naturalWidth} × ${image.naturalHeight} · ${t("image.backgroundRemoved")}`,
       cutout: true,
+      focalPoint: CropPlan.focalPointFromSubjectBounds(subjectBounds),
     });
     applied = true;
     syncSelectedCharacter();
@@ -3050,9 +3108,45 @@ function loadCanvasImage(src) {
   });
 }
 
+async function preserveCutoutSource(sourceBlob, maskBlob) {
+  const sourceObjectUrl = URL.createObjectURL(sourceBlob);
+  const maskObjectUrl = URL.createObjectURL(maskBlob);
+  const canvas = document.createElement("canvas");
+  try {
+    const [source, mask] = await Promise.all([
+      loadCanvasImage(sourceObjectUrl), loadCanvasImage(maskObjectUrl),
+    ]);
+    if (source.naturalWidth !== mask.naturalWidth || source.naturalHeight !== mask.naturalHeight) {
+      throw new Error("배경 제거 결과의 크기가 원본과 다릅니다.");
+    }
+    canvas.width = source.naturalWidth;
+    canvas.height = source.naturalHeight;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) throw new Error("배경 제거 결과를 그릴 수 없습니다.");
+    context.drawImage(source, 0, 0);
+    const original = context.getImageData(0, 0, canvas.width, canvas.height);
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(mask, 0, 0);
+    const alpha = context.getImageData(0, 0, canvas.width, canvas.height);
+    original.data.set(ImageValidation.applyCutoutAlpha(original, alpha));
+    context.putImageData(original, 0, 0);
+    return await new Promise((resolve, reject) => canvas.toBlob(
+      (blob) => blob ? resolve(blob) : reject(new Error("배경 제거 결과를 PNG로 변환하지 못했습니다.")),
+      "image/png",
+    ));
+  } finally {
+    URL.revokeObjectURL(sourceObjectUrl);
+    URL.revokeObjectURL(maskObjectUrl);
+    canvas.width = canvas.height = 0;
+  }
+}
+
 function assertVisibleCutoutImage(image) {
-  const width = Math.max(1, Math.min(256, image.naturalWidth || image.width || 1));
-  const height = Math.max(1, Math.min(256, image.naturalHeight || image.height || 1));
+  const sourceWidth = Math.max(1, Number(image.naturalWidth || image.width || 1));
+  const sourceHeight = Math.max(1, Number(image.naturalHeight || image.height || 1));
+  const sampleScale = Math.min(1, 256 / sourceWidth, 256 / sourceHeight);
+  const width = Math.max(1, Math.round(sourceWidth * sampleScale));
+  const height = Math.max(1, Math.round(sourceHeight * sampleScale));
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
@@ -3060,9 +3154,27 @@ function assertVisibleCutoutImage(image) {
   if (!context) throw new Error(t("image.resultMissing"));
   context.drawImage(image, 0, 0, width, height);
   const pixels = context.getImageData(0, 0, width, height).data;
-  let maxAlpha = 0;
-  for (let index = 3; index < pixels.length; index += 4) maxAlpha = Math.max(maxAlpha, pixels[index]);
-  if (maxAlpha <= 8) throw new Error(t("image.resultEmpty"));
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (pixels[(y * width + x) * 4 + 3] <= 8) continue;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+  canvas.width = canvas.height = 0;
+  if (maxX < 0 || maxY < 0) throw new Error(t("image.resultEmpty"));
+  return {
+    left: minX / width,
+    top: minY / height,
+    right: (maxX + 1) / width,
+    bottom: (maxY + 1) / height,
+  };
 }
 
 let exportInProgress = false;
@@ -3146,7 +3258,7 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
   const exportTheme = getExportTheme(state);
   const gear = state.characters.map((character, index) => getCharacterItemIds(index, look).map(getItem).filter(Boolean).map(item => ({
     name: getItemName(item, state.language), secondaryName: getSecondaryItemName(item, state.language),
-    slotName: getOutfitSlotName(item.slot, state.language),
+    slot: item.slot, slotName: getOutfitSlotName(item.slot, state.language),
   })));
   const revision = exportRevision();
   const assertUnchanged = () => {
@@ -3177,6 +3289,10 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
     const copyLayout = captureExportCopy();
     renderCardCopyPreview(copyLayout);
     const images = await Promise.all(activeCharacters.map((character) => loadCanvasImage(resolveCharacterAsset(character, "hero"))));
+    const backgroundSurfaceAsset = backgroundSurfaceAssets[state.backgroundPattern];
+    const backgroundImage = backgroundSurfaceAsset
+      ? await loadCanvasImage(backgroundSurfaceAsset)
+      : null;
     assertUnchanged();
     const infoTextTheme = state.multiInfoMode === "silhouette"
       ? getSilhouetteInfoTheme(background)
@@ -3184,7 +3300,7 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
     const board = elements.board.getBoundingClientRect();
     const placementScale = board.width > 0 ? dimensions.layoutWidth / board.width : 1;
     const outputBlob = await CardPng.render({ state, dimensions, exportTheme,
-      background, patternStars, images, copyLayout, gear,
+      background, patternStars, images, backgroundImage, copyLayout, gear,
       placementScale, outlineColor: rgba(state.outline.color, 0.8), infoTextColor: infoTextTheme.foreground,
       infoTextMuted: infoTextTheme.muted, infoTextHalo: infoTextTheme.halo });
     assertUnchanged();
@@ -3215,6 +3331,7 @@ function resetStyles() {
   character.src = character.originalSrc;
   character.fileMeta = getDisplayImageFileMeta(character.fileMeta, false);
   character.cutout = false;
+  character.focalPoint = null;
   syncSelectedCharacter();
   state.outline = { color: "#f1dfbb", width: 0 };
   state.titleOutline = { color: "#ffffff", width: 0 };
@@ -3227,6 +3344,7 @@ function resetStyles() {
   character.panX = 0;
   character.panY = 0;
   character.imageFit = "contain";
+  character.focalPoint = null;
   state.multiInfoEnabled = true;
   state.multiInfoMode = "clear";
   state.titleFont = defaultTitleFont;
@@ -3488,6 +3606,14 @@ function initialiseInteractions() {
   $$('button[data-pattern]').forEach((button) => button.addEventListener("click", () => { recordHistory(); state.backgroundPattern = button.dataset.pattern; renderStyles(); saveState(); }));
   $$('button[data-texture]').forEach((button) => button.addEventListener("click", () => { recordHistory(); state.backgroundTexture = button.dataset.texture; renderStyles(); saveState(); }));
   $("#saveBackgroundPresetButton").addEventListener("click", () => setBackgroundPresetFormOpen(!backgroundPresetCreateOpen));
+  $("#scrapbookPreset").addEventListener("click", () => applyBackgroundSelection({
+    name: t("preset.scrapbook"),
+    background: "paper", backgroundPattern: "scrapbook", backgroundTexture: "grain",
+  }));
+  $("#collagePreset").addEventListener("click", () => applyBackgroundSelection({
+    name: t("preset.collage"),
+    background: "linen", backgroundPattern: "collage", backgroundTexture: "grain",
+  }));
   $("#backgroundPresetCancel").addEventListener("click", () => setBackgroundPresetFormOpen(false));
   $("#backgroundPresetForm").addEventListener("submit", (event) => {
     event.preventDefault();

@@ -53,4 +53,26 @@ assert.equal(centered.y, 145);
 assert.equal(bottomAligned.y, 270);
 assert.equal(centered.x, bottomAligned.x);
 
-console.log("PASS: CardLayout owns contain, cover, pan scaling, and cutout alignment math.");
+assert.deepEqual(CardLayout.gearSlotOrder, ["head", "body", "hands", "legs", "feet"]);
+assert.deepEqual(CardLayout.portraitGearPositions(), [
+  { slot: "head", x: 34, y: 250, width: 370, height: 116 },
+  { slot: "body", x: 676, y: 410, width: 370, height: 116 },
+  { slot: "hands", x: 34, y: 590, width: 370, height: 116 },
+  { slot: "legs", x: 676, y: 790, width: 370, height: 116 },
+  { slot: "feet", x: 34, y: 990, width: 370, height: 116 },
+]);
+assert.deepEqual(CardLayout.portraitGearPositions({ singleLayout: "info-right" }).map(({ x }) => x), [
+  676, 34, 676, 34, 676,
+], "right-side portrait layout must mirror the same gear notes without changing their y coordinates");
+assert.deepEqual(CardLayout.landscapeSoloGearPositions(), [
+  { slot: "head", x: 24, y: 146, width: 360, height: 82 },
+  { slot: "body", x: 24, y: 250, width: 360, height: 82 },
+  { slot: "hands", x: 24, y: 354, width: 360, height: 82 },
+  { slot: "legs", x: 24, y: 458, width: 360, height: 82 },
+  { slot: "feet", x: 24, y: 562, width: 360, height: 82 },
+]);
+assert.deepEqual(CardLayout.landscapeSoloGearPositions({ singleLayout: "info-right" }).map(({ x }) => x), [
+  816, 816, 816, 816, 816,
+], "right-side landscape layout must mirror the same gear notes without changing their y coordinates");
+
+console.log("PASS: CardLayout owns image placement and portrait/landscape gear geometry.");

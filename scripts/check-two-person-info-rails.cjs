@@ -10,6 +10,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     await page.waitForSelector("#canvasBoard");
     await page.locator('[data-cast-count="2"]').click();
     await page.waitForFunction(() => document.querySelector("#canvasBoard")?.dataset.cast === "2");
+    await page.locator("#collagePreset").click();
+    await page.waitForFunction(() => document.querySelector("#canvasBoard")?.dataset.backgroundPattern === "collage");
 
     const snapshot = await page.evaluate(() => {
       const board = document.querySelector("#canvasBoard");
@@ -24,6 +26,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
       const readRail = (rail) => {
         const rect = rail.getBoundingClientRect();
         const copy = rail.querySelector(".gear-tile-copy");
+        const item = rail.querySelector(".board-gear-item");
         const style = getComputedStyle(copy);
         return {
           left: rect.left - boardRect.left,
@@ -34,6 +37,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
           marginRight: (boardRect.right - rect.right) / boardRect.width,
           textAlign: style.textAlign,
           alignItems: style.alignItems,
+          itemPosition: item ? getComputedStyle(item).position : "",
         };
       };
       return {
@@ -51,6 +55,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.equal(snapshot.rails[0].alignItems, "flex-start", "left rail copy should use its left start edge");
     assert.equal(snapshot.rails[1].textAlign, "right", "right rail copy should align to its right end edge");
     assert.equal(snapshot.rails[1].alignItems, "flex-end", "right rail copy should use its right end edge");
+    assert.ok(snapshot.rails.every((rail) => rail.itemPosition === "relative"), `collage rail items must own their slot tab positioning context: ${JSON.stringify(snapshot)}`);
     assert.ok(snapshot.expectedRails, "CardLayout must own the two-person information rail geometry");
 
     const scaleX = snapshot.board.width / 1200;
