@@ -10,8 +10,11 @@
 - `functions/api/background-removal.js`: `/api/background-removal` GPU 추론 프록시
 - `functions/_shared/item-search.mjs`: 한국어 인덱스/XIVAPI 정규화와 검색 점수화
 - `assets/data/items-ko-{slot}.json`: Pages 빌드가 `assets/data/items-ko.json` 원본 snapshot을 `head`, `body`, `hands`, `legs`, `feet`, `weapon` 부위별로 분할해 만드는 정적 인덱스
+- `assets/data/items-ko.manifest.json`: 원본 커밋 SHA, 레코드 수, 부위별 수, snapshot hash와 입력 감사 결과를 기록하는 배포 manifest
 
 Pages Function은 `env.ASSETS.fetch()`로 정적 인덱스를 읽고, 영문·일문만 XIVAPI에 서버 측 요청합니다. 브라우저에 외부 API 주소나 비밀값을 노출하지 않으며, 빈 인덱스나 외부 오류를 임의 샘플로 대체하지 않습니다.
+
+한국어 Item.csv 갱신은 `.github/workflows/sync-korean-item-data.yml`이 매일 04:00 KST와 수동 실행 시 처리합니다. workflow는 upstream 파일 변경 커밋 SHA를 먼저 확인하고 해당 SHA의 raw CSV만 내려받습니다. CSV 감사·급감 방지·필수 회귀 아이템·Pages 빌드 검사가 모두 통과한 변경만 데이터 전용 PR로 자동 병합합니다. `main` push 이후에는 연결된 Pages Production 배포와 manifest SHA smoke test까지 확인합니다. 상세한 실패 정책과 수동 실행 명령은 [아이템 데이터 자동 갱신](item-data-automation.md)을 참고하세요.
 
 배경 제거는 `CUTOUT_SERVICE_URL`로 지정한 별도 GPU 서버에 원본 이미지를 전달하고, `CUTOUT_SERVICE_TOKEN`을 Bearer 인증으로 사용합니다. GPU 서버는 원본 이미지 바이트를 받아 `image/png` 또는 다른 `image/*` 결과를 반환해야 합니다. Pages Function은 16MB를 넘는 업로드를 거부하고, 결과를 저장하지 않으며, 서버 주소가 비어 있으면 임의 결과 대신 503 상태를 반환합니다.
 

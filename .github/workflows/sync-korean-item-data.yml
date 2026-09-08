@@ -1,0 +1,104 @@
+name: Sync Korean item data
+
+on:
+  schedule:
+    # 04:00 KST. GitHub Actions cron expressions are evaluated in UTC.
+    - cron: "0 19 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: korean-item-data-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fetch and validate the pinned upstream snapshot
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/build_item_index.mjs
+
+      - name: Run data and build checks
+        run: |
+          npm run check
+          node scripts/check-item-index.cjs
+          node scripts/check-item-data-sync.cjs
+          npm run build:pages
+          git diff --check
+
+      - name: Detect data changes
+        id: changes
+        shell: bash
+        run: |
+          if git diff --quiet -- assets/data/items-ko.json assets/data/items-ko.manifest.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "source_revision=$(node -p 'JSON.parse(require(\"fs\").readFileSync(\"assets/data/items-ko.manifest.json\", \"utf8\")).sourceRevision')" >> "$GITHUB_OUTPUT"
+
+      - name: Create and merge the data-only pull request
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SYNC_BRANCH: automation/korean-item-data
+          SOURCE_REVISION: ${{ steps.changes.outputs.source_revision }}
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "$SYNC_BRANCH" || true
+          git checkout -B "$SYNC_BRANCH"
+          git add assets/data/items-ko.json assets/data/items-ko.manifest.json
+          git commit -m "chore(data): sync Korean item index"
+          git push --force-with-lease origin "HEAD:$SYNC_BRANCH"
+
+          pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --base main --json number --jq '.[0].number')"
+          if [ -z "$pr_number" ]; then
+            pr_url="$(gh pr create \
+              --repo "$GITHUB_REPOSITORY" \
+              --head "$SYNC_BRANCH" \
+              --base main \
+              --title "chore(data): sync Korean item index $SOURCE_REVISION" \
+              --body "자동 생성된 한국어 아이템 데이터 갱신입니다.\n\n- 원본 커밋: $SOURCE_REVISION\n- 검증: npm run check, item-index, sync, Pages build\n- 생성 파일: assets/data/items-ko.json, assets/data/items-ko.manifest.json")"
+            pr_number="$(gh pr view "$pr_url" --repo "$GITHUB_REPOSITORY" --json number --jq '.number')"
+          fi
+          gh pr merge "$pr_number" --repo "$GITHUB_REPOSITORY" --auto --squash --delete-branch
+
+      - name: Verify the new source revision is live in Production
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          SOURCE_REVISION: ${{ steps.changes.outputs.source_revision }}
+          PRODUCTION_URL: https://ff14-glamour-maker2.pages.dev
+        shell: bash
+        run: |
+          for attempt in $(seq 1 30); do
+            manifest="$(curl --fail --silent --show-error "$PRODUCTION_URL/assets/data/items-ko.manifest.json?source=$SOURCE_REVISION" || true)"
+            if printf "%s" "$manifest" | grep -Fq "\"sourceRevision\": \"$SOURCE_REVISION\""; then
+              echo "Production is serving source revision $SOURCE_REVISION"
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "Production did not expose source revision $SOURCE_REVISION within the verification window."
+          exit 1
