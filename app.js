@@ -1186,6 +1186,22 @@ function getItemMeta(item, language = state.language) {
   return item.meta?.[language] || item.meta?.ko || item.meta?.en || item.meta?.ja || I18n.t("item.section", {}, language);
 }
 
+const legacyItemIconPathPattern = /^\/i\/(\d{6})\/(\d{6})\.png$/u;
+const itemIconAssetPathPattern = /^ui\/icon\/(\d{6})\/(\d{6})(?:_hr1)?\.tex$/u;
+
+function buildItemIconAssetUrl(bucket, icon) {
+  const url = new URL("https://v2.xivapi.com/api/asset");
+  url.searchParams.set("path", `ui/icon/${bucket}/${icon}.tex`);
+  url.searchParams.set("format", "png");
+  return url.href;
+}
+
+function normaliseItemIconAssetPath(value) {
+  const path = String(value || "").trim().replace(/^\/+/, "");
+  const match = itemIconAssetPathPattern.exec(path);
+  return match ? buildItemIconAssetUrl(match[1], match[2]) : "";
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -1201,7 +1217,12 @@ function getItemImageUrl(item) {
   try {
     const url = new URL(value, window.location.origin);
     if (url.protocol !== "https:" || !["xivapi.com", "www.xivapi.com", "v2.xivapi.com"].includes(url.hostname)) return "";
-    return url.href;
+    const legacyMatch = legacyItemIconPathPattern.exec(url.pathname);
+    if (legacyMatch) return buildItemIconAssetUrl(legacyMatch[1], legacyMatch[2]);
+    if (url.pathname === "/api/asset" && url.searchParams.get("format") === "png") {
+      return normaliseItemIconAssetPath(url.searchParams.get("path"));
+    }
+    return normaliseItemIconAssetPath(url.pathname) || "";
   } catch {
     return "";
   }

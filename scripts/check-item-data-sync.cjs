@@ -35,10 +35,16 @@ const sourceApiUrl = "https://api.github.com/repos/Ra-Workspace/ffxiv-datamining
     assert.match(calls[1].url, new RegExp("/" + sourceRevision + "/csv/Item[.]csv$"));
 
     const firstManifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    const firstRecords = JSON.parse(fs.readFileSync(outputPath, "utf8"));
     assert.equal(firstManifest.sourceRevision, sourceRevision);
     assert.equal(firstManifest.total, 7);
     assert.equal(firstManifest.dataSha256, first.dataSha256);
     assert.equal(firstManifest.audit.ignoredRows, 0);
+    assert.equal(
+      firstRecords.find((record) => record.id === "102").iconUrl,
+      "https://v2.xivapi.com/api/asset?path=ui%2Ficon%2F039000%2F039002.tex&format=png",
+      "future snapshots must emit current XIVAPI asset URLs",
+    );
 
     const second = await sync.syncKoreanItemSnapshot({ outputPath, manifestPath, fetchImpl, now });
     assert.equal(second.changed, false, "the same upstream revision must be idempotent");

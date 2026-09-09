@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { onRequestPost } from "../functions/api/background-removal.js";
 import { onRequestGet } from "../functions/api/items/search.js";
-import { normaliseKoreanRecord, normaliseXivItem, searchKoreanItems } from "../functions/_shared/item-search.mjs";
+import { buildIconUrl, normaliseKoreanRecord, normaliseXivItem, searchKoreanItems } from "../functions/_shared/item-search.mjs";
 
 if (!globalThis.crypto?.randomUUID) {
   globalThis.crypto = { ...(globalThis.crypto || {}), randomUUID };
@@ -21,13 +21,18 @@ function request(body = Uint8Array.from([1, 2, 3]), headers = { "Content-Type": 
 try {
   assert.equal(
     normaliseKoreanRecord({ id: "1", slot: "head", names: { ko: "검증 장비" }, iconUrl: "/i/041000/041526.png" }).iconUrl,
-    "https://xivapi.com/i/041000/041526.png",
-    "relative snapshot icon paths must become safe absolute image URLs",
+    "https://v2.xivapi.com/api/asset?path=ui%2Ficon%2F041000%2F041526.tex&format=png",
+    "legacy snapshot icon paths must become current XIVAPI asset URLs",
   );
   assert.equal(
     normaliseXivItem({ row_id: "2", fields: { Name: "API item", Icon: { path: "/i/041000/041527.png" }, EquipSlotCategory: { fields: { Head: 1 } } } }, "en").iconUrl,
-    "https://xivapi.com/i/041000/041527.png",
-    "XIVAPI relative icon paths must use the same image host as snapshot records",
+    "https://v2.xivapi.com/api/asset?path=ui%2Ficon%2F041000%2F041527.tex&format=png",
+    "XIVAPI icon paths must use the current asset endpoint",
+  );
+  assert.equal(
+    buildIconUrl(56956),
+    "https://v2.xivapi.com/api/asset?path=ui%2Ficon%2F056000%2F056956.tex&format=png",
+    "new icon IDs must be built against the v2 asset endpoint",
   );
   assert.equal(
     normaliseXivItem({ row_id: "15479", fields: { Name: "Swine Body", Icon: { id: 42523 }, EquipSlotCategory: { value: 16 } } }, "en").slot,

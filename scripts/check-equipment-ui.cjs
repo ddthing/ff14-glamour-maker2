@@ -49,11 +49,13 @@ const fixturePng = Buffer.from(
     assert.equal(initial.rows.filter(({ pressed }) => pressed === "true").length, 1, "slot selection is ambiguous");
     assert.equal(initial.overflow, false, "equipment panel introduces horizontal overflow");
 
-    await page.route("https://xivapi.com/i/**", (route) => route.fulfill({
+    const fulfillIcon = (route) => route.fulfill({
       status: 200,
       contentType: "image/png",
       body: fixturePng,
-    }));
+    });
+    await page.route("https://xivapi.com/i/**", fulfillIcon);
+    await page.route("https://v2.xivapi.com/api/asset**", fulfillIcon);
 
     let releaseSearch;
     const searchPending = new Promise((resolve) => { releaseSearch = resolve; });
@@ -64,7 +66,7 @@ const fixturePng = Buffer.from(
         contentType: "application/json",
         body: JSON.stringify({
           results: Array.from({ length: 250 }, (_, index) => index === 0
-            ? { id: "9000001", slot: "head", iconUrl: "https://xivapi.com/i/9000/9000001.png", names: { ko: "검증용 장비", en: "UI check item" }, meta: { ko: "머리 · 검증" } }
+            ? { id: "9000001", slot: "head", iconUrl: "https://xivapi.com/i/900000/900001.png", names: { ko: "검증용 장비", en: "UI check item" }, meta: { ko: "머리 · 검증" } }
             : { id: String(9000001 + index), slot: "head", names: { ko: `검증용 장비 ${index}` }, meta: { ko: "머리 · 검증" } }),
         }),
       });
@@ -96,7 +98,7 @@ const fixturePng = Buffer.from(
       naturalWidth: image.naturalWidth,
       fallback: image.closest(".catalog-result-icon")?.classList.contains("is-image-fallback"),
     }));
-    assert.equal(catalogImage.src, "https://xivapi.com/i/9000/9000001.png", "catalog results should use the item image when one is available");
+    assert.equal(catalogImage.src, "https://v2.xivapi.com/api/asset?path=ui%2Ficon%2F900000%2F900001.tex&format=png", "catalog results should use the current item asset when one is available");
     assert.equal(catalogImage.loading, "eager", "visible catalog item images must not be deferred behind the scroll container");
     assert.ok(catalogImage.naturalWidth > 0, `catalog item image did not load: ${JSON.stringify(catalogImage)}`);
     assert.equal(catalogImage.fallback, false, "a loaded item image must not expose the slot glyph fallback");
@@ -105,7 +107,7 @@ const fixturePng = Buffer.from(
       const results = Array.from({ length: 10 }, (_, index) => ({
         id: index === 0 ? "9000001" : String(9000100 + index),
         slot: "head",
-        iconUrl: `https://xivapi.com/i/9000/${index === 0 ? "9000001" : 9000100 + index}.png`,
+        iconUrl: `https://xivapi.com/i/900000/${String(index === 0 ? 900001 : 900010 + index).padStart(6, "0")}.png`,
         names: { ko: `지연 로드 검증 ${index}` },
         meta: { ko: "머리 · 검증" },
       }));
@@ -136,7 +138,7 @@ const fixturePng = Buffer.from(
         cardItemImages: document.querySelectorAll('#canvasBoard img[src*="xivapi.com"]').length,
       };
     });
-    assert.equal(linked.image, "https://xivapi.com/i/9000/9000001.png", "assigned equipment should show the item image");
+    assert.equal(linked.image, "https://v2.xivapi.com/api/asset?path=ui%2Ficon%2F900000%2F900001.tex&format=png", "assigned equipment should show the current item asset");
     assert.ok(linked.naturalWidth > 0, `assigned equipment image did not load: ${JSON.stringify(linked)}`);
     assert.equal(linked.fallback, false, "assigned equipment should not show the slot glyph when its image loaded");
     assert.equal(linked.removeCount, 1, "assigned equipment should expose a remove button");

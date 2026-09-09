@@ -6,6 +6,7 @@ import {
   assertKoreanItemIndexAudit,
   parseKoreanItemIndex,
 } from "../functions/_shared/item-index.mjs";
+import { isSupportedIconUrl } from "../functions/_shared/item-search.mjs";
 import { supportedItemSlots } from "../functions/_shared/item-slots.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -81,7 +82,7 @@ export function validateSnapshot(records, {
     ids.add(id);
     if (!name) throw new Error("아이템 " + id + "에 한국어 이름이 없습니다.");
     if (!supportedItemSlots.includes(record.slot)) throw new Error("아이템 " + id + "에 지원하지 않는 슬롯이 있습니다: " + record.slot);
-    if (!String(record.iconUrl || "").startsWith("https://xivapi.com/i/")) missingIcons += 1;
+    if (!isSupportedIconUrl(record.iconUrl)) missingIcons += 1;
   });
 
   if (missingIcons > Number(maximumMissingIcons)) {

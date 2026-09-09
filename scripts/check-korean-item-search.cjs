@@ -56,6 +56,20 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.equal(shoesRequestUrl.searchParams.get("q"), "모그리 실내화");
     assert.equal(shoesRequestUrl.searchParams.get("slot"), "feet");
     assert.equal(shoesRequestUrl.searchParams.get("language"), "ko");
+
+    await page.locator('.equipment-row[data-slot="head"]').click();
+    await page.locator("#itemSearch").fill("계승자의 두건");
+    await page.locator('.catalog-result[data-item-id="52428"]').waitFor();
+    const hoodResult = await page.locator('.catalog-result[data-item-id="52428"]').evaluate((element) => ({
+      id: element.dataset.itemId,
+      image: element.querySelector("img.item-image")?.getAttribute("src") || "",
+    }));
+    assert.equal(hoodResult.id, "52428");
+    assert.equal(
+      hoodResult.image,
+      "https://v2.xivapi.com/api/asset?path=ui%2Ficon%2F056000%2F056956.tex&format=png",
+      "new Korean items must render an icon URL that is still served by XIVAPI",
+    );
     console.log("PASS: English UI routes Korean body and shoe queries to the Korean index, renders results, and uses item images.");
   } finally {
     await browser.close();

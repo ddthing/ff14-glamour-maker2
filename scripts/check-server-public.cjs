@@ -23,7 +23,7 @@ const {stopChild}=require('./test-process.cjs');
   const itemPayload = await itemResponse.json();
   assert.ok(itemPayload.results.length > 0, 'Korean item search returned no snapshot records');
   assert.equal(itemPayload.source, 'ffxiv-ko-snapshot', 'local search should use the shared snapshot adapter contract');
-  assert.match(itemPayload.results[0].iconUrl, /^https:\/\/xivapi\.com\/i\/\d+\/\d+\.png$/, 'Korean search results must carry a real XIVAPI icon URL');
+  assert.match(itemPayload.results[0].iconUrl, /^https:\/\/v2\.xivapi\.com\/api\/asset\?path=ui%2Ficon%2F\d{6}%2F\d{6}\.tex&format=png$/, 'Korean search results must carry a current XIVAPI asset URL');
   assert.equal(itemPayload.results[0].meta.ko.startsWith('머리'), true, 'shared item metadata should include the normalized slot label');
   const costumeResponse = await fetch(`http://127.0.0.1:4197/api/items/search?q=${encodeURIComponent('아기돼지 의상')}&slot=body&language=ko`);
   assert.equal((await costumeResponse.json()).results[0]?.id, '15479', 'special body costume categories must survive local snapshot search');

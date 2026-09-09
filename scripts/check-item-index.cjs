@@ -84,6 +84,7 @@ const fs = require("node:fs");
     ["2966", "body", "순록 의상"],
     ["3352", "legs", "철제 중장 허벅지갑옷"],
     ["47285", "body", "우주 조종사 비행복"],
+    ["52428", "head", "계승자의 두건"],
   ];
   for (const [id, slot, name] of requiredRecords) {
     assert.deepEqual(

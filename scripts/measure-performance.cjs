@@ -14,7 +14,7 @@ function buildItemResults() {
   return Array.from({ length: 250 }, (_, index) => ({
     id: String(9100000 + index),
     slot: "head",
-    iconUrl: index === 0 ? "https://xivapi.com/i/9100/9100000.png" : "",
+    iconUrl: index === 0 ? "https://xivapi.com/i/910000/910001.png" : "",
     names: { ko: `성능 측정 장비 ${index}`, en: `Performance Fixture ${index}` },
     meta: { ko: "머리 · 측정" },
   }));
@@ -162,6 +162,7 @@ async function createScenario(browser, { items = false, blockRemoteFont = false 
       body: JSON.stringify({ source: "live", results: itemResults }),
     }));
     await page.route("https://xivapi.com/**", (route) => route.fulfill({ status: 200, contentType: "image/png", body: fixturePng }));
+    await page.route("https://v2.xivapi.com/**", (route) => route.fulfill({ status: 200, contentType: "image/png", body: fixturePng }));
   }
   await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("#canvasBoard");

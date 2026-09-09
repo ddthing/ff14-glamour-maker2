@@ -15,6 +15,9 @@ const itemSlotLabels = {
 export const supportedLanguages = ["ko", "en", "ja"];
 export const supportedSlots = supportedItemSlots;
 
+const legacyIconUrlPattern = /^\/i\/(\d{6})\/(\d{6})\.png$/u;
+const iconAssetPathPattern = /^ui\/icon\/(\d{6})\/(\d{6})(?:_hr1)?\.tex$/u;
+
 export function normaliseItemSearchText(value) {
   return String(value || "")
     .normalize("NFKC")
@@ -34,21 +37,40 @@ export function buildIconUrl(iconId) {
   if (!Number.isInteger(numericIcon) || numericIcon <= 0) return "";
   const icon = String(numericIcon).padStart(6, "0");
   const bucket = String(Math.floor(numericIcon / 1000) * 1000).padStart(6, "0");
-  return `https://xivapi.com/i/${bucket}/${icon}.png`;
+  return buildIconAssetUrl(bucket, icon);
 }
 
 function normaliseIconUrl(value) {
   const raw = String(value || "").trim();
   if (!raw) return "";
+  const directAssetUrl = buildIconAssetUrlFromPath(raw);
+  if (directAssetUrl) return directAssetUrl;
   try {
     const url = new URL(raw, "https://xivapi.com");
     if (url.protocol !== "https:" || !["xivapi.com", "www.xivapi.com", "v2.xivapi.com"].includes(url.hostname)) return "";
-    if (!url.pathname.startsWith("/i/")) return "";
-    if (url.hostname === "v2.xivapi.com") url.hostname = "xivapi.com";
-    return url.href;
+    const legacyMatch = legacyIconUrlPattern.exec(url.pathname);
+    if (legacyMatch) return buildIconAssetUrl(legacyMatch[1], legacyMatch[2]);
+    if (url.pathname === "/api/asset" && url.searchParams.get("format") === "png") {
+      const assetUrl = buildIconAssetUrlFromPath(url.searchParams.get("path"));
+      if (assetUrl) return assetUrl;
+    }
+    return buildIconAssetUrlFromPath(url.pathname) || "";
   } catch {
     return "";
   }
+}
+
+function buildIconAssetUrlFromPath(value) {
+  const path = String(value || "").trim().replace(/^\/+/, "");
+  const match = iconAssetPathPattern.exec(path);
+  return match ? buildIconAssetUrl(match[1], match[2]) : "";
+}
+
+function buildIconAssetUrl(bucket, icon) {
+  const url = new URL("https://v2.xivapi.com/api/asset");
+  url.searchParams.set("path", `ui/icon/${bucket}/${icon}.tex`);
+  url.searchParams.set("format", "png");
+  return url.href;
 }
 
 export function resolveItemSearchLanguage(query, requestedLanguage) {
@@ -77,6 +99,10 @@ export function normaliseKoreanRecord(record) {
     source: "ffxiv-ko-snapshot",
     searchName: normaliseItemSearchText(name),
   };
+}
+
+export function isSupportedIconUrl(value) {
+  return Boolean(normaliseIconUrl(value));
 }
 
 // The Pages Function reuses the same immutable index for the lifetime of an
