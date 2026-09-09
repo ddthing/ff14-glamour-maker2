@@ -1372,11 +1372,11 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
 .canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-note-stamp::before { left: -42%; }
 .canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-note-stamp::after { right: -42%; }
 
-/* Landscape equipment notes are compact, edge-aligned information columns.
-   Their pattern stamps have no safe text-free area, so keep the copy clean in
-   this layout while preserving the decoration for portrait archive notes. */
-.canvas-board[data-ratio="landscape"][data-background-pattern="collage"] .board-gear-tiles .gear-note-stamp,
-.canvas-board[data-ratio="landscape"][data-background-pattern="scrapbook"] .board-gear-tiles .gear-note-stamp {
+/* Material stamps are decorative residue rather than item information. They
+   compete with the copy in the solo portrait notes, and their lines become
+   especially noisy at mobile/export scale. Tape remains the attachment cue. */
+.canvas-board[data-background-pattern="collage"] .board-gear-tiles .gear-note-stamp,
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-note-stamp {
   display: none;
 }
 

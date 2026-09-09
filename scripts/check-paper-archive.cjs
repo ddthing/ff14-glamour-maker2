@@ -132,7 +132,7 @@ const fixturePng = Buffer.from(
     });
     assert.ok(collageTape.width > 0 && collageTape.height > 0 && collageTape.top < 0, `collage tape geometry is invalid: ${JSON.stringify(collageTape)}`);
     assert.notEqual(collageTape.backgroundColor, "rgba(0, 0, 0, 0)", "collage tape must remain visible");
-    assert.equal(collageTape.stampDisplay, "block", "archive notes must expose a stamp layer");
+    assert.equal(collageTape.stampDisplay, "none", "solo archive notes must not expose a stamp layer");
     const gearGeometry = await page.evaluate(() => {
       const board = document.querySelector("#canvasBoard").getBoundingClientRect();
       const dimensions = CardLayout.dimensionsFor(1, "portrait");

@@ -259,8 +259,11 @@ function drawMaterialTape(context, x, y, width, height, color, rotation = 0) {
   context.restore();
 }
 
-function shouldDrawPatternStamp(backgroundPattern, isPortrait) {
-  return isPortrait || !["collage", "scrapbook"].includes(backgroundPattern);
+function shouldDrawPatternStamp(backgroundPattern) {
+  // Material note stamps are intentionally removed from every card surface.
+  // The paper and tape already establish attachment; keeping this decision
+  // here prevents the portrait PNG path from diverging from the CSS preview.
+  return !["collage", "scrapbook"].includes(backgroundPattern);
 }
 
 function drawArchiveStamp(context, x, y, size, color, rotation = 0) {
