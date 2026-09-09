@@ -19,6 +19,7 @@ const sourceApiUrl = "https://api.github.com/repos/Ra-Workspace/ffxiv-datamining
     [105, "테스트 바지", 39005, 1, 7],
     [15450, "모그리 실내화", 46626, 1, 8],
     [15479, "아기돼지 의상", 42523, 1, 16],
+    [52428, "계승자의 두건", 56956, 1, 3],
   ]);
   const calls = [];
   const fetchImpl = createFetch(csv, calls);
@@ -29,15 +30,15 @@ const sourceApiUrl = "https://api.github.com/repos/Ra-Workspace/ffxiv-datamining
     assert.equal(first.changed, true);
     assert.equal(first.dataChanged, true);
     assert.equal(first.manifestChanged, true);
-    assert.equal(first.records, 7);
-    assert.deepEqual(first.slotCounts, { head: 1, body: 2, hands: 1, legs: 1, feet: 1, weapon: 1 });
+    assert.equal(first.records, 8);
+    assert.deepEqual(first.slotCounts, { head: 2, body: 2, hands: 1, legs: 1, feet: 1, weapon: 1 });
     assert.equal(calls[0].url, sourceApiUrl);
     assert.match(calls[1].url, new RegExp("/" + sourceRevision + "/csv/Item[.]csv$"));
 
     const firstManifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
     const firstRecords = JSON.parse(fs.readFileSync(outputPath, "utf8"));
     assert.equal(firstManifest.sourceRevision, sourceRevision);
-    assert.equal(firstManifest.total, 7);
+    assert.equal(firstManifest.total, 8);
     assert.equal(firstManifest.dataSha256, first.dataSha256);
     assert.equal(firstManifest.audit.ignoredRows, 0);
     assert.equal(

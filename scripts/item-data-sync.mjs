@@ -28,6 +28,7 @@ export const defaultKoreanItemSource = Object.freeze({
 export const defaultRequiredKoreanItems = Object.freeze([
   Object.freeze({ id: "15479", slot: "body", name: "아기돼지 의상" }),
   Object.freeze({ id: "15450", slot: "feet", name: "모그리 실내화" }),
+  Object.freeze({ id: "52428", slot: "head", name: "계승자의 두건" }),
 ]);
 
 export function buildKoreanItemSnapshot(csv, {

@@ -23,6 +23,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          ref: main
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -33,10 +34,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Fetch and validate the pinned upstream snapshot
+      - name: Check upstream revision for an item data update
+        id: upstream
         env:
           GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/check-item-source-update.mjs
+
+      - name: Fetch and validate the changed upstream snapshot
+        if: steps.upstream.outputs.changed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FFXIV_KO_SOURCE_REVISION: ${{ steps.upstream.outputs.source_revision }}
         run: node scripts/build_item_index.mjs
+
+      - name: Check representative item icons
+        run: node scripts/check-item-icons.mjs
 
       - name: Run data and build checks
         run: |
@@ -56,6 +68,24 @@ jobs:
           fi
           echo "changed=true" >> "$GITHUB_OUTPUT"
           echo "source_revision=$(node -p 'JSON.parse(require(\"fs\").readFileSync(\"assets/data/items-ko.manifest.json\", \"utf8\")).sourceRevision')" >> "$GITHUB_OUTPUT"
+
+      - name: Publish update check summary
+        if: always()
+        env:
+          UPSTREAM_CHANGED: ${{ steps.upstream.outputs.changed }}
+          UPSTREAM_REVISION: ${{ steps.upstream.outputs.source_revision }}
+          BUNDLED_REVISION: ${{ steps.upstream.outputs.previous_revision }}
+          DATA_CHANGED: ${{ steps.changes.outputs.changed }}
+        shell: bash
+        run: |
+          {
+            echo "### Korean item data update check"
+            echo "- Upstream revision: ${UPSTREAM_REVISION:-unknown}"
+            echo "- Bundled revision before run: ${BUNDLED_REVISION:-unknown}"
+            echo "- Upstream update detected: ${UPSTREAM_CHANGED:-unknown}"
+            echo "- Snapshot files changed: ${DATA_CHANGED:-unknown}"
+            echo "- Icon health sample: deterministic representative records, including required regression items"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create and merge the data-only pull request
         if: steps.changes.outputs.changed == 'true'
@@ -85,10 +115,10 @@ jobs:
           fi
           gh pr merge "$pr_number" --repo "$GITHUB_REPOSITORY" --auto --squash --delete-branch
 
-      - name: Verify the new source revision is live in Production
-        if: steps.changes.outputs.changed == 'true'
+      - name: Verify expected source revision is live in Production
+        if: steps.upstream.outputs.source_revision != ''
         env:
-          SOURCE_REVISION: ${{ steps.changes.outputs.source_revision }}
+          SOURCE_REVISION: ${{ steps.upstream.outputs.source_revision }}
           PRODUCTION_URL: https://ff14-glamour-maker2.pages.dev
         shell: bash
         run: |
