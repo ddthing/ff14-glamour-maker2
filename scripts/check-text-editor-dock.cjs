@@ -25,7 +25,9 @@ async function setColor(page, selector, value) {
     assert.equal(await dock.isVisible(), true, "floating text toolbar should be visible in the style panel");
     assert.equal(await dock.locator("[role=toolbar]").count(), 1, "floating text toolbar is missing toolbar semantics");
     assert.equal(await page.locator("#textEditorFontSelect").isVisible(), true, "font select is not in the floating toolbar");
-    assert.equal(await page.locator("#textEditorFontSizeValue").textContent(), "16");
+    assert.equal(await page.locator(".text-editor-dock-size").count(), 0, "title font size controls should be removed from the floating toolbar");
+    assert.equal(await page.locator("#textEditorFontSizeUp").count(), 0, "floating toolbar should not expose a font size increase button");
+    assert.equal(await page.locator("#textEditorFontSizeDown").count(), 0, "floating toolbar should not expose a font size decrease button");
     assert.equal(await page.locator("#copyEditorSection .copy-editor-toolbar").isVisible(), false, "right-side formatting toolbar is still visible");
     assert.equal(await page.locator("#copyEditorAdvanced").isVisible(), false, "right-side advanced text formatting is still visible");
     assert.equal(await page.locator("#textEditorMoreButton").isVisible(), true, "title outline control is missing from the floating toolbar");
@@ -59,15 +61,6 @@ async function setColor(page, selector, value) {
     await page.keyboard.press("Escape");
     assert.equal(await page.locator("#textEditorMoreMenu").isHidden(), true, "Escape did not close the title outline popover");
 
-    const titleSizeBefore = await page.locator("#boardTitle").evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
-    await page.locator("#textEditorFontSizeUp").click();
-    assert.equal(await page.locator("#textEditorFontSizeValue").textContent(), "17", "font size increase did not update the dock");
-    await page.waitForTimeout(80);
-    const titleSizeAfter = await page.locator("#boardTitle").evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
-    assert.ok(titleSizeAfter > titleSizeBefore, `font size increase did not reach the card: ${titleSizeBefore} -> ${titleSizeAfter}`);
-    await page.locator("#textEditorFontSizeDown").click();
-    assert.equal(await page.locator("#textEditorFontSizeValue").textContent(), "16", "font size decrease did not update the dock");
-
     const initialBold = await page.locator("#textEditorBoldButton").getAttribute("aria-pressed");
     await page.locator("#textEditorBoldButton").click();
     assert.notEqual(await page.locator("#textEditorBoldButton").getAttribute("aria-pressed"), initialBold, "bold toggle did not update");
@@ -99,11 +92,6 @@ async function setColor(page, selector, value) {
     assert.equal(await page.locator("#textEditorColorInput").getAttribute("aria-label"), "설명 텍스트 색상", "description color control did not switch its label");
     assert.equal(await page.locator("#textEditorMoreButton").isDisabled(), true, "title outline control should be disabled for description editing");
     assert.equal(await page.locator("#textEditorMoreMenu").isHidden(), true, "title outline popover should close for description editing");
-    const subtitleSizeBefore = await page.locator("#boardSubtitle").evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
-    await page.locator("#textEditorFontSizeUp").click();
-    await page.waitForTimeout(80);
-    const subtitleSizeAfter = await page.locator("#boardSubtitle").evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
-    assert.ok(subtitleSizeAfter > subtitleSizeBefore, `description font size increase did not reach the card: ${subtitleSizeBefore} -> ${subtitleSizeAfter}`);
     await page.locator("#textEditorBoldButton").click();
     await page.locator("#textEditorItalicButton").click();
     await page.locator("#textEditorUnderlineButton").click();

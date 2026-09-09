@@ -52,7 +52,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
 
     const initial = await page.evaluate(() => {
       const select = document.querySelector("#textEditorFontSelect");
-      const controls = [...document.querySelectorAll("#textEditorFontSizeDown, #textEditorFontSizeUp, #textEditorBoldButton, #textEditorItalicButton, #textEditorUnderlineButton, #textEditorUppercaseButton, #textEditorColorAutoButton, [data-floating-align]")];
+      const controls = [...document.querySelectorAll("#textEditorBoldButton, #textEditorItalicButton, #textEditorUnderlineButton, #textEditorUppercaseButton, #textEditorColorAutoButton, [data-floating-align]")];
       const box = (element) => {
         const rect = element.getBoundingClientRect();
         return { width: Math.round(rect.width), height: Math.round(rect.height) };
@@ -69,7 +69,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
       };
     });
     assert.ok(initial.select.height >= 36, `font select target is too short: ${JSON.stringify(initial.select)}`);
-    assert.equal(initial.controls.length, 10, `floating formatting controls are incomplete: ${JSON.stringify(initial)}`);
+    assert.equal(initial.controls.length, 8, `floating formatting controls are incomplete: ${JSON.stringify(initial)}`);
     assert.ok(initial.controls.every(({ box }) => box.height >= 34), `floating controls are too short: ${JSON.stringify(initial)}`);
     assert.equal(new Set(initial.controls.map(({ radius }) => radius)).size > 0, true, "floating controls lost their shape");
     assert.ok(initial.controls.every(({ transition }) => parseFloat(transition) > 0), "floating toolbar feedback transition is missing");

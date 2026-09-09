@@ -580,13 +580,18 @@ async function render({ state, dimensions, exportTheme, background, patternStars
         let itemY = startY;
         items.forEach((item) => {
           const secondaryName = item.secondaryName;
+          const preview = item.preview;
+          const textX = preview?.x ?? centerX;
+          const primaryY = preview?.primaryY ?? itemY;
           context.fillStyle = infoTextColor;
-          context.font = `650 ${state.characterCount === 5 ? 12 : 14}px \"Pretendard Variable\", sans-serif`;
-          context.fillText(fitText(item.name, columnWidth - 24), centerX, itemY);
+          context.textAlign = preview?.textAlign || "center";
+          context.textBaseline = preview ? "top" : "alphabetic";
+          context.font = preview?.primaryFont || `650 ${state.characterCount === 5 ? 12 : 14}px \"Pretendard Variable\", sans-serif`;
+          context.fillText(fitText(item.name, preview ? Math.max(24, columnWidth * 0.86) : columnWidth - 24), textX, primaryY);
           if (secondaryName) {
             context.fillStyle = infoTextMuted;
-            context.font = `500 ${state.characterCount === 5 ? 8 : 10}px \"Pretendard Variable\", sans-serif`;
-            context.fillText(fitText(secondaryName, columnWidth - 24), centerX, itemY + 14);
+            context.font = preview?.secondaryFont || `500 ${state.characterCount === 5 ? 8 : 10}px \"Pretendard Variable\", sans-serif`;
+            context.fillText(fitText(secondaryName, preview ? Math.max(24, columnWidth * 0.86) : columnWidth - 24), textX, preview?.secondaryY ?? itemY + 14);
             itemY += 34;
           } else {
             itemY += 23;
@@ -596,6 +601,7 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       context.shadowColor = "transparent";
       context.shadowBlur = 0;
       context.textAlign = "left";
+      context.textBaseline = "alphabetic";
     }
 
     const canvasBlob = (type, quality) => new Promise((resolve, reject) => {

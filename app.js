@@ -218,9 +218,6 @@ function syncTextEditorDock() {
 
   const style = getCopyEditorStyle();
   const fontSelect = document.getElementById("textEditorFontSelect");
-  const fontSizeValue = document.getElementById("textEditorFontSizeValue");
-  const fontSizeDown = document.getElementById("textEditorFontSizeDown");
-  const fontSizeUp = document.getElementById("textEditorFontSizeUp");
   const boldButton = document.getElementById("textEditorBoldButton");
   const italicButton = document.getElementById("textEditorItalicButton");
   const underlineButton = document.getElementById("textEditorUnderlineButton");
@@ -242,11 +239,6 @@ function syncTextEditorDock() {
     fontSelect.value = style.fontKey;
     fontSelect.style.fontFamily = style.fontConfig.family;
   }
-  const fontSizeMin = style.target === "subtitle" ? subtitleFontSizeMin : titleFontSizeMin;
-  const fontSizeMax = style.target === "subtitle" ? subtitleFontSizeMax : titleFontSizeMax;
-  if (fontSizeValue) fontSizeValue.textContent = String(style.fontSize);
-  if (fontSizeDown) fontSizeDown.disabled = style.fontSize <= fontSizeMin;
-  if (fontSizeUp) fontSizeUp.disabled = style.fontSize >= fontSizeMax;
   if (boldButton) {
     const canToggleWeight = style.fontConfig.weights.length > 1;
     boldButton.disabled = !canToggleWeight;
@@ -366,24 +358,6 @@ function setTitleFont(value) {
 
 function setTextEditorFont(value) {
   setCopyEditorFont(value, getCopyEditorTarget());
-}
-
-function setCopyEditorFontSize(value, target = getCopyEditorTarget()) {
-  const style = getCopyEditorStyle(target);
-  const nextSize = style.target === "subtitle" ? normaliseSubtitleFontSize(value) : normaliseTitleFontSize(value);
-  if (nextSize === style.fontSize) return;
-  recordHistory();
-  state[style.fields.fontSize] = nextSize;
-  renderStyles({ refreshInfo: false, refreshPattern: false });
-  saveState();
-}
-
-function setTitleFontSize(value) {
-  setCopyEditorFontSize(value, "title");
-}
-
-function setTextEditorFontSize(value) {
-  setCopyEditorFontSize(value, getCopyEditorTarget());
 }
 
 function toggleCopyEditorBold(target = getCopyEditorTarget()) {
@@ -3676,6 +3650,62 @@ function captureExportCopy() {
   });
 }
 
+function captureExportLineupInfo(gear, snapshot, dimensions) {
+  if (snapshot.characterCount < 3 || !snapshot.multiInfoEnabled || elements.multiInfoLayer?.hidden) return gear;
+  const board = elements.board?.getBoundingClientRect();
+  const viewScale = getCanvasViewScale();
+  if (!board?.width || !board.height || !viewScale) return gear;
+  const layoutBoardWidth = board.width / viewScale;
+  const scale = dimensions.layoutWidth / layoutBoardWidth;
+  const columns = Array.from(elements.multiInfoLayer?.querySelectorAll(".multi-info-column") || []);
+  if (columns.length !== snapshot.characterCount) return gear;
+  const toLayoutRect = (element) => {
+    const rect = element.getBoundingClientRect();
+    return {
+      x: ((rect.left + rect.width / 2 - board.left) / viewScale) * scale,
+      y: ((rect.top - board.top) / viewScale) * scale,
+      width: (rect.width / viewScale) * scale,
+      height: (rect.height / viewScale) * scale,
+    };
+  };
+  const captureFont = (element) => {
+    if (!element) return "";
+    const style = getComputedStyle(element);
+    return {
+      font: `${style.fontWeight} ${parseFloat(style.fontSize) * scale}px ${style.fontFamily}`,
+      size: parseFloat(style.fontSize) * scale,
+    };
+  };
+  return gear.map((items, characterIndex) => {
+    const column = columns[characterIndex];
+    if (!column) return items;
+    const domItems = Array.from(column.querySelectorAll(":scope .multi-info-item"));
+    return items.map((item, itemIndex) => {
+      const domItem = domItems[itemIndex];
+      const primary = domItem?.querySelector(":scope > span");
+      if (!primary) return item;
+      const secondary = domItem.querySelector(":scope > small");
+      const primaryRect = toLayoutRect(primary);
+      const secondaryRect = secondary ? toLayoutRect(secondary) : null;
+      const primaryFont = captureFont(primary);
+      const secondaryFont = captureFont(secondary);
+      return {
+        ...item,
+        preview: {
+          x: primaryRect.x,
+          primaryY: primaryRect.y,
+          secondaryY: secondaryRect?.y ?? null,
+          primaryFont: primaryFont.font,
+          secondaryFont: secondaryFont.font,
+          primarySize: primaryFont.size,
+          secondarySize: secondaryFont.size,
+          textAlign: getComputedStyle(primary).textAlign,
+        },
+      };
+    });
+  });
+}
+
 function renderCardCopyPreview(copyLayout = null) {
   const canvas = elements.boardCopyCanvas;
   if (!(canvas instanceof HTMLCanvasElement) || typeof CardCopy === "undefined" || typeof CardCopy.draw !== "function") return null;
@@ -3713,7 +3743,7 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
   const dimensions = getExportDimensions();
   const background = getBackgroundTheme(state);
   const exportTheme = getExportTheme(state);
-  const gear = state.characters.map((character, index) => getCharacterItemIds(index, look).map(getItem).filter(Boolean).map(item => ({
+  let gear = state.characters.map((character, index) => getCharacterItemIds(index, look).map(getItem).filter(Boolean).map(item => ({
     name: getItemName(item, state.language), secondaryName: getSecondaryItemName(item, state.language),
     slot: item.slot, slotName: getOutfitSlotName(item.slot, state.language),
   })));
@@ -3745,6 +3775,7 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
     fitBoardTitle();
     const copyLayout = captureExportCopy();
     renderCardCopyPreview(copyLayout);
+    gear = captureExportLineupInfo(gear, state, dimensions);
     const images = await Promise.all(activeCharacters.map((character) => loadCanvasImage(resolveCharacterAsset(character, "hero"))));
     const backgroundSurfaceAsset = backgroundSurfaceAssets[state.backgroundPattern];
     const backgroundImage = backgroundSurfaceAsset
@@ -4120,14 +4151,6 @@ function initialiseInteractions() {
   $("#focusCardTitleButton")?.addEventListener("click", () => {
     setCopyEditorTarget("title");
     elements.boardTitle?.focus({ preventScroll: true });
-  });
-  $("#textEditorFontSizeDown")?.addEventListener("click", () => {
-    const style = getCopyEditorStyle();
-    setTextEditorFontSize(style.fontSize - (style.target === "subtitle" ? subtitleFontSizeStep : titleFontSizeStep));
-  });
-  $("#textEditorFontSizeUp")?.addEventListener("click", () => {
-    const style = getCopyEditorStyle();
-    setTextEditorFontSize(style.fontSize + (style.target === "subtitle" ? subtitleFontSizeStep : titleFontSizeStep));
   });
   $("#textEditorBoldButton")?.addEventListener("click", toggleTextEditorBold);
   $("#textEditorItalicButton")?.addEventListener("click", () => toggleTextEditorInlineStyle("italic"));
