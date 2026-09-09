@@ -60,10 +60,16 @@ const labelsByLanguage = {
       }, language);
       const actual = await page.evaluate(() => ({
         card: [...document.querySelectorAll("#boardGearList .gear-slot-label")].map((element) => element.textContent.trim()),
+        cardSlotLines: [...document.querySelectorAll("#boardGearList .gear-slot-label")].map((element) => getComputedStyle(element, "::before").display),
         equipment: [...document.querySelectorAll(".equipment-row .equipment-icon > span:not(.item-image-fallback)")].map((element) => element.textContent.trim()),
       }));
       try {
         assert.deepEqual(actual.card, expected, `${language}: card information labels drifted from the official slot names`);
+      } catch (error) {
+        failures.push(error.message);
+      }
+      try {
+        assert.ok(actual.cardSlotLines.every((display) => display === "none"), `${language}: card information labels must not render a leading line: ${JSON.stringify(actual)}`);
       } catch (error) {
         failures.push(error.message);
       }

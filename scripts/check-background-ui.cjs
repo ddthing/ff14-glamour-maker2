@@ -158,8 +158,19 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     await page.screenshot({ path: "artifacts/ui-background-panel-after.png", fullPage: false });
 
     await page.setViewportSize({ width: 320, height: 800 });
-    await page.waitForTimeout(40);
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "background controls overflow at 320px");
+    await page.waitForFunction(
+      () => document.documentElement.scrollWidth <= innerWidth,
+      null,
+      { timeout: 1500, polling: "raf" },
+    );
+    const viewportFit = await page.evaluate(() => ({
+      width: innerWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    }));
+    assert.ok(
+      viewportFit.scrollWidth <= viewportFit.width,
+      `background controls overflow at 320px: ${JSON.stringify(viewportFit)}`,
+    );
     console.log("PASS: solid, pattern, and texture cards share selection geometry, independent state, reduced-motion behavior, and 320px reflow.");
   } finally {
     await browser.close();

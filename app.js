@@ -719,7 +719,7 @@ function t(key, variables = {}, language = state?.language) {
 }
 
 function getDocumentTitle(look = getSelectedLook()) {
-  return `${t("project.name")} | ${getLookTitle(look)}`;
+  return `${t("project.name")} ${t("project.tagline")} | ${getLookTitle(look)}`;
 }
 
 function getUserFacingError(error, fallbackKey) {

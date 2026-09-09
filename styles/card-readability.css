@@ -1180,10 +1180,6 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
   z-index: 1;
 }
 
-.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-slot-label::before {
-  display: none;
-}
-
 .canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles {
   --scrapbook-stripe-width: max(5px, .6cqw);
 }
@@ -1396,11 +1392,6 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
 .canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-tile-copy span,
 .canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-item-secondary {
   color: var(--material-muted-ink) !important;
-}
-
-.canvas-board[data-background-pattern="collage"] .board-gear-tiles .gear-slot-label::before,
-.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-slot-label::before {
-  display: none;
 }
 
 /* Floating text toolbar values are applied at the final card seam so the

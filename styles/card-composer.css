@@ -725,18 +725,11 @@
 }
 
 .board-gear-tiles .gear-slot-label::before {
-  display: inline-block;
-  width: 1.8em;
-  height: 1px;
-  margin-right: .55em;
-  vertical-align: middle;
-  background: currentColor;
-  content: "";
-  opacity: .55;
+  display: none;
+  content: none;
 }
 
-/* Material skins opt out of the generic leading rule; the note edge and tape
-   already provide the visual anchor. */
+/* Material skins use their note edge and tape as the visual anchor. */
 .board-gear-tiles .gear-note-surface,
 .board-gear-tiles .gear-tile-tape {
   display: none;

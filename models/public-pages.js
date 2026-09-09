@@ -11,11 +11,12 @@ const PublicPages = (() => {
   const copy = {
     ko: {
       "common.skip": "본문으로 건너뛰기",
-      "common.brand": "투영세트메이커2",
-      "common.tagline": "FFXIV LOOKBOOK",
-      "common.homeAria": "투영세트메이커2 홈",
+      "common.brand": "투영세트메이커",
+      "common.tagline": "02 · 룩북",
+      "common.homeAria": "투영세트메이커 02 · 룩북 홈",
       "common.navAria": "서비스 안내",
       "common.editor": "편집기",
+      "common.cardMaker": "01 · 카드 메이커",
       "common.guide": "가이드",
       "common.contact": "문의",
       "common.support": "후원",
@@ -25,19 +26,19 @@ const PublicPages = (() => {
       "common.languageAria": "페이지 언어",
       "common.updated": "최종 수정일: 2026년 9월 8일",
       "common.footerUpdated": "서비스가 바뀌면 이 안내도 함께 업데이트합니다.",
-      "common.footerDisclaimer": "투영세트메이커2는 스퀘어 에닉스와 관계없는 비공식 팬 도구입니다. FINAL FANTASY XIV 및 관련 자산의 권리는 각 권리자에게 있습니다.",
+      "common.footerDisclaimer": "투영세트메이커는 스퀘어 에닉스와 관계없는 비공식 팬 도구입니다. FINAL FANTASY XIV 및 관련 자산의 권리는 각 권리자에게 있습니다.",
       "common.backToEditor": "편집기로 돌아가기",
       "common.external": "새 탭에서 열기",
 
-      "terms.metaTitle": "이용약관 | 투영세트메이커2",
-      "terms.metaDescription": "투영세트메이커2의 서비스 범위, 이용자 콘텐츠, 외부 서비스, 이용 제한과 문의 방법을 안내합니다.",
+      "terms.metaTitle": "이용약관 | 투영세트메이커 02 · 룩북",
+      "terms.metaDescription": "투영세트메이커의 서비스 범위, 이용자 콘텐츠, 외부 서비스, 이용 제한과 문의 방법을 안내합니다.",
       "terms.kicker": "서비스 기준",
       "terms.title": "이용약관",
-      "terms.lead": "투영세트메이커2를 사용할 때 적용되는 기준을 읽기 쉬운 문장으로 정리했습니다.",
+      "terms.lead": "투영세트메이커를 사용할 때 적용되는 기준을 읽기 쉬운 문장으로 정리했습니다.",
       "terms.content": `
         <section class="public-section">
           <h2>1. 서비스 범위</h2>
-          <p>투영세트메이커2는 FINAL FANTASY XIV 캐릭터 이미지, 장비 정보, 문구를 조합해 개인용 코디 카드를 만들고 PNG로 저장할 수 있게 하는 웹 도구입니다. 별도 계정 없이 브라우저에서 사용할 수 있습니다.</p>
+          <p>투영세트메이커는 FINAL FANTASY XIV 캐릭터 이미지, 장비 정보, 문구를 조합해 개인용 코디 카드를 만들고 PNG로 저장할 수 있게 하는 웹 도구입니다. 별도 계정 없이 브라우저에서 사용할 수 있습니다.</p>
           <p>기능, 지원 브라우저, 외부 데이터 연결은 품질 개선과 운영 상황에 따라 바뀔 수 있습니다. 서비스 이용만으로 결과물의 영구 보관이나 특정 기능의 계속 제공을 보장하지 않습니다.</p>
         </section>
         <section class="public-section">
@@ -66,8 +67,8 @@ const PublicPages = (() => {
           <p>약관, 권리 침해 신고, 콘텐츠 삭제 요청은 <a class="public-inline-link" href="../contact/">문의 페이지</a>를 통해 보내 주세요.</p>
         </section>`,
 
-      "privacy.metaTitle": "개인정보처리방침 | 투영세트메이커2",
-      "privacy.metaDescription": "투영세트메이커2가 브라우저 저장 데이터, 이미지 처리 요청, 외부 서비스와 문의 정보를 어떻게 다루는지 안내합니다.",
+      "privacy.metaTitle": "개인정보처리방침 | 투영세트메이커 02 · 룩북",
+      "privacy.metaDescription": "투영세트메이커가 브라우저 저장 데이터, 이미지 처리 요청, 외부 서비스와 문의 정보를 어떻게 다루는지 안내합니다.",
       "privacy.kicker": "데이터 안내",
       "privacy.title": "개인정보처리방침",
       "privacy.lead": "어떤 정보가 브라우저에 남고, 어떤 경우 외부 서비스로 전송될 수 있는지 투명하게 안내합니다.",
@@ -109,8 +110,8 @@ const PublicPages = (() => {
           <p>서비스 구조나 법적 요구가 달라지면 이 페이지를 갱신하고 최종 수정일을 표시합니다.</p>
         </section>`,
 
-      "guide.metaTitle": "사용 가이드 | 투영세트메이커2",
-      "guide.metaDescription": "투영세트메이커2에서 사진, 장비, 제목, 배경을 편집하고 인원수별 코디 카드를 PNG로 저장하는 방법을 안내합니다.",
+      "guide.metaTitle": "사용 가이드 | 투영세트메이커 02 · 룩북",
+      "guide.metaDescription": "투영세트메이커에서 사진, 장비, 제목, 배경을 편집하고 인원수별 코디 카드를 PNG로 저장하는 방법을 안내합니다.",
       "guide.kicker": "빠른 시작",
       "guide.title": "사용 가이드",
       "guide.lead": "사진을 넣고 장비와 문구를 정리한 뒤, 미리보기 그대로 PNG로 저장하는 흐름입니다.",
@@ -159,8 +160,8 @@ const PublicPages = (() => {
           <p>사용 중 문제가 재현되면 브라우저와 기기, 문제가 난 단계, 가능하면 화면 캡처를 함께 <a class="public-inline-link" href="../contact/">문의해 주세요</a>.</p>
         </section>`,
 
-      "contact.metaTitle": "문의 | 투영세트메이커2",
-      "contact.metaDescription": "투영세트메이커2 이용 문의, 오류 제보, 개인정보·권리 요청을 이메일과 카카오톡으로 보내는 방법을 안내합니다.",
+      "contact.metaTitle": "문의 | 투영세트메이커 02 · 룩북",
+      "contact.metaDescription": "투영세트메이커 이용 문의, 오류 제보, 개인정보·권리 요청을 이메일과 카카오톡으로 보내는 방법을 안내합니다.",
       "contact.kicker": "연락처",
       "contact.title": "문의",
       "contact.lead": "오류 제보, 이용 방법, 개인정보·권리 요청을 아래 채널로 보내 주세요.",
@@ -193,11 +194,11 @@ const PublicPages = (() => {
           <p>브라우저에 저장된 룩은 편집기의 전체 로컬 데이터 삭제 기능으로 직접 지울 수 있습니다. 외부 처리나 문의 기록에 대한 요청은 이메일에 원하는 조치와 확인 가능한 내용을 적어 주세요.</p>
         </section>`,
 
-      "support.metaTitle": "후원 | 투영세트메이커2",
-      "support.metaDescription": "투영세트메이커2를 계속 운영하고 개선할 수 있도록 Buy Me a Coffee와 Ko-fi 중 원하는 서비스로 일회성 후원하는 방법을 안내합니다.",
+      "support.metaTitle": "후원 | 투영세트메이커 02 · 룩북",
+      "support.metaDescription": "투영세트메이커를 계속 운영하고 개선할 수 있도록 Buy Me a Coffee와 Ko-fi 중 원하는 서비스로 일회성 후원하는 방법을 안내합니다.",
       "support.kicker": "선택적 응원",
       "support.title": "후원",
-      "support.lead": "투영세트메이커2가 계속 운영되고 개선될 수 있도록 커피 한 잔 정도를 보태 주세요.",
+      "support.lead": "투영세트메이커가 계속 운영되고 개선될 수 있도록 커피 한 잔 정도를 보태 주세요.",
       "supportChooser.kicker": "후원 서비스 선택",
       "supportChooser.title": "원하는 후원 서비스를 선택해 주세요",
       "supportChooser.description": "두 서비스 모두 외부 결제 페이지에서 일회성으로 진행됩니다.",
@@ -226,11 +227,12 @@ const PublicPages = (() => {
     },
     en: {
       "common.skip": "Skip to content",
-      "common.brand": "FF14 Glamour Maker 2",
-      "common.tagline": "FFXIV LOOKBOOK",
-      "common.homeAria": "FF14 Glamour Maker 2 home",
+      "common.brand": "Glamour Set Maker",
+      "common.tagline": "02 · LOOKBOOK",
+      "common.homeAria": "Glamour Set Maker 02 · Lookbook home",
       "common.navAria": "Service information",
       "common.editor": "Editor",
+      "common.cardMaker": "01 · CARD MAKER",
       "common.guide": "Guide",
       "common.contact": "Contact",
       "common.support": "Support",
@@ -240,19 +242,19 @@ const PublicPages = (() => {
       "common.languageAria": "Page language",
       "common.updated": "Last updated: September 8, 2026",
       "common.footerUpdated": "This information is updated when the service changes.",
-      "common.footerDisclaimer": "FF14 Glamour Maker 2 is an unofficial fan tool and is not affiliated with Square Enix. Rights to FINAL FANTASY XIV and related assets belong to their respective owners.",
+      "common.footerDisclaimer": "Glamour Set Maker is an unofficial fan tool and is not affiliated with Square Enix. Rights to FINAL FANTASY XIV and related assets belong to their respective owners.",
       "common.backToEditor": "Back to editor",
       "common.external": "Opens in a new tab",
 
-      "terms.metaTitle": "Terms of Use | FF14 Glamour Maker 2",
-      "terms.metaDescription": "Learn about the scope of FF14 Glamour Maker 2, user content, external services, acceptable use, and how to contact the operator.",
+      "terms.metaTitle": "Terms of Use | Glamour Set Maker 02 · LOOKBOOK",
+      "terms.metaDescription": "Learn about the scope of Glamour Set Maker, user content, external services, acceptable use, and how to contact the operator.",
       "terms.kicker": "Service standards",
       "terms.title": "Terms of Use",
-      "terms.lead": "These plain-language terms explain the standards that apply when you use FF14 Glamour Maker 2.",
+      "terms.lead": "These plain-language terms explain the standards that apply when you use Glamour Set Maker.",
       "terms.content": `
         <section class="public-section">
           <h2>1. What the service does</h2>
-          <p>FF14 Glamour Maker 2 is a web tool for combining FINAL FANTASY XIV character images, item details, and copy into personal look cards that can be saved as PNG files. It can be used in a browser without an account.</p>
+          <p>Glamour Set Maker is a web tool for combining FINAL FANTASY XIV character images, item details, and copy into personal look cards that can be saved as PNG files. It can be used in a browser without an account.</p>
           <p>Features, supported browsers, and external data connections may change as the service is improved or maintained. Using the service does not guarantee permanent storage of a result or continued availability of a particular feature.</p>
         </section>
         <section class="public-section">
@@ -281,8 +283,8 @@ const PublicPages = (() => {
           <p>For terms questions, rights reports, or content deletion requests, use the <a class="public-inline-link" href="../contact/">contact page</a>.</p>
         </section>`,
 
-      "privacy.metaTitle": "Privacy Policy | FF14 Glamour Maker 2",
-      "privacy.metaDescription": "Learn how FF14 Glamour Maker 2 handles browser storage, image processing requests, external services, and information sent through contact channels.",
+      "privacy.metaTitle": "Privacy Policy | Glamour Set Maker 02 · LOOKBOOK",
+      "privacy.metaDescription": "Learn how Glamour Set Maker handles browser storage, image processing requests, external services, and information sent through contact channels.",
       "privacy.kicker": "Data guide",
       "privacy.title": "Privacy Policy",
       "privacy.lead": "This page explains what stays in your browser and when information may be sent to an external service.",
@@ -324,8 +326,8 @@ const PublicPages = (() => {
           <p>This page and its update date will be revised when the service structure or legal requirements change.</p>
         </section>`,
 
-      "guide.metaTitle": "User Guide | FF14 Glamour Maker 2",
-      "guide.metaDescription": "Learn how to add photos and item details, style a card, and export matching PNGs for one to five characters in FF14 Glamour Maker 2.",
+      "guide.metaTitle": "User Guide | Glamour Set Maker 02 · LOOKBOOK",
+      "guide.metaDescription": "Learn how to add photos and item details, style a card, and export matching PNGs for one to five characters in Glamour Set Maker.",
       "guide.kicker": "Quick start",
       "guide.title": "User Guide",
       "guide.lead": "Add photos, organize item details and copy, then export a PNG from the same card state you see in the preview.",
@@ -374,8 +376,8 @@ const PublicPages = (() => {
           <p>If a problem can be reproduced, include your browser and device, the step where it happened, and a screenshot when possible on the <a class="public-inline-link" href="../contact/">contact page</a>.</p>
         </section>`,
 
-      "contact.metaTitle": "Contact | FF14 Glamour Maker 2",
-      "contact.metaDescription": "Contact FF14 Glamour Maker 2 by email or KakaoTalk for questions, bug reports, privacy requests, and rights reports.",
+      "contact.metaTitle": "Contact | Glamour Set Maker 02 · LOOKBOOK",
+      "contact.metaDescription": "Contact Glamour Set Maker by email or KakaoTalk for questions, bug reports, privacy requests, and rights reports.",
       "contact.kicker": "Get in touch",
       "contact.title": "Contact",
       "contact.lead": "Send questions, bug reports, privacy requests, or rights reports through one of the channels below.",
@@ -408,11 +410,11 @@ const PublicPages = (() => {
           <p>You can remove looks saved in this browser with the editor’s delete-all-local-data action. For external processing or a contact record, email the requested action and enough detail to identify it.</p>
         </section>`,
 
-      "support.metaTitle": "Support | FF14 Glamour Maker 2",
-      "support.metaDescription": "Learn how to leave a one-time coffee-sized tip through Buy Me a Coffee or Ko-fi to help keep FF14 Glamour Maker 2 maintained.",
+      "support.metaTitle": "Support | Glamour Set Maker 02 · LOOKBOOK",
+      "support.metaDescription": "Learn how to leave a one-time coffee-sized tip through Buy Me a Coffee or Ko-fi to help keep Glamour Set Maker maintained.",
       "support.kicker": "Optional support",
       "support.title": "Support",
-      "support.lead": "A coffee-sized tip can help keep FF14 Glamour Maker 2 available and maintained.",
+      "support.lead": "A coffee-sized tip can help keep Glamour Set Maker available and maintained.",
       "supportChooser.kicker": "Choose a support service",
       "supportChooser.title": "Choose where you would like to support",
       "supportChooser.description": "Both options open an external checkout for a one-time tip.",
@@ -441,11 +443,12 @@ const PublicPages = (() => {
     },
     ja: {
       "common.skip": "本文へスキップ",
-      "common.brand": "FF14ミラプリメーカー2",
-      "common.tagline": "FFXIV LOOKBOOK",
-      "common.homeAria": "FF14ミラプリメーカー2 ホーム",
+      "common.brand": "ミラプリセットメーカー",
+      "common.tagline": "02 · ルックブック",
+      "common.homeAria": "ミラプリセットメーカー 02 · ルックブック ホーム",
       "common.navAria": "サービス案内",
       "common.editor": "エディター",
+      "common.cardMaker": "01 · カードメーカー",
       "common.guide": "ガイド",
       "common.contact": "お問い合わせ",
       "common.support": "サポート",
@@ -455,19 +458,19 @@ const PublicPages = (() => {
       "common.languageAria": "ページの言語",
       "common.updated": "最終更新日: 2026年9月8日",
       "common.footerUpdated": "サービスの変更に合わせてこの案内も更新します。",
-      "common.footerDisclaimer": "FF14ミラプリメーカー2はスクウェア・エニックスとは関係のない非公式ファンツールです。FINAL FANTASY XIVおよび関連アセットの権利は各権利者に帰属します。",
+      "common.footerDisclaimer": "ミラプリセットメーカーはスクウェア・エニックスとは関係のない非公式ファンツールです。FINAL FANTASY XIVおよび関連アセットの権利は各権利者に帰属します。",
       "common.backToEditor": "エディターに戻る",
       "common.external": "新しいタブで開きます",
 
-      "terms.metaTitle": "利用規約 | FF14ミラプリメーカー2",
-      "terms.metaDescription": "FF14ミラプリメーカー2のサービス範囲、ユーザーコンテンツ、外部サービス、禁止事項、お問い合わせ方法を案内します。",
+      "terms.metaTitle": "利用規約 | ミラプリセットメーカー 02 · ルックブック",
+      "terms.metaDescription": "ミラプリセットメーカーのサービス範囲、ユーザーコンテンツ、外部サービス、禁止事項、お問い合わせ方法を案内します。",
       "terms.kicker": "サービス基準",
       "terms.title": "利用規約",
-      "terms.lead": "FF14ミラプリメーカー2を利用する際の基準を、読みやすい文章でまとめています。",
+      "terms.lead": "ミラプリセットメーカーを利用する際の基準を、読みやすい文章でまとめています。",
       "terms.content": `
         <section class="public-section">
           <h2>1. サービスの範囲</h2>
-          <p>FF14ミラプリメーカー2は、FINAL FANTASY XIVのキャラクター画像、アイテム情報、テキストを組み合わせ、個人用のコーデカードを作成してPNGで保存できるウェブツールです。アカウントなしでブラウザから利用できます。</p>
+          <p>ミラプリセットメーカーは、FINAL FANTASY XIVのキャラクター画像、アイテム情報、テキストを組み合わせ、個人用のコーデカードを作成してPNGで保存できるウェブツールです。アカウントなしでブラウザから利用できます。</p>
           <p>機能、対応ブラウザ、外部データ接続は改善や運用状況により変更される場合があります。利用によって成果物の永久保存や特定機能の継続提供が保証されるものではありません。</p>
         </section>
         <section class="public-section">
@@ -496,8 +499,8 @@ const PublicPages = (() => {
           <p>規約に関する質問、権利侵害の報告、コンテンツ削除の依頼は<a class="public-inline-link" href="../contact/">お問い合わせページ</a>からお送りください。</p>
         </section>`,
 
-      "privacy.metaTitle": "プライバシーポリシー | FF14ミラプリメーカー2",
-      "privacy.metaDescription": "FF14ミラプリメーカー2がブラウザ保存、画像処理リクエスト、外部サービス、お問い合わせ情報をどのように扱うか説明します。",
+      "privacy.metaTitle": "プライバシーポリシー | ミラプリセットメーカー 02 · ルックブック",
+      "privacy.metaDescription": "ミラプリセットメーカーがブラウザ保存、画像処理リクエスト、外部サービス、お問い合わせ情報をどのように扱うか説明します。",
       "privacy.kicker": "データ案内",
       "privacy.title": "プライバシーポリシー",
       "privacy.lead": "ブラウザに残る情報と、外部サービスへ送信される可能性がある情報を説明します。",
@@ -539,8 +542,8 @@ const PublicPages = (() => {
           <p>サービス構成や法的要件が変わった場合、このページと更新日を改訂します。</p>
         </section>`,
 
-      "guide.metaTitle": "使い方ガイド | FF14ミラプリメーカー2",
-      "guide.metaDescription": "FF14ミラプリメーカー2で写真、アイテム、タイトル、背景を編集し、1～5人のコーデカードをPNGで保存する方法を案内します。",
+      "guide.metaTitle": "使い方ガイド | ミラプリセットメーカー 02 · ルックブック",
+      "guide.metaDescription": "ミラプリセットメーカーで写真、アイテム、タイトル、背景を編集し、1～5人のコーデカードをPNGで保存する方法を案内します。",
       "guide.kicker": "クイックスタート",
       "guide.title": "使い方ガイド",
       "guide.lead": "写真を追加し、アイテムとテキストを整えて、プレビューと同じ状態のPNGを書き出します。",
@@ -589,8 +592,8 @@ const PublicPages = (() => {
           <p>問題を再現できる場合は、ブラウザと端末、発生した手順、可能ならスクリーンショットを添えて<a class="public-inline-link" href="../contact/">お問い合わせください</a>。</p>
         </section>`,
 
-      "contact.metaTitle": "お問い合わせ | FF14ミラプリメーカー2",
-      "contact.metaDescription": "FF14ミラプリメーカー2への質問、バグ報告、プライバシーや権利に関する依頼をメールとKakaoTalkで送る方法を案内します。",
+      "contact.metaTitle": "お問い合わせ | ミラプリセットメーカー 02 · ルックブック",
+      "contact.metaDescription": "ミラプリセットメーカーへの質問、バグ報告、プライバシーや権利に関する依頼をメールとKakaoTalkで送る方法を案内します。",
       "contact.kicker": "連絡先",
       "contact.title": "お問い合わせ",
       "contact.lead": "不具合、使い方、プライバシーや権利に関する依頼を以下の窓口へお送りください。",
@@ -623,11 +626,11 @@ const PublicPages = (() => {
           <p>このブラウザに保存されたルックは、エディターのローカルデータ全削除で消去できます。外部処理やお問い合わせ記録については、希望する対応と確認に必要な情報をメールでお知らせください。</p>
         </section>`,
 
-      "support.metaTitle": "サポート | FF14ミラプリメーカー2",
-      "support.metaDescription": "FF14ミラプリメーカー2の運営と改善を支えるため、Buy Me a CoffeeまたはKo-fiで一度だけコーヒー代程度を送る方法を案内します。",
+      "support.metaTitle": "サポート | ミラプリセットメーカー 02 · ルックブック",
+      "support.metaDescription": "ミラプリセットメーカーの運営と改善を支えるため、Buy Me a CoffeeまたはKo-fiで一度だけコーヒー代程度を送る方法を案内します。",
       "support.kicker": "任意の応援",
       "support.title": "サポート",
-      "support.lead": "コーヒー一杯分の応援が、FF14ミラプリメーカー2の継続運営と改善に役立ちます。",
+      "support.lead": "コーヒー一杯分の応援が、ミラプリセットメーカーの継続運営と改善に役立ちます。",
       "supportChooser.kicker": "サポートサービスを選択",
       "supportChooser.title": "応援するサービスを選んでください",
       "supportChooser.description": "どちらも外部決済ページで一回限りのチップを送れます。",

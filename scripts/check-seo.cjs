@@ -5,7 +5,7 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const baseUrl = process.env.TEST_BASE_URL || "http://127.0.0.1:4173";
 const siteUrl = "https://ff14-glamour-maker2.pages.dev/";
-const title = "투영세트메이커2 | FFXIV 코디 카드 만들기";
+const title = "투영세트메이커 02 · 룩북 | FFXIV 코디 카드 만들기";
 const description = "파이널판타지 XIV 캐릭터 스크린샷에 장비와 문구를 더해 코디 카드를 만들어 보세요. 여러 캐릭터를 한 장에 배치하고 완성한 룩을 PNG로 저장할 수 있습니다.";
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 

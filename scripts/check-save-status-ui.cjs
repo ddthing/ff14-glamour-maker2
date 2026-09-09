@@ -13,7 +13,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.equal(await page.locator(".topbar #saveStatus").count(), 0, "save status should not occupy the header");
     assert.equal(await page.locator(".topbar #saveRetryButton").count(), 0, "retry should not occupy the header");
     assert.equal(await page.locator("#railSiteNavigation").count(), 1, "site information should live in the navigation rail");
-    assert.equal(await page.locator("#railSiteNavigation .rail-site-menu-nav a").count(), 5, "all site pages should remain reachable from the rail");
+    assert.equal(await page.locator("#railSiteNavigation .rail-site-menu-nav a").count(), 6, "the card maker and all site pages should remain reachable from the rail");
     assert.equal(await page.locator(".app-site-footer").count(), 0, "site navigation should not push the card preview downward");
     assert.equal(await page.locator("#saveStatusGroup").getAttribute("aria-label"), "저장 상태");
     assert.equal(await page.locator("#saveStatusGroup").getAttribute("title"), "자동 저장");

@@ -55,22 +55,23 @@ async function assertBrowserPages() {
     assert.equal(await page.locator("#pageLanguageSelect").inputValue(), "ko");
     assert.equal(await page.locator('[data-page-nav="terms"]').count(), 0, "terms should not need a header link");
     assert.equal(await page.locator(".public-nav").getAttribute("aria-label"), "서비스 안내");
+    assert.equal(await page.locator('.public-nav a[href="https://ff14-glamour-maker.pages.dev/"]').count(), 1, "public pages must link to the card maker");
 
     await page.locator("#pageLanguageSelect").selectOption("en");
     await page.waitForFunction(() => document.documentElement.lang === "en");
     assert.equal(await page.locator("h1").innerText(), "Terms of Use");
     assert.match(await page.locator(".public-content-card").innerText(), /What the service does/);
-    assert.equal(await page.locator("title").innerText(), "Terms of Use | FF14 Glamour Maker 2");
-    assert.equal(await page.locator('.public-brand strong').innerText(), "FF14 Glamour Maker 2");
-    assert.equal(await page.locator('meta[property="og:site_name"]').getAttribute("content"), "FF14 Glamour Maker 2");
+    assert.equal(await page.locator("title").innerText(), "Terms of Use | Glamour Set Maker 02 · LOOKBOOK");
+    assert.equal(await page.locator('.public-brand strong').innerText(), "Glamour Set Maker");
+    assert.equal(await page.locator('meta[property="og:site_name"]').getAttribute("content"), "Glamour Set Maker");
 
     await page.locator("#pageLanguageSelect").selectOption("ja");
     await page.waitForFunction(() => document.documentElement.lang === "ja");
     assert.equal(await page.locator("h1").innerText(), "利用規約");
     assert.match(await page.locator(".public-content-card").innerText(), /サービスの範囲/);
-    assert.equal(await page.locator("title").innerText(), "利用規約 | FF14ミラプリメーカー2");
-    assert.equal(await page.locator('.public-brand strong').innerText(), "FF14ミラプリメーカー2");
-    assert.equal(await page.locator('meta[property="og:site_name"]').getAttribute("content"), "FF14ミラプリメーカー2");
+    assert.equal(await page.locator("title").innerText(), "利用規約 | ミラプリセットメーカー 02 · ルックブック");
+    assert.equal(await page.locator('.public-brand strong').innerText(), "ミラプリセットメーカー");
+    assert.equal(await page.locator('meta[property="og:site_name"]').getAttribute("content"), "ミラプリセットメーカー");
     assert.equal(await page.locator('link[rel="icon"]').count(), 0, "public pages must not expose the rejected favicon");
     assert.equal(await page.locator("body").evaluate((element) => element.scrollWidth <= window.innerWidth), true, "public page has horizontal overflow");
 

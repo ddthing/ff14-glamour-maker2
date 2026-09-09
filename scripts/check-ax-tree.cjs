@@ -16,7 +16,7 @@ function valueOf(property) {
     const exposed = nodes.filter((node) => !node.ignored);
     const exposedNames = new Set(exposed.map((node) => `${valueOf(node.role)}\u0000${valueOf(node.name)}`));
     const required = [
-      ["main", "투영세트메이커2 편집기"],
+      ["main", "투영세트메이커 02 · 룩북 편집기"],
       ["region", "룩 캔버스"],
       ["tab", "꾸미기"],
       ["tab", "장비"],

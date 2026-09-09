@@ -498,12 +498,6 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       }
       context.fillStyle = paperNoteTheme ? "rgba(59, 64, 64, .68)" : exportTheme.muted;
       context.font = `600 ${slotSize}px "Pretendard Variable", sans-serif`;
-      const slotWidth = context.measureText(item.slotName).width;
-      const slotLineWidth = Math.max(14, Math.round(width * 0.08));
-      const slotLineX = textAlign === "right"
-        ? textX - slotWidth - Math.max(4, Math.round(slotSize * 0.55)) - slotLineWidth
-        : textX;
-      if (!scrapbookTheme) context.fillRect(slotLineX, y + Math.round(height * 0.22), slotLineWidth, 2);
       context.textAlign = textAlign;
       context.fillText(item.slotName, textX, y + Math.round(height * 0.38));
       context.fillStyle = paperNoteTheme ? "#3b4040" : exportTheme.text;
