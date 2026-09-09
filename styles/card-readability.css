@@ -909,19 +909,23 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
   pointer-events: auto;
 }
 
-/* In a solo portrait, a removed-background subject is the hero and may
-   overlap an item note. Keep the title above both, the cutout above notes,
-   and the notes above only the ordinary/full-frame image. */
-.canvas-board[data-ratio="portrait"][data-cast="1"][data-cutout="true"] .board-editorial-header {
+/* Solo layer contract: equipment cards are information surfaces, so they
+   must sit above the photo in every supported ratio and image mode. Keep
+   title copy above both; the shared copy canvas and copyright remain higher
+   still. The same contract is intentionally used by preview and PNG export. */
+.canvas-board[data-ratio="portrait"][data-cast="1"] .board-editorial-header,
+.canvas-board[data-ratio="landscape"][data-cast="1"] .board-editorial-header {
   z-index: 16 !important;
 }
 
-.canvas-board[data-ratio="portrait"][data-cast="1"][data-cutout="true"] .portrait-wrap {
-  z-index: 15 !important;
+.canvas-board[data-ratio="portrait"][data-cast="1"] .portrait-wrap,
+.canvas-board[data-ratio="landscape"][data-cast="1"] .portrait-wrap {
+  z-index: 14 !important;
 }
 
-.canvas-board[data-ratio="portrait"][data-cast="1"][data-cutout="true"] .board-gear-list {
-  z-index: 14 !important;
+.canvas-board[data-ratio="portrait"][data-cast="1"] .board-gear-list,
+.canvas-board[data-ratio="landscape"][data-cast="1"] .board-gear-list {
+  z-index: 15 !important;
 }
 
 /* Preview/export parity contract. CardLayout supplies the absolute frame

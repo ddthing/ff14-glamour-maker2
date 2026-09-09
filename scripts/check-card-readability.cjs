@@ -13,21 +13,31 @@ const castCounts = [1, 2, 3, 5];
     await page.waitForSelector("#canvasBoard");
     await page.waitForSelector("#castCountControl [data-cast-count]");
 
-    const soloLayerOrder = await page.evaluate(() => {
+    const soloLayerOrders = await page.evaluate(() => {
       const board = document.querySelector("#canvasBoard");
       const originalCutout = board.dataset.cutout;
+      const originalRatio = board.dataset.ratio;
       board.dataset.cast = "1";
-      board.dataset.ratio = "portrait";
-      board.dataset.cutout = "true";
-      const layers = {
-        title: getComputedStyle(board.querySelector(".board-editorial-header")).zIndex,
-        portrait: getComputedStyle(board.querySelector(".portrait-wrap")).zIndex,
-        gear: getComputedStyle(board.querySelector(".board-gear-list")).zIndex,
-      };
+      const layers = {};
+      ["portrait", "landscape"].forEach((ratio) => {
+        board.dataset.ratio = ratio;
+        ["true", "false"].forEach((cutout) => {
+          board.dataset.cutout = cutout;
+          layers[`${ratio}/${cutout}`] = {
+            title: getComputedStyle(board.querySelector(".board-editorial-header")).zIndex,
+            portrait: getComputedStyle(board.querySelector(".portrait-wrap")).zIndex,
+            gear: getComputedStyle(board.querySelector(".board-gear-list")).zIndex,
+          };
+        });
+      });
       board.dataset.cutout = originalCutout;
+      board.dataset.ratio = originalRatio;
       return layers;
     });
-    assert.deepEqual(soloLayerOrder, { title: "16", portrait: "15", gear: "14" }, `solo cutout layer order is not explicit: ${JSON.stringify(soloLayerOrder)}`);
+    Object.entries(soloLayerOrders).forEach(([variant, layers]) => {
+      assert.ok(Number(layers.gear) > Number(layers.portrait), `solo equipment information must sit above the photo for ${variant}: ${JSON.stringify(soloLayerOrders)}`);
+      assert.ok(Number(layers.title) > Number(layers.gear), `solo title must remain above equipment information for ${variant}: ${JSON.stringify(soloLayerOrders)}`);
+    });
 
     const chooseCount = async (count) => {
       await page.locator(`[data-cast-count="${count}"]`).click();
