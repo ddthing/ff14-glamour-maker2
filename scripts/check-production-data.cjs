@@ -37,7 +37,7 @@ const legacyKeys = [
       label: row.querySelector(".equipment-icon")?.textContent.trim(),
       name: row.getAttribute("aria-label") || "",
     })));
-    assert.deepEqual(slots.map(({ label }) => label), ["모자", "티셔츠", "장갑", "바지", "신발"]);
+    assert.deepEqual(slots.map(({ label }) => label), ["머리", "몸", "손", "다리", "발"]);
     assert.ok(slots.every(({ name }) => /슬롯/.test(name)), "equipment labels should retain slot context for assistive tech");
 
     const visual = await page.evaluate(() => {

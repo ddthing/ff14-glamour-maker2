@@ -30,6 +30,53 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.equal(desktop.visible, true, "navigation rail should expose the save status");
     assert.equal(desktop.withinViewport, true, `desktop save status should remain in view: ${JSON.stringify(desktop)}`);
 
+    const readRailVisuals = () => page.evaluate(() => {
+      const read = (selector) => {
+        const element = document.querySelector(selector);
+        const marker = element?.querySelector(".tool-key");
+        if (!element || !marker) return null;
+        const markerRect = marker.getBoundingClientRect();
+        const elementStyle = getComputedStyle(element);
+        const markerStyle = getComputedStyle(marker);
+        return {
+          element: {
+            background: elementStyle.backgroundColor,
+            borderWidth: elementStyle.borderWidth,
+            borderStyle: elementStyle.borderStyle,
+            borderRadius: elementStyle.borderRadius,
+            boxShadow: elementStyle.boxShadow,
+          },
+          marker: {
+            width: markerRect.width,
+            height: markerRect.height,
+            display: markerStyle.display,
+            fontFamily: markerStyle.fontFamily,
+            fontSize: markerStyle.fontSize,
+            fontWeight: markerStyle.fontWeight,
+            lineHeight: markerStyle.lineHeight,
+            letterSpacing: markerStyle.letterSpacing,
+            borderWidth: markerStyle.borderWidth,
+            borderStyle: markerStyle.borderStyle,
+            borderRadius: markerStyle.borderRadius,
+            padding: markerStyle.padding,
+          },
+        };
+      };
+      return {
+        mode: read("#styleTab"),
+        site: read("#railSiteNavigation > summary"),
+      };
+    });
+    const desktopRail = await readRailVisuals();
+    assert.deepEqual(desktopRail.mode.marker, desktopRail.site.marker, `mode and site rail markers drifted on desktop: ${JSON.stringify(desktopRail)}`);
+
+    await page.locator("#railSiteNavigation > summary").click();
+    await page.waitForTimeout(220);
+    const desktopOpenRail = await readRailVisuals();
+    assert.deepEqual(desktopOpenRail.mode.element, desktopOpenRail.site.element, `open site rail control does not match the active mode control: ${JSON.stringify(desktopOpenRail)}`);
+    await page.locator("#railSiteNavigation > summary").click();
+    await page.waitForTimeout(220);
+
     await page.evaluate(() => setSaveStatus(I18n.t("status.saving"), false));
     assert.equal(await page.locator("#saveStatusGroup").getAttribute("data-state"), "saving");
     assert.equal(await page.locator("#saveRetryButton").getAttribute("hidden"), "");
@@ -56,11 +103,16 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.equal(mobile.overflow, false, "mobile layout should not overflow horizontally");
     assert.equal(mobile.visible, true, "save status should remain available on mobile");
     assert.equal(mobile.withinViewport, true, `mobile save status should remain in view: ${JSON.stringify(mobile)}`);
+    const mobileRail = await readRailVisuals();
+    assert.deepEqual(mobileRail.mode.marker, mobileRail.site.marker, `mode and site rail markers drifted on mobile: ${JSON.stringify(mobileRail)}`);
     await page.screenshot({ path: "artifacts/ui-save-status-rail-mobile.png", fullPage: false });
 
     await page.locator("#railSiteNavigation > summary").click();
+    await page.waitForTimeout(220);
     assert.equal(await page.locator("#railSiteNavigation").getAttribute("open"), "", "site information menu should open from the rail");
     assert.equal(await page.locator("#railSiteNavigation .rail-site-menu").isVisible(), true, "site information menu should be visible on mobile");
+    const mobileOpenRail = await readRailVisuals();
+    assert.deepEqual(mobileOpenRail.mode.element, mobileOpenRail.site.element, `open site rail control does not match the active mode control on mobile: ${JSON.stringify(mobileOpenRail)}`);
     const siteMenu = await page.locator("#railSiteNavigation .rail-site-menu").boundingBox();
     assert.ok(siteMenu && siteMenu.x >= 0 && siteMenu.x + siteMenu.width <= 320 && siteMenu.y >= 0, `site information menu should fit the mobile viewport: ${JSON.stringify(siteMenu)}`);
     await page.screenshot({ path: "artifacts/ui-site-menu-rail-mobile.png", fullPage: false });

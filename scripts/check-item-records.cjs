@@ -13,7 +13,7 @@ store.register([
     source: "xivapi",
     ignored: "not persisted",
   },
-  { id: 102, slot: "body", names: { ko: "상의" }, meta: { ko: "몸통" } },
+  { id: 102, slot: "body", names: { ko: "상의" }, meta: { ko: "몸" } },
 ]);
 store.register([{ id: "101", slot: "head", names: { ja: "帽子" }, meta: { ja: "頭" } }]);
 

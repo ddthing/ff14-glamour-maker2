@@ -579,6 +579,20 @@ body.image-placement-mode .character-image-actions {
   filter: none !important;
 }
 
+/* A newly selected display face may arrive after the synchronous style pass.
+   Keep the semantic copy visible while it loads instead of freezing a canvas
+   painted with the old or fallback face. The shared canvas is redrawn as soon
+   as the font-ready boundary clears. */
+.canvas-board[data-copy-font-pending="true"] .board-copy-canvas {
+  visibility: hidden;
+}
+
+.canvas-board[data-copy-font-pending="true"] .board-title-block > strong,
+.canvas-board[data-copy-font-pending="true"] .board-title-block > .caption-description,
+.canvas-board[data-copy-font-pending="true"] .board-copyright {
+  filter: none !important;
+}
+
 /* Every saved card carries the same unobtrusive rights notice. It is a
    measured member of the shared copy layer, so its position and typography
    stay identical in the live preview and PNG export. */
@@ -646,19 +660,43 @@ body.image-placement-mode .character-image-actions {
   box-shadow: 0 1px 3px rgb(20 24 28 / .12);
 }
 
-.rail-mode-button {
+.rail-mode-button,
+.rail-site-nav-toggle {
   box-shadow: none !important;
 }
 
-.rail-mode-button .tool-key {
+.rail-mode-button .tool-key,
+.rail-site-nav-toggle .rail-site-nav-mark {
+  display: inline-grid;
+  width: 30px;
+  height: 23px;
   min-width: 30px;
-  padding: 4px 5px;
+  min-height: 23px;
+  place-items: center;
+  padding: 0;
+  border: 0;
   border-radius: 999px;
+  color: var(--muted-foreground);
+  background: transparent;
+  font-family: var(--sans);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: .06em;
   text-align: center;
   transition: color 140ms ease, background-color 140ms ease;
 }
 
-.rail-mode-button.is-active .tool-key {
+.rail-mode-button.is-active,
+.rail-site-nav[open] > .rail-site-nav-toggle {
+  color: var(--sidebar-foreground);
+  background: var(--sidebar-accent);
+  box-shadow: none !important;
+}
+
+.rail-mode-button.is-active .tool-key,
+.rail-site-nav[open] > .rail-site-nav-toggle .rail-site-nav-mark {
   color: var(--primary);
   background: color-mix(in oklch, var(--primary) 10%, transparent);
 }
@@ -676,7 +714,8 @@ body.image-placement-mode .character-image-actions {
 @media (prefers-reduced-motion: reduce) {
   .compact-segments button,
   .cast-count-control button,
-  .rail-mode-button .tool-key {
+  .rail-mode-button .tool-key,
+  .rail-site-nav-toggle .rail-site-nav-mark {
     transition: none;
   }
 }
@@ -1332,6 +1371,14 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
 
 .canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-note-stamp::before { left: -42%; }
 .canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-note-stamp::after { right: -42%; }
+
+/* Landscape equipment notes are compact, edge-aligned information columns.
+   Their pattern stamps have no safe text-free area, so keep the copy clean in
+   this layout while preserving the decoration for portrait archive notes. */
+.canvas-board[data-ratio="landscape"][data-background-pattern="collage"] .board-gear-tiles .gear-note-stamp,
+.canvas-board[data-ratio="landscape"][data-background-pattern="scrapbook"] .board-gear-tiles .gear-note-stamp {
+  display: none;
+}
 
 .canvas-board[data-background-pattern="collage"] .board-gear-tiles .gear-tile-copy,
 .canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-tile-copy {

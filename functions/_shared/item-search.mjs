@@ -5,7 +5,7 @@ import {
 
 const itemSlotLabels = {
   head: { ko: "머리", en: "Head", ja: "頭" },
-  body: { ko: "몸통", en: "Body", ja: "胴" },
+  body: { ko: "몸", en: "Body", ja: "胴" },
   hands: { ko: "손", en: "Hands", ja: "手" },
   legs: { ko: "다리", en: "Legs", ja: "脚" },
   feet: { ko: "발", en: "Feet", ja: "足" },

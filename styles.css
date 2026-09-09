@@ -276,20 +276,7 @@ button:active {
 .rail-site-nav[open] > .rail-site-nav-toggle {
   color: var(--sidebar-foreground);
   background: var(--sidebar-accent);
-  box-shadow: inset 3px 0 0 var(--primary);
-}
-
-.rail-site-nav-mark {
-  display: inline-grid;
-  width: 20px;
-  height: 20px;
-  place-items: center;
-  border: 1px solid currentColor;
-  border-radius: 50%;
-  font-family: Georgia, serif;
-  font-size: 13px;
-  font-style: italic;
-  line-height: 1;
+  box-shadow: none;
 }
 
 .rail-site-menu {
@@ -2738,7 +2725,7 @@ input[type="range"]:focus-visible { outline: 2px solid var(--primary); outline-o
 .zoom-readout { color: var(--muted-foreground); }
 .toolbar-divider { background: var(--border); }
 
-.stage-wrap { max-width: 860px; margin: 0 auto; }
+.stage-wrap { position: relative; max-width: 860px; margin: 0 auto; }
 .canvas-board {
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -3706,6 +3693,19 @@ body.image-placement-mode .canvas-board[data-ratio="portrait"] {
 
   .rail-site-nav {
     position: static;
+  }
+
+  .rail-site-nav,
+  .rail-site-nav-toggle {
+    width: auto;
+    min-height: 48px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+  }
+
+  .rail-site-nav[open] > .rail-site-nav-toggle {
+    border-color: var(--border);
+    box-shadow: none !important;
   }
 
   .rail-site-menu {

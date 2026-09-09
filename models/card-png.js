@@ -259,6 +259,10 @@ function drawMaterialTape(context, x, y, width, height, color, rotation = 0) {
   context.restore();
 }
 
+function shouldDrawPatternStamp(backgroundPattern, isPortrait) {
+  return isPortrait || !["collage", "scrapbook"].includes(backgroundPattern);
+}
+
 function drawArchiveStamp(context, x, y, size, color, rotation = 0) {
   context.save();
   context.translate(x, y);
@@ -470,24 +474,26 @@ async function render({ state, dimensions, exportTheme, background, patternStars
           tapeTints[noteIndex % tapeTints.length],
           (noteIndex % 2 ? 1 : -1) * Math.PI / 180,
         );
-        if (collageTheme) {
-          drawArchiveStamp(
-            context,
-            x + width * 0.84,
-            y + height * 0.24,
-            Math.max(12, Math.min(width, height) * 0.2),
-            material?.stampInk || "rgba(77, 70, 62, .64)",
-            (noteIndex % 3 - 1) * 0.12,
-          );
-        } else {
-          drawEditorialMark(
-            context,
-            x + width * 0.82,
-            y + height * 0.26,
-            Math.max(12, width * 0.16),
-            material?.stampInk || "rgba(52, 82, 91, .48)",
-            (noteIndex % 2 ? 1 : -1) * 0.08,
-          );
+        if (shouldDrawPatternStamp(state.backgroundPattern, isPortrait)) {
+          if (collageTheme) {
+            drawArchiveStamp(
+              context,
+              x + width * 0.84,
+              y + height * 0.24,
+              Math.max(12, Math.min(width, height) * 0.2),
+              material?.stampInk || "rgba(77, 70, 62, .64)",
+              (noteIndex % 3 - 1) * 0.12,
+            );
+          } else {
+            drawEditorialMark(
+              context,
+              x + width * 0.82,
+              y + height * 0.26,
+              Math.max(12, width * 0.16),
+              material?.stampInk || "rgba(52, 82, 91, .48)",
+              (noteIndex % 2 ? 1 : -1) * 0.08,
+            );
+          }
         }
       }
       context.fillStyle = paperNoteTheme ? "rgba(59, 64, 64, .68)" : exportTheme.muted;
@@ -597,6 +603,6 @@ async function render({ state, dimensions, exportTheme, background, patternStars
     });
     return canvasBlob("image/png");
 }
-return { render };
+return { render, shouldDrawPatternStamp };
 })();
 if (typeof module !== "undefined") module.exports = CardPng;

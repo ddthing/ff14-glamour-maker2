@@ -34,10 +34,10 @@
       />
     </noscript>
     <link rel="stylesheet" href="styles/tokens.css?v=20260908-shared-tokens-1" />
-    <link rel="stylesheet" href="styles.css?v=20260909-radius-contract-1" />
+    <link rel="stylesheet" href="styles.css?v=20260909-rail-consistency-1" />
     <link rel="stylesheet" href="styles/card-composer.css?v=20260909-title-size-3" />
-    <link rel="stylesheet" href="styles/editor-controls.css?v=20260909-radius-contract-1" />
-    <link rel="stylesheet" href="styles/card-readability.css?v=20260909-copy-target-1" />
+    <link rel="stylesheet" href="styles/editor-controls.css?v=20260909-outline-dock-1" />
+    <link rel="stylesheet" href="styles/card-readability.css?v=20260909-rail-consistency-1" />
   </head>
   <body>
     <a class="skip-link" data-i18n="skip.editor" href="#canvas">편집 영역으로 건너뛰기</a>
@@ -154,6 +154,9 @@
                     <input id="textEditorColorInput" type="color" value="#263238" data-i18n-aria-label="copy.titleTextColor" aria-label="제목 텍스트 색상" />
                   </label>
                   <button class="text-editor-dock-color-auto" id="textEditorColorAutoButton" type="button" data-i18n-aria-label="copy.dockColorAuto" data-i18n-title="copy.dockColorAuto" aria-label="자동 색상" title="자동 색상" aria-pressed="true">A·</button>
+                  <button class="text-editor-dock-icon-button text-editor-dock-outline-button" id="textEditorMoreButton" type="button" data-i18n-aria-label="copy.dockOutline" data-i18n-title="copy.dockOutline" aria-label="제목 외곽선 열기" title="제목 외곽선 열기" aria-haspopup="dialog" aria-expanded="false">
+                    <span class="text-editor-dock-outline-glyph" aria-hidden="true">A</span>
+                  </button>
                   <span class="text-editor-dock-divider" aria-hidden="true"></span>
                   <div class="text-editor-dock-align" id="textEditorAlignControls" role="radiogroup" data-i18n-aria-label="copy.alignment" aria-label="카드 제목 정렬">
                     <button class="text-editor-dock-icon-button" data-floating-align="left" type="button" role="radio" aria-checked="false" data-i18n-aria-label="copy.left" data-i18n-title="copy.left" aria-label="왼쪽 정렬" title="왼쪽 정렬"><span class="alignment-glyph alignment-glyph--left" aria-hidden="true"></span></button>
@@ -161,6 +164,31 @@
                     <button class="text-editor-dock-icon-button" data-floating-align="right" type="button" role="radio" aria-checked="false" data-i18n-aria-label="copy.right" data-i18n-title="copy.right" aria-label="오른쪽 정렬" title="오른쪽 정렬"><span class="alignment-glyph alignment-glyph--right" aria-hidden="true"></span></button>
                   </div>
                 </div>
+              </div>
+              <div class="text-editor-dock-popover" id="textEditorMoreMenu" role="dialog" aria-labelledby="textEditorOutlineTitle" hidden>
+                <div class="text-editor-dock-popover-head">
+                  <div>
+                    <span class="text-editor-dock-eyebrow" data-i18n="copy.dockKicker">텍스트 선택됨</span>
+                    <strong id="textEditorOutlineTitle" data-i18n="copy.outline">제목 외곽선</strong>
+                  </div>
+                  <output id="textEditorOutlineValue" aria-live="polite">없음</output>
+                </div>
+                <p class="text-editor-dock-popover-hint" data-i18n="copy.onlyTitle">카드 제목만</p>
+                <div class="text-editor-dock-popover-row">
+                  <span data-i18n="outline.color">색상</span>
+                  <div class="text-editor-dock-outline-color-row">
+                    <label class="text-editor-dock-outline-color" for="textEditorOutlineColorInput" data-i18n-title="copy.titleOutlineDirect" title="제목 외곽선 직접 선택">
+                      <span class="text-editor-dock-outline-color-mark" id="textEditorOutlineColorMark" aria-hidden="true">A</span>
+                      <input id="textEditorOutlineColorInput" type="color" value="#ffffff" data-i18n-aria-label="copy.titleOutlineDirect" aria-label="제목 외곽선 직접 선택" />
+                    </label>
+                    <output class="text-editor-dock-outline-color-value" id="textEditorOutlineColorValue" aria-live="polite">#FFFFFF</output>
+                  </div>
+                </div>
+                <label class="text-editor-dock-popover-range" for="textEditorOutlineRange">
+                  <span data-i18n="copy.titleOutlineWidth">제목 외곽선 두께</span>
+                  <output id="textEditorOutlineRangeValue" aria-live="polite">없음</output>
+                  <input id="textEditorOutlineRange" type="range" min="0" max="6" value="0" step="1" data-i18n-aria-label="copy.titleOutlineWidth" aria-label="제목 외곽선 두께" />
+                </label>
               </div>
               <div class="stage-composition">
                 <div class="canvas-board" id="canvasBoard" data-copy-target="title" style="--board-bg: #d7d6dc">
@@ -259,30 +287,56 @@
               <section class="inspector-section portrait-section editor-category-section" id="imageSection">
                 <div class="panel-section-head"><h2 data-i18n="image.title">이미지</h2><span class="image-state" id="imageState" data-i18n="image.none" aria-live="polite">이미지 없음</span></div>
                 <div class="image-workflow-group image-import-group" aria-labelledby="imageImportGroupTitle">
-                  <div class="image-workflow-head"><span id="imageImportGroupTitle" data-i18n="image.import">사진 가져오기</span><details class="control-help"><summary data-i18n-aria-label="help.open" aria-label="도움말"><span class="control-help-icon" aria-hidden="true">?</span></summary><div class="control-help-popover"><p data-i18n="image.importHint">원본은 브라우저에 안전하게 보관합니다</p></div></details></div>
+                  <div class="image-workflow-head"><div class="image-workflow-title"><span class="image-workflow-index" aria-hidden="true">01</span><span id="imageImportGroupTitle" data-i18n="image.import">사진 가져오기</span></div><details class="control-help"><summary data-i18n-aria-label="help.open" aria-label="도움말"><span class="control-help-icon" aria-hidden="true">?</span></summary><div class="control-help-popover"><p data-i18n="image.importHint">원본은 브라우저에 안전하게 보관합니다</p></div></details></div>
                   <div class="portrait-source-card is-empty" id="portraitSourceCard">
                     <div class="source-thumb is-empty" id="sourceThumbFrame"><img id="sourceThumb" data-i18n-alt="image.notSelected" alt="사진 미선택" /></div>
                     <div class="source-copy"><strong id="sourceFileName" data-i18n="image.notSelected" aria-live="polite">사진 미선택</strong><span id="sourceFileMeta" data-i18n="image.fileTypes" aria-live="polite">PNG · JPG · WebP · 여러 장 선택 가능</span></div>
                   </div>
                 </div>
                 <div class="image-workflow-group image-placement-group" aria-labelledby="imagePlacementGroupTitle">
-                  <div class="image-workflow-head"><span id="imagePlacementGroupTitle" data-i18n="image.placement">프레임과 배치</span><details class="control-help"><summary data-i18n-aria-label="help.open" aria-label="도움말"><span class="control-help-icon" aria-hidden="true">?</span></summary><div class="control-help-popover"><p data-i18n="image.placementHint">카드에서 보이는 이미지 영역을 조정합니다</p><p data-i18n="image.directHint">편집을 열면 카드 위에서 드래그해 위치를 맞춥니다.</p></div></details></div>
-                  <div class="compact-option-row image-fit-row"><span data-i18n="image.frame">프레임</span><div class="compact-segments" role="group" data-i18n-aria-label="image.frameAria" aria-label="이미지 프레임 표시"><button class="is-selected" data-image-fit="contain" data-i18n="image.contain" type="button">전체 보기</button><button data-image-fit="cover" data-i18n="image.cover" type="button">채우기</button></div></div>
-                  <div class="image-transform-row image-placement-launch-row"><span data-i18n="image.position">배치</span><div class="image-placement-summary"><output id="imagePlacementSummary" aria-live="polite">100% · 기본 위치</output><button class="image-placement-launch" id="openImageEditorButton" type="button" data-i18n="image.editPlacement" data-i18n-aria-label="image.editPlacement" data-i18n-title="image.editPlacementReady" aria-controls="canvasBoard" aria-expanded="false">크기·위치 편집</button></div></div>
+                  <div class="image-workflow-head"><div class="image-workflow-title"><span class="image-workflow-index" aria-hidden="true">02</span><span id="imagePlacementGroupTitle" data-i18n="image.placement">프레임과 배치</span></div><details class="control-help"><summary data-i18n-aria-label="help.open" aria-label="도움말"><span class="control-help-icon" aria-hidden="true">?</span></summary><div class="control-help-popover"><p data-i18n="image.placementHint">카드에서 보이는 이미지 영역을 조정합니다</p><p data-i18n="image.directHint">편집을 열면 카드 위에서 드래그해 위치를 맞춥니다.</p></div></details></div>
+                  <div class="image-placement-card">
+                    <div class="compact-option-row image-fit-row"><span data-i18n="image.frame">프레임</span><div class="compact-segments" role="group" data-i18n-aria-label="image.frameAria" aria-label="이미지 프레임 표시"><button class="is-selected" data-image-fit="contain" data-i18n="image.contain" type="button">전체 보기</button><button data-image-fit="cover" data-i18n="image.cover" type="button">채우기</button></div></div>
+                    <div class="image-transform-row image-placement-launch-row"><span data-i18n="image.position">배치</span><div class="image-placement-summary"><output id="imagePlacementSummary" aria-live="polite">100% · 기본 위치</output><button class="image-placement-launch" id="openImageEditorButton" type="button" data-i18n="image.editPlacement" data-i18n-aria-label="image.editPlacement" data-i18n-title="image.editPlacementReady" aria-controls="canvasBoard" aria-expanded="false">크기·위치 편집</button></div></div>
+                  </div>
                 </div>
                 <div class="image-workflow-group image-treatment-group" aria-labelledby="imageTreatmentGroupTitle">
-                  <div class="image-workflow-head"><span id="imageTreatmentGroupTitle" data-i18n="image.treatment">이미지 처리</span><details class="control-help"><summary data-i18n-aria-label="help.open" aria-label="도움말"><span class="control-help-icon" aria-hidden="true">?</span></summary><div class="control-help-popover"><p data-i18n="image.treatmentHint">원본 복원과 배경 제거는 언제든 되돌릴 수 있어요</p></div></details></div>
-                  <button class="secondary-button cutout-action" id="cutoutButton" type="button"><span data-i18n="cutout.remove">배경 제거</span><span class="cutout-progress" aria-hidden="true"></span></button>
-                  <button class="style-advanced-toggle image-style-toggle" id="styleAdvancedToggle" type="button" aria-expanded="false" aria-controls="outlineAdvancedSection shadowAdvancedSection"><span data-i18n="cutout.advanced">이미지 테두리와 그림자</span><span class="style-advanced-icon" aria-hidden="true">＋</span></button>
+                  <div class="image-workflow-head"><div class="image-workflow-title"><span class="image-workflow-index" aria-hidden="true">03</span><span id="imageTreatmentGroupTitle" data-i18n="image.treatment">이미지 처리</span></div><details class="control-help"><summary data-i18n-aria-label="help.open" aria-label="도움말"><span class="control-help-icon" aria-hidden="true">?</span></summary><div class="control-help-popover"><p data-i18n="image.treatmentHint">원본 복원과 배경 제거는 언제든 되돌릴 수 있어요</p></div></details></div>
+                  <div class="image-treatment-actions">
+                    <button class="secondary-button cutout-action" id="cutoutButton" type="button"><span data-i18n="cutout.remove">배경 제거</span><span class="cutout-progress" aria-hidden="true"></span></button>
+                    <button class="style-advanced-toggle image-style-toggle" id="styleAdvancedToggle" type="button" aria-expanded="false" aria-controls="outlineAdvancedSection shadowAdvancedSection"><span data-i18n="cutout.advanced">이미지 테두리와 그림자</span><span class="style-advanced-icon" aria-hidden="true">＋</span></button>
+                  </div>
                   <div class="image-style-control" id="outlineAdvancedSection" data-style-advanced>
-                    <div class="image-style-control-head"><h3 data-i18n="outline.title">테두리</h3><span class="value-readout" id="outlineValue">00 px</span></div>
-                    <div class="control-line"><span class="control-label" data-i18n="outline.color">색상</span><div class="swatch-row" id="outlineSwatches"><button class="color-swatch is-selected" data-color="#f1dfbb" style="--swatch:#f1dfbb" type="button" data-i18n-aria-label="outline.warmIvory" aria-label="웜 아이보리"></button><button class="color-swatch" data-color="#b9d4d5" style="--swatch:#b9d4d5" type="button" data-i18n-aria-label="outline.mistBlue" aria-label="미스트 블루"></button><button class="color-swatch" data-color="#171820" style="--swatch:#171820" type="button" data-i18n-aria-label="outline.ink" aria-label="잉크"></button><button class="color-swatch" data-color="#b87663" style="--swatch:#b87663" type="button" data-i18n-aria-label="outline.terracotta" aria-label="테라코타"></button></div></div>
-                    <div class="range-line"><input id="outlineRange" type="range" min="0" max="8" value="0" step="1" aria-label="이미지 외곽선 두께" data-i18n-aria-label="outline.width" /><div class="range-labels"><span data-i18n="range.none">없음</span><span data-i18n="range.bold">굵게</span></div></div>
+                    <div class="image-style-control-head"><h3 data-i18n="outline.title">테두리</h3></div>
+                    <div class="image-style-field image-color-field">
+                      <div class="image-style-field-head"><span class="control-label" data-i18n="outline.color">색상</span><output class="value-readout" id="outlineColorValue" aria-live="polite">#F1DFBB</output></div>
+                      <div class="image-color-choice-row">
+                        <div class="swatch-row" id="outlineSwatches" role="radiogroup" data-i18n-aria-label="outline.colorAria" aria-label="이미지 테두리 색상">
+                          <button class="color-swatch is-selected" data-color="#f1dfbb" style="--swatch:#f1dfbb" type="button" role="radio" aria-checked="true" data-i18n-aria-label="outline.warmIvory" aria-label="웜 아이보리"></button><button class="color-swatch" data-color="#b9d4d5" style="--swatch:#b9d4d5" type="button" role="radio" aria-checked="false" data-i18n-aria-label="outline.mistBlue" aria-label="미스트 블루"></button><button class="color-swatch" data-color="#171820" style="--swatch:#171820" type="button" role="radio" aria-checked="false" data-i18n-aria-label="outline.ink" aria-label="잉크"></button><button class="color-swatch" data-color="#b87663" style="--swatch:#b87663" type="button" role="radio" aria-checked="false" data-i18n-aria-label="outline.terracotta" aria-label="테라코타"></button>
+                        </div>
+                        <label class="image-color-picker" id="outlineColorPicker" for="outlineColorInput">
+                          <input id="outlineColorInput" type="color" value="#f1dfbb" data-i18n-aria-label="outline.direct" aria-label="테두리 색상 직접 선택" />
+                          <span data-i18n="outline.direct">직접 선택</span>
+                        </label>
+                      </div>
+                    </div>
+                    <div class="image-style-field image-range-field">
+                      <div class="image-style-field-head"><span class="control-label" data-i18n="outline.thickness">두께</span><output class="value-readout" id="outlineValue" aria-live="polite">00 px</output></div>
+                      <input id="outlineRange" type="range" min="0" max="8" value="0" step="1" aria-label="이미지 외곽선 두께" data-i18n-aria-label="outline.width" />
+                      <div class="range-labels"><span data-i18n="range.none">없음</span><span data-i18n="range.bold">굵게</span></div>
+                    </div>
                   </div>
                   <div class="image-style-control" id="shadowAdvancedSection" data-style-advanced>
-                    <div class="image-style-control-head"><h3 data-i18n="shadow.title">그림자</h3><span class="value-readout" id="shadowValue">20%</span></div>
-                    <div class="range-line"><input id="shadowRange" type="range" min="0" max="70" value="20" step="1" aria-label="이미지 그림자 강도" data-i18n-aria-label="shadow.strength" /><div class="range-labels"><span data-i18n="shadow.soft">부드럽게</span><span data-i18n="shadow.strong">진하게</span></div></div>
-                    <div class="shadow-controls"><span class="control-label" data-i18n="shadow.direction">방향</span><div class="direction-pad" role="group" data-i18n-aria-label="shadow.directionAria" aria-label="그림자 방향"><button data-shadow="nw" type="button" data-i18n-aria-label="direction.nw" aria-label="왼쪽 위">↖</button><button data-shadow="n" type="button" data-i18n-aria-label="direction.n" aria-label="위">↑</button><button data-shadow="ne" type="button" data-i18n-aria-label="direction.ne" aria-label="오른쪽 위">↗</button><button data-shadow="w" type="button" data-i18n-aria-label="direction.w" aria-label="왼쪽">←</button><span class="direction-center" aria-hidden="true"></span><button data-shadow="e" type="button" data-i18n-aria-label="direction.e" aria-label="오른쪽">→</button><button data-shadow="sw" type="button" data-i18n-aria-label="direction.sw" aria-label="왼쪽 아래">↙</button><button data-shadow="s" type="button" data-i18n-aria-label="direction.s" aria-label="아래">↓</button><button data-shadow="se" type="button" data-i18n-aria-label="direction.se" aria-label="오른쪽 아래">↘</button></div></div>
+                    <div class="image-style-control-head"><h3 data-i18n="shadow.title">그림자</h3></div>
+                    <div class="image-style-field image-range-field">
+                      <div class="image-style-field-head"><span class="control-label" data-i18n="shadow.strengthShort">강도</span><output class="value-readout" id="shadowValue" aria-live="polite">20%</output></div>
+                      <input id="shadowRange" type="range" min="0" max="70" value="20" step="1" aria-label="이미지 그림자 강도" data-i18n-aria-label="shadow.strength" />
+                      <div class="range-labels"><span data-i18n="shadow.soft">부드럽게</span><span data-i18n="shadow.strong">진하게</span></div>
+                    </div>
+                    <div class="shadow-controls image-style-field">
+                      <div class="image-style-field-head"><span class="control-label" data-i18n="shadow.direction">방향</span></div>
+                      <div class="direction-pad" role="group" data-i18n-aria-label="shadow.directionAria" aria-label="그림자 방향"><button data-shadow="nw" type="button" data-i18n-aria-label="direction.nw" aria-label="왼쪽 위">↖</button><button data-shadow="n" type="button" data-i18n-aria-label="direction.n" aria-label="위">↑</button><button data-shadow="ne" type="button" data-i18n-aria-label="direction.ne" aria-label="오른쪽 위">↗</button><button data-shadow="w" type="button" data-i18n-aria-label="direction.w" aria-label="왼쪽">←</button><span class="direction-center" aria-hidden="true"></span><button data-shadow="e" type="button" data-i18n-aria-label="direction.e" aria-label="오른쪽">→</button><button data-shadow="sw" type="button" data-i18n-aria-label="direction.sw" aria-label="왼쪽 아래">↙</button><button data-shadow="s" type="button" data-i18n-aria-label="direction.s" aria-label="아래">↓</button><button data-shadow="se" type="button" data-i18n-aria-label="direction.se" aria-label="오른쪽 아래">↘</button></div>
+                    </div>
                   </div>
                 </div>
               </section>
@@ -491,7 +545,7 @@
     <script src="models/image-assets.js?v=20260907-project-name-1"></script>
     <script src="models/image-validation.js?v=20260908-source-preserving-1"></script>
     <script src="models/draft-storage.js?v=20260908-draft-storage-3"></script>
-    <script src="models/i18n.js?v=20260909-copy-target-2"></script>
+    <script src="models/i18n.js?v=20260909-outline-dock-1"></script>
     <script src="models/item-records.js?v=20260908-item-records-1"></script>
     <script src="models/item-search.js?v=20260908-language-aware-search-1"></script>
     <script src="models/crop-plan.js?v=20260908-crop-plan-1"></script>
@@ -503,6 +557,6 @@
     <script src="models/editor-navigation.js?v=20260906-navigation-1"></script>
     <script src="models/title-typography.js?v=20260908-title-fonts-1"></script>
     <script src="models/background-removal.js?v=20260907-browser-birefnet-3"></script>
-    <script src="app.js?v=20260909-copy-target-1"></script>
+    <script src="app.js?v=20260909-font-ready-1"></script>
   </body>
 </html>

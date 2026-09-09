@@ -193,6 +193,17 @@ function closeTextEditorMoreMenu() {
   if (!button || !menu) return;
   menu.hidden = true;
   button.setAttribute("aria-expanded", "false");
+  menu.setAttribute("aria-hidden", "true");
+}
+
+function toggleTextEditorMoreMenu() {
+  const button = document.getElementById("textEditorMoreButton");
+  const menu = document.getElementById("textEditorMoreMenu");
+  if (!button || !menu || button.disabled) return;
+  const open = menu.hidden;
+  menu.hidden = !open;
+  button.setAttribute("aria-expanded", String(open));
+  if (open) document.getElementById("textEditorOutlineColorInput")?.focus({ preventScroll: true });
 }
 
 function syncTextEditorDock() {
@@ -216,6 +227,17 @@ function syncTextEditorDock() {
   const uppercaseButton = document.getElementById("textEditorUppercaseButton");
   const colorInput = document.getElementById("textEditorColorInput");
   const colorMark = document.getElementById("textEditorColorMark");
+  const outlineButton = document.getElementById("textEditorMoreButton");
+  const outlineMenu = document.getElementById("textEditorMoreMenu");
+  const outlineColorInput = document.getElementById("textEditorOutlineColorInput");
+  const outlineColorMark = document.getElementById("textEditorOutlineColorMark");
+  const outlineColorValue = document.getElementById("textEditorOutlineColorValue");
+  const outlineRange = document.getElementById("textEditorOutlineRange");
+  const outlineRangeValue = document.getElementById("textEditorOutlineRangeValue");
+  const outlineStatusValue = document.getElementById("textEditorOutlineValue");
+  const isTitleTarget = style.target === "title";
+  const titleOutlineColor = normaliseHexColor(state.titleOutline?.color, "#ffffff");
+  const titleOutlineWidth = clamp(Number(state.titleOutline?.width), 0, 6, 0);
   if (fontSelect) {
     fontSelect.value = style.fontKey;
     fontSelect.style.fontFamily = style.fontConfig.family;
@@ -242,6 +264,29 @@ function syncTextEditorDock() {
     colorInput.setAttribute("aria-label", style.target === "subtitle" ? t("copy.descriptionTextColor") : t("copy.titleTextColor"));
   }
   if (colorMark) colorMark.style.setProperty("--dock-color", copyColor);
+  if (outlineButton) {
+    outlineButton.disabled = !isTitleTarget;
+    outlineButton.setAttribute("aria-disabled", String(!isTitleTarget));
+    outlineButton.classList.toggle("is-selected", isTitleTarget && titleOutlineWidth > 0);
+    const outlineLabel = t(isTitleTarget ? "copy.dockOutline" : "copy.onlyTitle");
+    outlineButton.setAttribute("aria-label", outlineLabel);
+    outlineButton.setAttribute("title", outlineLabel);
+  }
+  if (!isTitleTarget && outlineMenu && !outlineMenu.hidden) closeTextEditorMoreMenu();
+  if (outlineMenu) outlineMenu.setAttribute("aria-hidden", String(!isTitleTarget || outlineMenu.hidden));
+  if (outlineColorInput) {
+    outlineColorInput.value = titleOutlineColor;
+    outlineColorInput.setAttribute("aria-label", t("copy.titleOutlineDirect"));
+  }
+  if (outlineColorMark) outlineColorMark.style.setProperty("--dock-outline-color", titleOutlineColor);
+  if (outlineColorValue) outlineColorValue.textContent = titleOutlineColor.toUpperCase();
+  if (outlineRange) {
+    outlineRange.value = String(titleOutlineWidth);
+    updateRangeProgress(outlineRange);
+    outlineRange.setAttribute("aria-valuetext", titleOutlineWidth ? `${titleOutlineWidth} px` : t("range.none"));
+  }
+  if (outlineRangeValue) outlineRangeValue.textContent = titleOutlineWidth ? `${titleOutlineWidth} px` : t("range.none");
+  if (outlineStatusValue) outlineStatusValue.textContent = titleOutlineWidth ? `${titleOutlineWidth} px` : t("range.none");
   const selectedAlignment = resolveTitleAlign();
   document.querySelectorAll("[data-floating-align]").forEach((button) => {
     const selected = button.dataset.floatingAlign === selectedAlignment;
@@ -264,6 +309,45 @@ function setCopyEditorTarget(target = "title") {
   syncTextEditorDock();
 }
 
+let copyFontLoadSequence = 0;
+function waitForCopyFont(fontKey, fields) {
+  if (typeof document.fonts?.load !== "function") return;
+  const sequence = ++copyFontLoadSequence;
+  const board = elements.board;
+  const fontConfig = getTitleFontConfig(fontKey);
+  const weight = normaliseTitleWeight(fontKey, state[fields.weight]);
+  if (board) board.dataset.copyFontPending = "true";
+
+  const ready = new Promise((resolve) => {
+    let settled = false;
+    const timeout = window.setTimeout(finish, 8000);
+    function finish() {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      resolve();
+    }
+    try {
+      Promise.resolve(document.fonts.load(`${weight} 64px ${fontConfig.family}`)).then(finish, finish);
+    } catch {
+      finish();
+    }
+  });
+
+  ready.then(() => {
+    if (sequence !== copyFontLoadSequence) return;
+    if (state[fields.font] !== fontKey) {
+      board?.removeAttribute("data-copy-font-pending");
+      fitBoardTitle();
+      scheduleCardCopyPreview();
+      return;
+    }
+    board?.removeAttribute("data-copy-font-pending");
+    fitBoardTitle();
+    scheduleCardCopyPreview();
+  });
+}
+
 function setCopyEditorFont(value, target = getCopyEditorTarget()) {
   const style = getCopyEditorStyle(target);
   const nextFont = titleFonts[value] ? value : defaultTitleFont;
@@ -271,6 +355,7 @@ function setCopyEditorFont(value, target = getCopyEditorTarget()) {
   recordHistory();
   state[style.fields.font] = nextFont;
   state[style.fields.weight] = getTitleFontConfig(nextFont).weights.at(-1);
+  waitForCopyFont(nextFont, style.fields);
   renderStyles({ refreshInfo: false, refreshPattern: false });
   saveState();
 }
@@ -514,23 +599,13 @@ const catalogRenderLimit = 24;
 const itemSearch = ItemSearch.create({ fetch: (...args) => fetch(...args) });
 
 const outfitSlotNamesByLanguage = {
-  ko: { head: "머리", body: "몸통", hands: "손", legs: "다리", feet: "발", weapon: "무기" },
+  ko: { head: "머리", body: "몸", hands: "손", legs: "다리", feet: "발", weapon: "무기" },
   en: { head: "Head", body: "Body", hands: "Hands", legs: "Legs", feet: "Feet", weapon: "Weapon" },
   ja: { head: "頭", body: "胴", hands: "手", legs: "脚", feet: "足", weapon: "武器" },
 };
 const outfitSlotNames = outfitSlotNamesByLanguage.ko;
-const outfitSlotVisualLabelsByLanguage = {
-  ko: { head: "모자", body: "티셔츠", hands: "장갑", legs: "바지", feet: "신발", weapon: "무기" },
-  en: { head: "Hat", body: "Top", hands: "Gloves", legs: "Pants", feet: "Shoes", weapon: "Weapon" },
-  ja: { head: "帽子", body: "トップス", hands: "手袋", legs: "パンツ", feet: "靴", weapon: "武器" },
-};
-const outfitSlotVisualLabels = outfitSlotVisualLabelsByLanguage.ko;
 function getOutfitSlotName(slot, language = state.language) {
   return outfitSlotNamesByLanguage[language]?.[slot] || outfitSlotNames[slot] || I18n.t("item.section", {}, language);
-}
-
-function getOutfitSlotVisualLabel(slot, language = state.language) {
-  return outfitSlotVisualLabelsByLanguage[language]?.[slot] || outfitSlotVisualLabels[slot] || I18n.t("item.section", {}, language);
 }
 
 function createOutfit(itemIds = []) {
@@ -805,10 +880,19 @@ const elements = {
   catalogResults: $("#catalogResults"),
   languageSelect: $("#languageSelect"),
   saveRetryButton: $("#saveRetryButton"),
+  outlineColorInput: $("#outlineColorInput"),
+  outlineColorPicker: $("#outlineColorPicker"),
+  outlineColorValue: $("#outlineColorValue"),
   outlineRange: $("#outlineRange"),
   outlineValue: $("#outlineValue"),
   titleOutlineRange: $("#titleOutlineRange"),
   titleOutlineValue: $("#titleOutlineValue"),
+  textEditorOutlineRange: $("#textEditorOutlineRange"),
+  textEditorOutlineRangeValue: $("#textEditorOutlineRangeValue"),
+  textEditorOutlineValue: $("#textEditorOutlineValue"),
+  textEditorOutlineColorInput: $("#textEditorOutlineColorInput"),
+  textEditorOutlineColorMark: $("#textEditorOutlineColorMark"),
+  textEditorOutlineColorValue: $("#textEditorOutlineColorValue"),
   shadowRange: $("#shadowRange"),
   shadowValue: $("#shadowValue"),
   zoomRange: $("#zoomRange"),
@@ -860,6 +944,7 @@ let imageEditorSnapshot = null;
 let imageEditorDirty = false;
 let imageEditorReturnFocus = null;
 let boardTitleResizeObserver = null;
+let canvasViewResizeObserver = null;
 let cardCopyRenderFrame = 0;
 let boardTitleFitFrame = 0;
 let liveStyleRenderFrame = 0;
@@ -905,11 +990,24 @@ function normaliseCanvasViewZoom(value) {
   return Math.min(canvasViewZoomMax, Math.max(canvasViewZoomMin, stepped));
 }
 
+function getCanvasViewScale() {
+  return normaliseCanvasViewZoom(uiPreferences.canvasViewZoom) / 100;
+}
+
 function syncCanvasViewZoomControl() {
   const zoom = normaliseCanvasViewZoom(uiPreferences.canvasViewZoom);
   uiPreferences.canvasViewZoom = zoom;
   if (elements.stageComposition) {
-    elements.stageComposition.style.zoom = String(zoom / 100);
+    const scale = zoom / 100;
+    const baseHeight = elements.board?.offsetHeight || 0;
+    elements.stageComposition.style.removeProperty("zoom");
+    elements.stageComposition.style.transform = `scale(${scale})`;
+    elements.stageComposition.style.transformOrigin = "center top";
+    if (baseHeight > 0) {
+      const layoutHeight = scale > 1 ? baseHeight : baseHeight * scale;
+      elements.stageComposition.style.height = `${Math.ceil(layoutHeight)}px`;
+      elements.stageComposition.style.marginBottom = scale > 1 ? `${Math.ceil(baseHeight * (scale - 1))}px` : "";
+    }
     elements.stageComposition.dataset.viewZoom = String(zoom);
   }
   if (elements.canvasViewZoomRange) {
@@ -1165,7 +1263,7 @@ function renderCatalogIcon(item, index = 0) {
 }
 
 function renderEquipmentIcon(slot) {
-  const label = escapeHtml(getOutfitSlotVisualLabel(slot));
+  const label = escapeHtml(getOutfitSlotName(slot));
   if (!outfitSlots.includes(slot)) return label;
   return `<svg class="outfit-icon" aria-hidden="true" focusable="false"><use href="assets/icons/equipment.svg#${slot}"></use></svg><span>${label}</span>`;
 }
@@ -1909,7 +2007,7 @@ function fitBoardTitle() {
   title.style.maxWidth = "none";
   title.style.overflow = "visible";
   title.style.whiteSpace = "nowrap";
-  const naturalWidth = title.getBoundingClientRect().width;
+  const naturalWidth = title.getBoundingClientRect().width / getCanvasViewScale();
   title.style.width = previous.width;
   title.style.maxWidth = previous.maxWidth;
   title.style.overflow = previous.overflow;
@@ -2086,6 +2184,10 @@ function syncCharacterSelectionUI() {
 
 function selectCharacter(index) {
   const nextIndex = Math.min(state.characterCount - 1, Math.max(0, Number(index) || 0));
+  if (nextIndex !== state.selectedCharacter) {
+    elements.itemSearch.value = "";
+    clearCatalogResults();
+  }
   state.selectedCharacter = nextIndex;
   syncSelectedCharacter();
   syncCharacterSelectionUI();
@@ -2298,8 +2400,8 @@ function renderBoardGear() {
   }
   $$("#boardGearList [data-card-slot]").forEach((button) => button.addEventListener("click", () => {
     const characterIndex = Number(button.dataset.characterIndex);
+    setActiveEquipmentSlot(button.dataset.cardSlot);
     if (Number.isInteger(characterIndex) && characterIndex !== state.selectedCharacter) selectCharacter(characterIndex);
-    state.activeSlot = button.dataset.cardSlot;
     openPanel("itemsPanel");
     renderEquipment();
     renderCatalog();
@@ -2560,9 +2662,17 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
     }
     if (elements.panXReadout) elements.panXReadout.textContent = formatImageOffset(state.panX);
     if (elements.panYReadout) elements.panYReadout.textContent = formatImageOffset(state.panY);
+    if (elements.outlineColorInput) elements.outlineColorInput.value = state.outline.color;
+    if (elements.outlineColorValue) elements.outlineColorValue.textContent = state.outline.color.toUpperCase();
     elements.outlineRange.style.setProperty("--range-progress", `${(state.outline.width / 8) * 100}%`);
     elements.shadowRange.style.setProperty("--range-progress", `${(state.shadow.strength / 70) * 100}%`);
-    $$(".color-swatch").forEach((swatch) => swatch.classList.toggle("is-selected", swatch.dataset.color === state.outline.color));
+    const outlineSwatches = $$("#outlineSwatches .color-swatch");
+    outlineSwatches.forEach((swatch) => {
+      const selected = swatch.dataset.color === state.outline.color;
+      swatch.classList.toggle("is-selected", selected);
+      swatch.setAttribute("aria-checked", String(selected));
+    });
+    elements.outlineColorPicker?.classList.toggle("is-selected", !outlineSwatches.some((swatch) => swatch.dataset.color === state.outline.color));
     $$(".title-outline-swatch").forEach((swatch) => {
       const selected = swatch.dataset.titleOutlineColor === state.titleOutline.color;
       swatch.classList.toggle("is-selected", selected);
@@ -2680,11 +2790,10 @@ function renderEquipment() {
     const itemName = item ? getItemName(item) : t("item.emptyName");
     const secondaryName = item ? getSecondaryItemName(item) : "";
     const itemMeta = [getOutfitSlotName(slot), secondaryName || (!item ? t("item.emptyHint") : "")].filter(Boolean).join(" · ");
-    const visualLabel = getOutfitSlotVisualLabel(slot);
     const hasItemImage = Boolean(getItemImageUrl(item));
     const rowLabel = item
-      ? t("item.gearRow", { visual: visualLabel, slot: getOutfitSlotName(slot), name: itemName })
-      : t("item.emptyRow", { visual: visualLabel, slot: getOutfitSlotName(slot) });
+      ? t("item.gearRow", { slot: getOutfitSlotName(slot), name: itemName })
+      : t("item.emptyRow", { slot: getOutfitSlotName(slot) });
     return `<div class="equipment-row-shell">
       <button class="equipment-row${selected ? " is-selected" : ""}${item ? "" : " is-empty"}" data-slot="${slot}" type="button" aria-pressed="${selected}" aria-label="${escapeHtml(rowLabel)}">
         <span class="equipment-icon${hasItemImage ? " has-item-image" : ""}" aria-hidden="true">${renderItemImage(item, slot)}</span>
@@ -2695,7 +2804,7 @@ function renderEquipment() {
     </div>`;
   }).join("");
   elements.equipmentList.querySelectorAll(".equipment-row").forEach((row) => row.addEventListener("click", () => {
-    state.activeSlot = row.dataset.slot;
+    setActiveEquipmentSlot(row.dataset.slot);
     renderEquipment();
     renderCatalog();
     focusItemSearch();
@@ -2767,6 +2876,17 @@ function clearCatalogResults() {
   $("#catalogStatus").textContent = "";
 }
 
+function setActiveEquipmentSlot(slot) {
+  if (!outfitSlots.includes(slot)) return false;
+  const changed = state.activeSlot !== slot;
+  state.activeSlot = slot;
+  if (changed) {
+    elements.itemSearch.value = "";
+    clearCatalogResults();
+  }
+  return changed;
+}
+
 function shouldRenderCatalog() {
   return state.activePanel === "itemsPanel" || Boolean(elements.itemSearch?.value.trim());
 }
@@ -2810,7 +2930,7 @@ function removeItem(slot) {
   // snapshot, so reacquire the mutable row after the snapshot is captured.
   getCharacterOutfit(state.selectedCharacter, look)[slot] = null;
   ensureLookOutfits(look);
-  state.activeSlot = slot;
+  setActiveEquipmentSlot(slot);
   renderEquipment();
   renderCatalog();
   saveState();
@@ -3059,6 +3179,13 @@ function syncRangeControlUi(input) {
     case "titleOutlineRange":
       output = elements.titleOutlineValue;
       formattedValue = value ? `${value} px` : t("range.none");
+      input.setAttribute("aria-valuetext", formattedValue);
+      break;
+    case "textEditorOutlineRange":
+      output = elements.textEditorOutlineRangeValue;
+      formattedValue = value ? `${value} px` : t("range.none");
+      if (elements.titleOutlineValue) elements.titleOutlineValue.textContent = formattedValue;
+      if (elements.textEditorOutlineValue) elements.textEditorOutlineValue.textContent = formattedValue;
       input.setAttribute("aria-valuetext", formattedValue);
       break;
     case "shadowRange":
@@ -3506,7 +3633,9 @@ function exportRevision() {
 }
 function captureExportCopy() {
   const board = elements.board.getBoundingClientRect();
-  const scale = getExportDimensions().layoutWidth / board.width;
+  const viewScale = getCanvasViewScale();
+  const layoutBoardWidth = board.width / viewScale;
+  const scale = getExportDimensions().layoutWidth / layoutBoardWidth;
   return [elements.boardTitle, elements.boardSubtitle, elements.boardCopyright].filter((element) => {
     if (!element) return false;
     return element === elements.boardTitle || element === elements.boardCopyright || Boolean(element.textContent.trim());
@@ -3523,12 +3652,12 @@ function captureExportCopy() {
         const rect = range.getBoundingClientRect();
         let line = lines.find(item => Math.abs(item.top - rect.top) < 1);
         if (!line) {
-          line = { text: "", top: rect.top, left: rect.left, right: rect.right, y: (rect.top - board.top) * scale, height: rect.height * scale };
+          line = { text: "", top: rect.top, left: rect.left, right: rect.right, y: ((rect.top - board.top) / viewScale) * scale, height: (rect.height / viewScale) * scale };
           lines.push(line);
         } else {
           line.left = Math.min(line.left, rect.left);
           line.right = Math.max(line.right, rect.right);
-          line.height = Math.max(line.height, rect.height * scale);
+          line.height = Math.max(line.height, (rect.height / viewScale) * scale);
         }
         const character = node.textContent[index];
         line.text += uppercaseCopy ? character.toUpperCase() : character;
@@ -3536,7 +3665,7 @@ function captureExportCopy() {
     }
     const positionedLines = lines.map(({ left, right, ...line }) => ({
       ...line,
-      x: ((textAlign === "right" ? right : textAlign === "center" ? (left + right) / 2 : left) - board.left) * scale,
+      x: (((textAlign === "right" ? right : textAlign === "center" ? (left + right) / 2 : left) - board.left) / viewScale) * scale,
     }));
     return { lines: positionedLines, textAlign, font: `${style.fontWeight} ${parseFloat(style.fontSize) * scale}px ${style.fontFamily}`,
       color: style.color, opacity: Number.parseFloat(style.opacity) || 1,
@@ -3550,6 +3679,7 @@ function captureExportCopy() {
 function renderCardCopyPreview(copyLayout = null) {
   const canvas = elements.boardCopyCanvas;
   if (!(canvas instanceof HTMLCanvasElement) || typeof CardCopy === "undefined" || typeof CardCopy.draw !== "function") return null;
+  if (elements.board?.dataset.copyFontPending === "true") return null;
   const board = elements.board.getBoundingClientRect();
   if (!board.width || !board.height) return null;
   const dimensions = getExportDimensions();
@@ -3625,7 +3755,8 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
       ? getSilhouetteInfoTheme(background)
       : { foreground: exportTheme.text, muted: exportTheme.muted, halo: exportTheme.infoShadow };
     const board = elements.board.getBoundingClientRect();
-    const placementScale = board.width > 0 ? dimensions.layoutWidth / board.width : 1;
+    const layoutBoardWidth = board.width / getCanvasViewScale();
+    const placementScale = layoutBoardWidth > 0 ? dimensions.layoutWidth / layoutBoardWidth : 1;
     const outputBlob = await CardPng.render({ state, dimensions, exportTheme,
       background, patternStars, images, backgroundImage, copyLayout, gear,
       placementScale, outlineColor: rgba(state.outline.color, 0.8), infoTextColor: infoTextTheme.foreground,
@@ -4002,6 +4133,7 @@ function initialiseInteractions() {
   $("#textEditorItalicButton")?.addEventListener("click", () => toggleTextEditorInlineStyle("italic"));
   $("#textEditorUnderlineButton")?.addEventListener("click", () => toggleTextEditorInlineStyle("underline"));
   $("#textEditorUppercaseButton")?.addEventListener("click", () => toggleTextEditorInlineStyle("uppercase"));
+  $("#textEditorMoreButton")?.addEventListener("click", toggleTextEditorMoreMenu);
   $$('[data-floating-align]').forEach((button) => button.addEventListener("click", () => {
     const nextAlignment = normaliseTitleAlign(button.dataset.floatingAlign);
     if (nextAlignment === state.titleAlign) return;
@@ -4143,6 +4275,7 @@ function initialiseInteractions() {
   bindHistoryRange(elements.panYRange, value => { updateSelectedImageState({ panY: value }); });
   bindHistoryRange($("#outlineRange"), value => { state.outline.width = value; });
   bindHistoryRange(elements.titleOutlineRange, value => { state.titleOutline.width = value; });
+  bindHistoryRange(elements.textEditorOutlineRange, value => { state.titleOutline.width = value; });
   bindHistoryRange($("#shadowRange"), value => { state.shadow.strength = value; });
   const bindColorInput = (input, update) => {
     if (!input) return;
@@ -4170,6 +4303,17 @@ function initialiseInteractions() {
   bindColorInput($("#titleOutlineColorInput"), (value) => {
     state.titleOutline.color = normaliseHexColor(value, "#ffffff");
   });
+  bindColorInput(elements.textEditorOutlineColorInput, (value) => {
+    const color = normaliseHexColor(value, "#ffffff");
+    state.titleOutline.color = color;
+    elements.textEditorOutlineColorMark?.style.setProperty("--dock-outline-color", color);
+    if (elements.textEditorOutlineColorValue) elements.textEditorOutlineColorValue.textContent = color.toUpperCase();
+  });
+  bindColorInput(elements.outlineColorInput, (value) => {
+    const color = normaliseHexColor(value, "#f1dfbb");
+    state.outline.color = color;
+    if (elements.outlineColorValue) elements.outlineColorValue.textContent = color.toUpperCase();
+  });
   bindColorInput($("#titleColorInput"), (value) => {
     state.titleColor = normaliseHexColor(value, defaultTitleColor());
   });
@@ -4183,7 +4327,7 @@ function initialiseInteractions() {
   });
   $("#titleColorAutoButton")?.addEventListener("click", resetTitleColorToAuto);
   $("#textEditorColorAutoButton")?.addEventListener("click", resetTextEditorColorToAuto);
-  $$(".color-swatch").forEach((swatch) => swatch.addEventListener("click", () => { recordHistory(); state.outline.color = swatch.dataset.color; renderStyles(); saveState(); }));
+  $$("#outlineSwatches .color-swatch").forEach((swatch) => swatch.addEventListener("click", () => { recordHistory(); state.outline.color = swatch.dataset.color; renderStyles(); saveState(); }));
   $$(".title-outline-swatch").forEach((swatch) => swatch.addEventListener("click", () => {
     if (swatch.dataset.titleOutlineColor === state.titleOutline.color) return;
     recordHistory();
@@ -4255,10 +4399,16 @@ function initialiseInteractions() {
     if (!(event.target instanceof Element)) return;
     if (!event.target.closest(".reset-control") && !$("#resetMenu")?.hidden) setResetMenuOpen(false);
     if (!event.target.closest(".look-search-control") && $("#lookSearchField")?.classList.contains("is-mobile-open")) setMobileLookSearchOpen(false);
-    if (!event.target.closest(".text-editor-dock") && !$("#textEditorMoreMenu")?.hidden) closeTextEditorMoreMenu();
+    if (!event.target.closest(".text-editor-dock, #textEditorMoreMenu") && !$("#textEditorMoreMenu")?.hidden) closeTextEditorMoreMenu();
   });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
+    if (!$("#textEditorMoreMenu")?.hidden) {
+      event.preventDefault();
+      closeTextEditorMoreMenu();
+      $("#textEditorMoreButton")?.focus({ preventScroll: true });
+      return;
+    }
     const action = editorNavigation.escapeAction({
       dialogOpen: Boolean(document.querySelector("dialog[open]")),
       resetOpen: !$("#resetMenu")?.hidden,
@@ -4406,16 +4556,15 @@ function initialiseInteractions() {
   if (titleBlock instanceof HTMLElement && "ResizeObserver" in window) {
     boardTitleResizeObserver?.disconnect();
     boardTitleResizeObserver = new ResizeObserver(() => {
-      fitBoardTitle();
+      scheduleBoardTitleFit();
       scheduleCardCopyPreview();
     });
     boardTitleResizeObserver.observe(titleBlock);
   }
-  // ResizeObserver delivery can lag one frame during a mobile viewport
-  // change. Fit synchronously on resize as a guard so a stale desktop size
-  // never paints an ellipsis while the card is narrowing.
+  // ResizeObserver and requestAnimationFrame keep viewport changes from
+  // forcing a synchronous title measurement for every resize event.
   window.addEventListener("resize", () => {
-    fitBoardTitle();
+    scheduleBoardTitleFit();
     scheduleCardCopyPreview();
   }, { passive: true });
   if (document.fonts?.ready) document.fonts.ready.then(() => {
@@ -4595,8 +4744,16 @@ async function bootstrap() {
   Object.assign(state, selectedLook.editor);
   syncSelectedCharacter();
   initialiseInteractions();
+  if (elements.board instanceof HTMLElement && "ResizeObserver" in window) {
+    canvasViewResizeObserver?.disconnect();
+    canvasViewResizeObserver = new ResizeObserver(() => syncCanvasViewZoomControl());
+    canvasViewResizeObserver.observe(elements.board);
+  }
   const preview = document.querySelector(".canvas-column");
-  new ResizeObserver(() => document.documentElement.style.setProperty("--preview-height", `${preview.getBoundingClientRect().height}px`)).observe(preview);
+  new ResizeObserver(([entry]) => {
+    const height = entry?.contentRect?.height;
+    if (Number.isFinite(height)) document.documentElement.style.setProperty("--preview-height", `${height}px`);
+  }).observe(preview);
   renderAll();
   syncCanvasViewZoomControl();
   syncCanvasFocusControls(document.body.classList.contains("canvas-focus-mode"));

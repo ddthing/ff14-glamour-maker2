@@ -33,10 +33,92 @@ const uiPreferencesStorageKey = "tuyeong-set-maker2-ui-v2";
     assert.equal(await page.locator("#canvasViewZoomReadout").textContent(), "100%");
     assert.equal(await stage.getAttribute("data-view-zoom"), "100");
 
+    const cardLayoutAt100 = await page.locator("#canvasBoard").evaluate((board) => {
+      const title = document.querySelector("#boardTitle");
+      const boardRect = board.getBoundingClientRect();
+      const titleRect = title.getBoundingClientRect();
+      return {
+        fontSize: getComputedStyle(title).fontSize,
+        relativeLeft: (titleRect.left - boardRect.left) / boardRect.width,
+        relativeTop: (titleRect.top - boardRect.top) / boardRect.height,
+        relativeWidth: titleRect.width / boardRect.width,
+      };
+    });
+    const exportCopyAt100 = await page.evaluate(() => captureExportCopy().map((copy) => ({
+      textAlign: copy.textAlign,
+      font: copy.font,
+      lines: copy.lines.map((line) => ({
+        text: line.text,
+        x: Number(line.x.toFixed(4)),
+        y: Number(line.y.toFixed(4)),
+        height: Number(line.height.toFixed(4)),
+      })),
+    })));
+
     await range.fill("125");
+    await page.waitForTimeout(80);
     assert.equal(await page.locator("#canvasViewZoomReadout").textContent(), "125%");
     assert.equal(await stage.getAttribute("data-view-zoom"), "125");
-    assert.equal(await stage.evaluate((element) => element.style.zoom), "1.25");
+    assert.equal(await stage.evaluate((element) => element.style.transform), "scale(1.25)");
+    const cardLayoutAt125 = await page.locator("#canvasBoard").evaluate((board) => {
+      const title = document.querySelector("#boardTitle");
+      const boardRect = board.getBoundingClientRect();
+      const titleRect = title.getBoundingClientRect();
+      return {
+        fontSize: getComputedStyle(title).fontSize,
+        relativeLeft: (titleRect.left - boardRect.left) / boardRect.width,
+        relativeTop: (titleRect.top - boardRect.top) / boardRect.height,
+        relativeWidth: titleRect.width / boardRect.width,
+      };
+    });
+    assert.equal(cardLayoutAt125.fontSize, cardLayoutAt100.fontSize, `view zoom changed title size: ${JSON.stringify({ cardLayoutAt100, cardLayoutAt125 })}`);
+    for (const key of ["relativeLeft", "relativeTop", "relativeWidth"]) {
+      assert.ok(Math.abs(cardLayoutAt125[key] - cardLayoutAt100[key]) <= 0.002, `view zoom changed title layout ${key}: ${JSON.stringify({ cardLayoutAt100, cardLayoutAt125 })}`);
+    }
+    const exportCopyAt125 = await page.evaluate(() => captureExportCopy().map((copy) => ({
+      textAlign: copy.textAlign,
+      font: copy.font,
+      lines: copy.lines.map((line) => ({
+        text: line.text,
+        x: Number(line.x.toFixed(4)),
+        y: Number(line.y.toFixed(4)),
+        height: Number(line.height.toFixed(4)),
+      })),
+    })));
+    assert.deepEqual(exportCopyAt125, exportCopyAt100, `view zoom leaked into the export copy layout: ${JSON.stringify({ exportCopyAt100, exportCopyAt125 })}`);
+    const cardAndBarAt125 = await page.evaluate(() => {
+      const board = document.querySelector("#canvasBoard").getBoundingClientRect();
+      const bar = document.querySelector("#canvasViewBar").getBoundingClientRect();
+      return { boardBottom: board.bottom, barTop: bar.top };
+    });
+    assert.ok(cardAndBarAt125.barTop >= cardAndBarAt125.boardBottom - 1, `view zoom made the control bar overlap the card: ${JSON.stringify(cardAndBarAt125)}`);
+    for (const edgeZoom of [150, 50]) {
+      await range.fill(String(edgeZoom));
+      await page.waitForTimeout(80);
+      const edgeLayout = await page.locator("#canvasBoard").evaluate((board) => {
+        const title = document.querySelector("#boardTitle");
+        const boardRect = board.getBoundingClientRect();
+        const titleRect = title.getBoundingClientRect();
+        return {
+          fontSize: getComputedStyle(title).fontSize,
+          relativeLeft: (titleRect.left - boardRect.left) / boardRect.width,
+          relativeTop: (titleRect.top - boardRect.top) / boardRect.height,
+          relativeWidth: titleRect.width / boardRect.width,
+        };
+      });
+      assert.equal(edgeLayout.fontSize, cardLayoutAt100.fontSize, `edge view zoom changed title size at ${edgeZoom}%: ${JSON.stringify({ cardLayoutAt100, edgeLayout })}`);
+      for (const key of ["relativeLeft", "relativeTop", "relativeWidth"]) {
+        assert.ok(Math.abs(edgeLayout[key] - cardLayoutAt100[key]) <= 0.002, `edge view zoom changed title layout ${key} at ${edgeZoom}%: ${JSON.stringify({ cardLayoutAt100, edgeLayout })}`);
+      }
+      const edgeCardAndBar = await page.evaluate(() => {
+        const board = document.querySelector("#canvasBoard").getBoundingClientRect();
+        const bar = document.querySelector("#canvasViewBar").getBoundingClientRect();
+        return { boardBottom: board.bottom, barTop: bar.top };
+      });
+      assert.ok(edgeCardAndBar.barTop >= edgeCardAndBar.boardBottom - 1, `edge view zoom made the control bar overlap the card at ${edgeZoom}%: ${JSON.stringify(edgeCardAndBar)}`);
+    }
+    await range.fill("125");
+    await page.waitForTimeout(80);
     assert.equal(JSON.parse(await page.evaluate((key) => localStorage.getItem(key), uiPreferencesStorageKey)).canvasViewZoom, 125);
 
     await page.locator("#canvasViewZoomOut").click();

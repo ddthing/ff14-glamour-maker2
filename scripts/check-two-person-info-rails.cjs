@@ -19,7 +19,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
       rails.forEach((rail, index) => {
         rail.querySelector(".board-gear-rail-items").innerHTML = `
           <button class="board-gear-item" type="button">
-            <div class="gear-tile-copy"><span>${index ? "몸통" : "머리"}</span><strong>구식 주물 프라이팬</strong><small>예시 보조명</small></div>
+            <div class="gear-tile-copy"><span>${index ? "몸" : "머리"}</span><strong>구식 주물 프라이팬</strong><small>예시 보조명</small></div>
           </button>`;
       });
       const boardRect = board.getBoundingClientRect();
@@ -109,20 +109,20 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
           copyLayout: [],
           gear: [
             [{ slotName: "머리", name: "왼쪽 정보", secondaryName: "" }],
-            [{ slotName: "몸통", name: "오른쪽 정보", secondaryName: "" }],
+            [{ slotName: "몸", name: "오른쪽 정보", secondaryName: "" }],
           ],
           outlineColor: "#000",
         });
         return {
           rails: CardLayout.infoRails({ characterCount: 2 }),
-          calls: calls.filter(({ text }) => ["머리", "왼쪽 정보", "몸통", "오른쪽 정보"].includes(text)),
+          calls: calls.filter(({ text }) => ["머리", "왼쪽 정보", "몸", "오른쪽 정보"].includes(text)),
         };
       } finally {
         CanvasRenderingContext2D.prototype.fillText = originalFillText;
       }
     });
     const leftExportText = exportSnapshot.calls.filter(({ text }) => ["머리", "왼쪽 정보"].includes(text));
-    const rightExportText = exportSnapshot.calls.filter(({ text }) => ["몸통", "오른쪽 정보"].includes(text));
+    const rightExportText = exportSnapshot.calls.filter(({ text }) => ["몸", "오른쪽 정보"].includes(text));
     const exportPadding = Math.max(10, Math.round(exportSnapshot.rails[0].width * 0.045));
     assert.ok(leftExportText.length >= 2 && leftExportText.every(({ textAlign, x }) => textAlign === "left" && x === exportSnapshot.rails[0].x + exportPadding), `PNG left rail copy is not left-anchored: ${JSON.stringify(exportSnapshot)}`);
     assert.ok(rightExportText.length >= 2 && rightExportText.every(({ textAlign, x }) => textAlign === "right" && x === exportSnapshot.rails[1].x + exportSnapshot.rails[1].width - exportPadding), `PNG right rail copy is not right-anchored: ${JSON.stringify(exportSnapshot)}`);

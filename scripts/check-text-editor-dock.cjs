@@ -28,6 +28,36 @@ async function setColor(page, selector, value) {
     assert.equal(await page.locator("#textEditorFontSizeValue").textContent(), "16");
     assert.equal(await page.locator("#copyEditorSection .copy-editor-toolbar").isVisible(), false, "right-side formatting toolbar is still visible");
     assert.equal(await page.locator("#copyEditorAdvanced").isVisible(), false, "right-side advanced text formatting is still visible");
+    assert.equal(await page.locator("#textEditorMoreButton").isVisible(), true, "title outline control is missing from the floating toolbar");
+    assert.equal(await page.locator("#textEditorMoreButton").isDisabled(), false, "title outline control should be enabled for the title target");
+    assert.equal(await page.locator("#textEditorMoreMenu").isHidden(), true, "title outline popover should start closed");
+
+    await page.locator("#textEditorMoreButton").click();
+    assert.equal(await page.locator("#textEditorMoreMenu").isVisible(), true, "title outline popover did not open");
+    assert.equal(await page.locator("#textEditorOutlineRange").inputValue(), "0", "title outline should start disabled");
+    assert.equal((await page.locator("#textEditorOutlineValue").textContent()).trim(), "없음", "title outline status should show disabled state");
+    await setColor(page, "#textEditorOutlineColorInput", "#b9d4d5");
+    await page.locator("#textEditorOutlineRange").fill("3");
+    await page.waitForTimeout(80);
+    const titleOutline = await page.locator("#boardTitle").evaluate((element) => {
+      const style = getComputedStyle(element);
+      const board = document.querySelector("#canvasBoard");
+      return {
+        stroke: style.webkitTextStrokeWidth,
+        color: style.webkitTextStrokeColor,
+        boardColor: getComputedStyle(board).getPropertyValue("--title-outline-color").trim(),
+        boardWidth: getComputedStyle(board).getPropertyValue("--title-outline-width").trim(),
+      };
+    });
+    assert.equal(titleOutline.stroke, "3px", `title outline width did not reach the card: ${JSON.stringify(titleOutline)}`);
+    assert.match(titleOutline.color, /rgb\(185, 212, 213\)/, `title outline color did not reach the card: ${JSON.stringify(titleOutline)}`);
+    assert.equal(titleOutline.boardColor, "#b9d4d5", `title outline color token did not update: ${JSON.stringify(titleOutline)}`);
+    assert.equal(titleOutline.boardWidth, "3px", `title outline width token did not update: ${JSON.stringify(titleOutline)}`);
+    assert.equal((await page.locator("#textEditorOutlineValue").textContent()).trim(), "3 px", "title outline width output did not update");
+    assert.equal(await page.locator("#textEditorOutlineColorValue").textContent(), "#B9D4D5", "title outline color output did not update");
+    await page.screenshot({ path: "artifacts/ui-text-editor-dock-outline-open.png", fullPage: false });
+    await page.keyboard.press("Escape");
+    assert.equal(await page.locator("#textEditorMoreMenu").isHidden(), true, "Escape did not close the title outline popover");
 
     const titleSizeBefore = await page.locator("#boardTitle").evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
     await page.locator("#textEditorFontSizeUp").click();
@@ -67,6 +97,8 @@ async function setColor(page, selector, value) {
     assert.equal(await dock.isVisible(), true, "floating text toolbar should stay visible for description editing");
     assert.equal(await page.locator("#textEditorDockTargetLabel").textContent(), "룩 설명", "floating toolbar target did not switch to description");
     assert.equal(await page.locator("#textEditorColorInput").getAttribute("aria-label"), "설명 텍스트 색상", "description color control did not switch its label");
+    assert.equal(await page.locator("#textEditorMoreButton").isDisabled(), true, "title outline control should be disabled for description editing");
+    assert.equal(await page.locator("#textEditorMoreMenu").isHidden(), true, "title outline popover should close for description editing");
     const subtitleSizeBefore = await page.locator("#boardSubtitle").evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
     await page.locator("#textEditorFontSizeUp").click();
     await page.waitForTimeout(80);
@@ -90,6 +122,7 @@ async function setColor(page, selector, value) {
     assert.equal(await page.locator("#textEditorDockTargetLabel").textContent(), "룩 설명", "direct description editing did not activate the floating toolbar");
     await page.locator("#focusCardTitleButton").click();
     assert.equal(await page.locator("#textEditorDockTargetLabel").textContent(), "카드 제목", "title focus did not restore the floating toolbar target");
+    assert.equal(await page.locator("#textEditorMoreButton").isDisabled(), false, "title outline control did not re-enable for the title target");
 
     await setColor(page, "#textEditorColorInput", "#123456");
     await page.waitForFunction(() => getComputedStyle(document.querySelector("#boardTitle")).color === "rgb(18, 52, 86)");
@@ -103,6 +136,8 @@ async function setColor(page, selector, value) {
     assert.equal(await page.locator("#textEditorItalicButton").getAttribute("aria-pressed"), "true", "italic did not persist");
     assert.equal(await page.locator("#textEditorUnderlineButton").getAttribute("aria-pressed"), "true", "underline did not persist");
     assert.equal(await page.locator("#textEditorUppercaseButton").getAttribute("aria-pressed"), "true", "uppercase did not persist");
+    assert.equal(await page.locator("#textEditorOutlineRange").inputValue(), "3", "title outline width did not persist");
+    assert.equal(await page.locator("#textEditorOutlineColorInput").inputValue(), "#b9d4d5", "title outline color did not persist");
 
     await page.locator("#itemsTab").click();
     assert.equal(await dock.isHidden(), true, "text toolbar should hide outside the style panel");
