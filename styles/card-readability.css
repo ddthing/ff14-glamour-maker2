@@ -1414,3 +1414,34 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
   color: var(--card-subtitle-color, var(--recipe-ink, currentColor)) !important;
   opacity: var(--card-subtitle-opacity, .68);
 }
+
+/* Item identity must survive the card's responsive width. The old one-line
+   rule made a valid item look like a different item once its tail was hidden.
+   Keep the complete name in the note and let the renderer choose a smaller
+   line box when a narrow rail needs it; tape remains the only decorative
+   element competing with the copy. */
+.canvas-board .board-gear-tiles .gear-tile-copy {
+  overflow: visible;
+}
+
+.canvas-board .board-gear-tiles .gear-tile-copy > .gear-slot-label,
+.canvas-board .board-gear-tiles .gear-tile-copy > strong,
+.canvas-board .board-gear-tiles .gear-tile-copy > .gear-item-secondary,
+.canvas-board .multi-info-item > span,
+.canvas-board .multi-info-item > small {
+  max-width: 100% !important;
+  overflow: visible !important;
+  overflow-wrap: break-word;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  word-break: keep-all;
+}
+
+.canvas-board .board-gear-tiles .gear-tile-copy > strong {
+  line-height: 1.14;
+}
+
+.canvas-board .multi-info-item > span,
+.canvas-board .multi-info-item > small {
+  line-height: 1.14;
+}

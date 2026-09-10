@@ -20,6 +20,9 @@ assert.match(html, new RegExp(`<link\\s+rel="canonical"\\s+href="${escaped(siteU
 assert.match(html, new RegExp(`<meta\\b(?=[^>]*\\bproperty="og:title")(?=[^>]*\\bcontent="${escaped(title)}")[^>]*\\/?>`));
 assert.match(html, new RegExp(`<meta\\b(?=[^>]*\\bproperty="og:description")(?=[^>]*\\bcontent="${escaped(description)}")[^>]*\\/?>`));
 assert.match(html, new RegExp(`<meta\\b(?=[^>]*\\bproperty="og:url")(?=[^>]*\\bcontent="${escaped(siteUrl)}")[^>]*\\/?>`));
+assert.match(html, /<link\s+rel="icon"[^>]+href="assets\/icons\/favicon-02\.svg"\s*\/>/);
+assert.match(html, /<link\s+rel="manifest"[^>]+href="site\.webmanifest"\s*\/>/);
+assert.match(html, /<meta\s+name="application-name"\s+content="투영세트메이커2"\s*\/>/);
 assert.doesNotMatch(html, /글래머 아틀리에/);
 assert.doesNotMatch(html, /AI로 작성|AI가 작성|인공지능이 작성/);
 

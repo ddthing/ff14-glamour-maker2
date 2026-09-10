@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">투영세트메이커2</title>
+  <desc id="desc">Neutral editorial index mark for edition 02</desc>
+  <rect width="64" height="64" rx="10" fill="#fff"/>
+  <rect x="1.25" y="1.25" width="61.5" height="61.5" rx="8.75" fill="none" stroke="#e1e4e5" stroke-width="1.5"/>
+  <rect x="8" y="8" width="8" height="8" rx="1" fill="none" stroke="#24272a" stroke-width="1.75"/>
+  <rect x="42" y="7.5" width="14" height="11" rx="5.5" fill="#f3f5f5"/>
+  <text x="49" y="15.2" fill="#24272a" font-family="Pretendard, 'Noto Sans KR', sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">02</text>
+  <rect x="8" y="22" width="31" height="34" rx="3" fill="#f3f5f5" stroke="#e1e4e5"/>
+  <path d="M12 27h7M12 27v7M35 27h-7M35 27v7M12 51h7M12 51v-7M35 51h-7M35 51v-7" fill="none" stroke="#858b90" stroke-width="1.4" stroke-linecap="square"/>
+  <rect x="43" y="22" width="13" height="34" rx="3" fill="#24272a"/>
+  <rect x="46" y="28" width="7" height="2" rx="1" fill="#fff"/>
+  <rect x="46" y="34" width="6" height="1.5" rx=".75" fill="#858b90"/>
+  <rect x="46" y="39" width="8" height="1.5" rx=".75" fill="#858b90"/>
+  <rect x="46" y="49" width="5" height="1.5" rx=".75" fill="#858b90"/>
+</svg>

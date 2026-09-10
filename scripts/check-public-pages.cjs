@@ -21,7 +21,9 @@ function assertStaticPages() {
     assert.match(html, new RegExp(`data-public-page="${page}"`));
     assert.match(html, new RegExp(`pages\.dev/${page}/`));
     assert.match(html, new RegExp(`data-page-i18n-html="${page}\.content"`));
-    assert.doesNotMatch(html, /<link rel="icon"/i, `${page} must not link the rejected favicon`);
+    assert.match(html, /<link rel="icon"[^>]+href="\.\.\/assets\/icons\/favicon-02\.svg"/i, `${page} must link the edition-02 favicon`);
+    assert.match(html, /<link rel="manifest"[^>]+href="\.\.\/site\.webmanifest"/i, `${page} must link the edition-02 web manifest`);
+    assert.match(html, /<meta name="application-name" content="투영세트메이커2"\s*\/>/i, `${page} must identify the edition-02 application`);
     assert.match(html, /<meta property="og:site_name" data-page-i18n-content="common\.brand"/, `${page} must localize its Open Graph site name`);
     const tokensIndex = html.indexOf("styles/tokens.css");
     const publicStylesIndex = html.indexOf("styles/public-pages.css");
@@ -72,7 +74,10 @@ async function assertBrowserPages() {
     assert.equal(await page.locator("title").innerText(), "利用規約 | ミラプリセットメーカー 02 · ルックブック");
     assert.equal(await page.locator('.public-brand strong').innerText(), "ミラプリセットメーカー");
     assert.equal(await page.locator('meta[property="og:site_name"]').getAttribute("content"), "ミラプリセットメーカー");
-    assert.equal(await page.locator('link[rel="icon"]').count(), 0, "public pages must not expose the rejected favicon");
+    assert.equal(await page.locator('link[rel="icon"]').count(), 1, "public pages must expose one edition-02 favicon");
+    assert.equal(await page.locator('link[rel="icon"]').getAttribute("href"), "../assets/icons/favicon-02.svg");
+    assert.equal(await page.locator('link[rel="manifest"]').getAttribute("href"), "../site.webmanifest");
+    assert.equal(await page.locator('meta[name="application-name"]').getAttribute("content"), "투영세트메이커2");
     assert.equal(await page.locator("body").evaluate((element) => element.scrollWidth <= window.innerWidth), true, "public page has horizontal overflow");
 
     await page.goto(`${baseUrl}/support/?public-pages-check=1`, { waitUntil: "networkidle" });

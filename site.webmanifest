@@ -1,0 +1,19 @@
+{
+  "name": "투영세트메이커2",
+  "short_name": "투영세트메이커2",
+  "description": "FFXIV 캐릭터 스크린샷으로 코디 룩북 카드를 만드는 편집기",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "assets/icons/favicon-02.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

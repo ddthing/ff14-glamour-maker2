@@ -17,7 +17,15 @@ const slots = ["head", "body", "hands", "legs", "feet", "weapon"];
       encoding: "utf8",
     });
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    assert.equal(fs.existsSync(path.join(output, "favicon.svg")), false, "Pages bundle must not publish the rejected favicon");
+    const faviconPath = path.join(output, "assets", "icons", "favicon-02.svg");
+    assert.equal(fs.existsSync(faviconPath), true, "Pages bundle must publish the versioned edition-02 favicon");
+    assert.equal(fs.existsSync(path.join(output, "site.webmanifest")), true, "Pages bundle must publish the edition-02 web manifest");
+    assert.equal(fs.existsSync(path.join(output, "favicon.svg")), false, "Pages bundle must not publish an unversioned favicon");
+    assert.match(fs.readFileSync(faviconPath, "utf8"), /투영세트메이커2/);
+    const manifest = JSON.parse(fs.readFileSync(path.join(output, "site.webmanifest"), "utf8"));
+    assert.equal(manifest.name, "투영세트메이커2");
+    assert.equal(manifest.short_name, "투영세트메이커2");
+    assert.equal(manifest.icons?.[0]?.src, "assets/icons/favicon-02.svg");
     assert.equal(fs.existsSync(path.join(output, "assets", "themes", "collage-paper-plate.png")), false, "Pages bundle must not ship the obsolete collage plate");
     assert.equal(fs.existsSync(path.join(output, "assets", "themes", "vintage-scrapbook-plate.svg")), false, "Pages bundle must not ship the obsolete scrapbook plate");
     for (const material of ["archive-paper-material-v1.webp", "airy-paper-material-v1.webp"]) {

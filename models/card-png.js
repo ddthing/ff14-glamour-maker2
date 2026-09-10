@@ -1,5 +1,8 @@
 /* PNG renderer: consumes resolved card data and decoded images only.
    It does not read editor state, DOM layout, storage, or item records. */
+const CardGearCopyModule = typeof module !== "undefined" && module.exports
+  ? require("./card-gear-copy.js")
+  : typeof CardGearCopy !== "undefined" ? CardGearCopy : globalThis.CardGearCopy;
 const CardPng = (() => {
 function traceFivePointStar(context, radius) {
   const innerRadius = radius * 0.42;
@@ -394,11 +397,48 @@ async function render({ state, dimensions, exportTheme, background, patternStars
       context.drawImage(image, imageRect.x, imageRect.y, imageRect.width, imageRect.height);
       context.restore();
     };
-    const fitText = (value, maxWidth) => {
-      if (context.measureText(value).width <= maxWidth) return value;
-      let shortened = value;
-      while (shortened.length > 1 && context.measureText(shortened + "…").width > maxWidth) shortened = shortened.slice(0, -1);
-      return shortened + "…";
+    const wrapGearText = (value, maxWidth) => CardGearCopyModule.wrapText(
+      value,
+      (text) => context.measureText(text).width,
+      maxWidth,
+    );
+    const fitGearCopy = ({ primaryName, secondaryName, maxWidth, maxHeight, primaryBaseSize, secondaryBaseSize, slotSize }) => {
+      const groupGap = Math.max(2, maxHeight * 0.045);
+      let best = null;
+      for (let scale = 1; scale >= 0.55; scale -= 0.05) {
+        const primarySize = Math.max(8, Math.round(primaryBaseSize * scale * 10) / 10);
+        const secondarySize = Math.max(7, Math.round(secondaryBaseSize * scale * 10) / 10);
+        context.font = `700 ${primarySize}px "Pretendard Variable", sans-serif`;
+        const primaryLines = wrapGearText(primaryName, maxWidth);
+        context.font = `500 ${secondarySize}px "Pretendard Variable", sans-serif`;
+        const secondaryLines = secondaryName ? wrapGearText(secondaryName, maxWidth) : [];
+        const primaryLineHeight = primarySize * 1.14;
+        const secondaryLineHeight = secondarySize * 1.12;
+        const slotLineHeight = slotSize * 1.05;
+        const height = slotLineHeight
+          + groupGap
+          + primaryLines.length * primaryLineHeight
+          + (secondaryLines.length ? groupGap + secondaryLines.length * secondaryLineHeight : 0);
+        best = { primaryLines, secondaryLines, primarySize, secondarySize, primaryLineHeight, secondaryLineHeight, slotLineHeight, groupGap, height };
+        if (height <= maxHeight) return best;
+      }
+      return best;
+    };
+    const drawTextLines = (lines, x, top, { font, fillStyle, lineHeight, textAlign = "left" } = {}) => {
+      if (!lines?.length) return;
+      context.font = font;
+      context.fillStyle = fillStyle;
+      context.textAlign = textAlign;
+      context.textBaseline = "alphabetic";
+      lines.forEach((line, index) => context.fillText(line, x, top + lineHeight * index + parseFloat(font.match(/(\d+(?:\.\d+)?)px/u)?.[1] || "0")));
+    };
+    const drawTopAlignedTextLines = (lines, x, top, { font, fillStyle, lineHeight, textAlign = "left" } = {}) => {
+      if (!lines?.length) return;
+      context.font = font;
+      context.fillStyle = fillStyle;
+      context.textAlign = textAlign;
+      context.textBaseline = "top";
+      lines.forEach((line, index) => context.fillText(line, x, top + lineHeight * index));
     };
     const collageSlotColors = Object.freeze({
       head: "#7d96a5",
@@ -499,18 +539,49 @@ async function render({ state, dimensions, exportTheme, background, patternStars
           }
         }
       }
-      context.fillStyle = paperNoteTheme ? "rgba(59, 64, 64, .68)" : exportTheme.muted;
-      context.font = `600 ${slotSize}px "Pretendard Variable", sans-serif`;
-      context.textAlign = textAlign;
-      context.fillText(item.slotName, textX, y + Math.round(height * 0.38));
-      context.fillStyle = paperNoteTheme ? "#3b4040" : exportTheme.text;
-      context.font = `700 ${primarySize}px "Pretendard Variable", sans-serif`;
-      const primaryY = y + Math.round(height * (secondaryName ? 0.64 : 0.72));
-      context.fillText(fitText(item.name, width - padding * 2), textX, primaryY);
-      if (secondaryName) {
-        context.fillStyle = paperNoteTheme ? "rgba(59, 64, 64, .62)" : exportTheme.muted;
-        context.font = `500 ${secondarySize}px "Pretendard Variable", sans-serif`;
-        context.fillText(fitText(secondaryName, width - padding * 2), textX, y + Math.round(height * 0.84));
+      const capturedCopy = item.preview;
+      if (capturedCopy?.primaryCopy?.lines?.length) {
+        CardCopy.draw(context, [capturedCopy.slotCopy, capturedCopy.primaryCopy, capturedCopy.secondaryCopy].filter(Boolean));
+      } else {
+        const textWidth = Math.max(1, width - padding * 2);
+        const copyTop = y + Math.round(height * 0.16);
+        const copyHeight = Math.max(20, Math.round(height * 0.76));
+        const copy = fitGearCopy({
+          primaryName: item.name,
+          secondaryName,
+          maxWidth: textWidth,
+          maxHeight: copyHeight,
+          primaryBaseSize: primarySize,
+          secondaryBaseSize: secondarySize,
+          slotSize,
+        });
+        const totalHeight = Math.min(copy?.height || copyHeight, copyHeight);
+        const slotTop = copyTop + Math.max(0, (copyHeight - totalHeight) / 2);
+        const slotFont = `600 ${slotSize}px "Pretendard Variable", sans-serif`;
+        const primaryFont = `700 ${copy?.primarySize || primarySize}px "Pretendard Variable", sans-serif`;
+        const secondaryFont = `500 ${copy?.secondarySize || secondarySize}px "Pretendard Variable", sans-serif`;
+        drawTextLines([item.slotName], textX, slotTop, {
+          font: slotFont,
+          fillStyle: paperNoteTheme ? "rgba(59, 64, 64, .68)" : exportTheme.muted,
+          lineHeight: copy?.slotLineHeight || slotSize * 1.05,
+          textAlign,
+        });
+        const primaryTop = slotTop + (copy?.slotLineHeight || slotSize * 1.05) + (copy?.groupGap || 3);
+        drawTextLines(copy?.primaryLines || [item.name], textX, primaryTop, {
+          font: primaryFont,
+          fillStyle: paperNoteTheme ? "#3b4040" : exportTheme.text,
+          lineHeight: copy?.primaryLineHeight || primarySize * 1.14,
+          textAlign,
+        });
+        if (copy?.secondaryLines?.length) {
+          const secondaryTop = primaryTop + copy.primaryLines.length * copy.primaryLineHeight + copy.groupGap;
+          drawTextLines(copy.secondaryLines, textX, secondaryTop, {
+            font: secondaryFont,
+            fillStyle: paperNoteTheme ? "rgba(59, 64, 64, .62)" : exportTheme.muted,
+            lineHeight: copy.secondaryLineHeight,
+            textAlign,
+          });
+        }
       }
       context.restore();
     };
@@ -579,20 +650,47 @@ async function render({ state, dimensions, exportTheme, background, patternStars
           const secondaryName = item.secondaryName;
           const preview = item.preview;
           const textX = preview?.x ?? centerX;
-          const primaryY = preview?.primaryY ?? itemY;
-          context.fillStyle = infoTextColor;
-          context.textAlign = preview?.textAlign || "center";
-          context.textBaseline = preview ? "top" : "alphabetic";
-          context.font = preview?.primaryFont || `650 ${state.characterCount === 5 ? 12 : 14}px \"Pretendard Variable\", sans-serif`;
-          context.fillText(fitText(item.name, preview ? Math.max(24, columnWidth * 0.86) : columnWidth - 24), textX, primaryY);
-          if (secondaryName) {
-            context.fillStyle = infoTextMuted;
-            context.font = preview?.secondaryFont || `500 ${state.characterCount === 5 ? 8 : 10}px \"Pretendard Variable\", sans-serif`;
-            context.fillText(fitText(secondaryName, preview ? Math.max(24, columnWidth * 0.86) : columnWidth - 24), textX, preview?.secondaryY ?? itemY + 14);
-            itemY += 34;
-          } else {
-            itemY += 23;
+          if (preview?.primaryCopy?.lines?.length) {
+            CardCopy.draw(context, [preview.primaryCopy, preview.secondaryCopy].filter(Boolean));
+            const capturedLines = [
+              ...(preview.primaryCopy.lines || []),
+              ...(preview.secondaryCopy?.lines || []),
+            ];
+            const blockBottom = Math.max(...capturedLines.map((line) => line.y + line.height));
+            itemY = Math.max(itemY, blockBottom + 4);
+            return;
           }
+          const textAlign = preview?.textAlign || "center";
+          const primaryFont = preview?.primaryFont || `650 ${state.characterCount === 5 ? 12 : 14}px \"Pretendard Variable\", sans-serif`;
+          const secondaryFont = preview?.secondaryFont || `500 ${state.characterCount === 5 ? 8 : 10}px \"Pretendard Variable\", sans-serif`;
+          const primarySize = preview?.primarySize || Number.parseFloat(primaryFont.match(/(\d+(?:\.\d+)?)px/u)?.[1] || "14");
+          const secondarySize = preview?.secondarySize || Number.parseFloat(secondaryFont.match(/(\d+(?:\.\d+)?)px/u)?.[1] || "10");
+          const lineWidth = preview?.width || (preview ? Math.max(24, columnWidth * 0.86) : columnWidth - 24);
+          const primaryLineHeight = primarySize * 1.14;
+          const secondaryLineHeight = secondarySize * 1.12;
+          context.font = primaryFont;
+          const primaryLines = CardGearCopyModule.wrapText(item.name, (text) => context.measureText(text).width, lineWidth);
+          const primaryY = preview?.primaryY ?? itemY;
+          drawTopAlignedTextLines(primaryLines, textX, primaryY, {
+            font: primaryFont,
+            fillStyle: infoTextColor,
+            lineHeight: primaryLineHeight,
+            textAlign,
+          });
+          let blockBottom = primaryY + primaryLines.length * primaryLineHeight;
+          if (secondaryName) {
+            const secondaryY = preview?.secondaryY ?? blockBottom + Math.max(2, primarySize * 0.18);
+            context.font = secondaryFont;
+            const secondaryLines = CardGearCopyModule.wrapText(secondaryName, (text) => context.measureText(text).width, lineWidth);
+            drawTopAlignedTextLines(secondaryLines, textX, secondaryY, {
+              font: secondaryFont,
+              fillStyle: infoTextMuted,
+              lineHeight: secondaryLineHeight,
+              textAlign,
+            });
+            blockBottom = secondaryY + secondaryLines.length * secondaryLineHeight;
+          }
+          itemY = Math.max(itemY, blockBottom + Math.max(4, primarySize * 0.35));
         });
       });
       context.shadowColor = "transparent";

@@ -2376,7 +2376,7 @@ function renderBoardGear() {
     const characterLabel = showCharacter ? `${t("item.summary", { number: characterNumber })} · ` : "";
     return `<button class="board-gear-item gear-slot-${item.slot}" data-character-index="${characterIndex}" data-gear-index="${index}" data-card-slot="${item.slot}" type="button" aria-label="${escapeHtml(t("item.gearEdit", { number: characterNumber, slot: slotName, name: primaryName }))}">
       <span class="gear-note-surface" aria-hidden="true"></span><span class="gear-tile-tape" aria-hidden="true"></span><span class="gear-note-stamp" aria-hidden="true"></span>
-      <div class="gear-tile-copy"><span class="gear-slot-label">${characterLabel}${escapeHtml(slotName)}</span><strong>${escapeHtml(primaryName)}</strong>${secondaryName ? `<small class="gear-item-secondary">${escapeHtml(secondaryName)}</small>` : ""}</div>
+      <div class="gear-tile-copy"><span class="gear-slot-label">${characterLabel}${escapeHtml(slotName)}</span><strong data-full-name="${escapeHtml(primaryName)}" title="${escapeHtml(primaryName)}">${escapeHtml(primaryName)}</strong>${secondaryName ? `<small class="gear-item-secondary" data-full-name="${escapeHtml(secondaryName)}" title="${escapeHtml(secondaryName)}">${escapeHtml(secondaryName)}</small>` : ""}</div>
     </button>`;
   };
   const boardGearList = $("#boardGearList");
@@ -2418,7 +2418,8 @@ function renderMultiInfo() {
     return `<button class="multi-info-column${index === state.selectedCharacter ? " is-selected" : ""}" type="button" data-info-character="${index}" aria-label="${escapeHtml(t("item.multiInfoEdit", { number: String(index + 1).padStart(2, "0"), items: accessibleItems }))}">
       <span class="multi-info-items">${items.map((item) => {
         const secondaryName = getSecondaryItemName(item);
-        return `<span class="multi-info-item"><span>${escapeHtml(getItemName(item))}</span>${secondaryName ? `<small>${escapeHtml(secondaryName)}</small>` : ""}</span>`;
+        const primaryName = getItemName(item);
+        return `<span class="multi-info-item"><span data-full-name="${escapeHtml(primaryName)}" title="${escapeHtml(primaryName)}">${escapeHtml(primaryName)}</span>${secondaryName ? `<small data-full-name="${escapeHtml(secondaryName)}" title="${escapeHtml(secondaryName)}">${escapeHtml(secondaryName)}</small>` : ""}</span>`;
       }).join("")}</span>
     </button>`;
   }).join("") : "";
@@ -3671,6 +3672,81 @@ function captureExportCopy() {
   });
 }
 
+function captureExportTextElement(element, board, viewScale, scale, fallbackAlign = "left") {
+  if (!element) return null;
+  const style = getComputedStyle(element);
+  const textAlign = ["left", "center", "right"].includes(style.textAlign) ? style.textAlign : fallbackAlign;
+  const uppercaseCopy = style.textTransform === "uppercase";
+  const lines = [];
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  let node;
+  while ((node = walker.nextNode())) {
+    for (let index = 0; index < node.length; index += 1) {
+      const range = document.createRange();
+      range.setStart(node, index);
+      range.setEnd(node, index + 1);
+      const rect = range.getBoundingClientRect();
+      if (!rect.width && !rect.height) continue;
+      let line = lines.find((item) => Math.abs(item.top - rect.top) < 1);
+      if (!line) {
+        line = { text: "", top: rect.top, left: rect.left, right: rect.right, y: ((rect.top - board.top) / viewScale) * scale, height: (rect.height / viewScale) * scale };
+        lines.push(line);
+      } else {
+        line.left = Math.min(line.left, rect.left);
+        line.right = Math.max(line.right, rect.right);
+        line.height = Math.max(line.height, (rect.height / viewScale) * scale);
+      }
+      const character = node.textContent[index];
+      line.text += uppercaseCopy ? character.toUpperCase() : character;
+    }
+  }
+  const fontSize = Number.parseFloat(style.fontSize) || 16;
+  return {
+    lines: lines.map(({ left, right, ...line }) => ({
+      ...line,
+      text: line.text.trim(),
+      x: (((textAlign === "right" ? right : textAlign === "center" ? (left + right) / 2 : left) - board.left) / viewScale) * scale,
+    })).filter((line) => line.text),
+    textAlign,
+    font: `${style.fontWeight} ${fontSize * scale}px ${style.fontFamily}`,
+    color: style.color,
+    opacity: Number.parseFloat(style.opacity) || 1,
+    stroke: 0,
+    strokeColor: "transparent",
+    letterSpacing: (Number.parseFloat(style.letterSpacing) || 0) * scale,
+    fontStyle: style.fontStyle === "italic" ? "italic" : "normal",
+    textDecoration: "none",
+    width: (element.getBoundingClientRect().width / viewScale) * scale,
+  };
+}
+
+function captureExportGearInfo(gear, snapshot, dimensions) {
+  if (snapshot.characterCount >= 3) return captureExportLineupInfo(gear, snapshot, dimensions);
+  const board = elements.board?.getBoundingClientRect();
+  const viewScale = getCanvasViewScale();
+  if (!board?.width || !board.height || !viewScale) return gear;
+  const layoutBoardWidth = board.width / viewScale;
+  const scale = dimensions.layoutWidth / layoutBoardWidth;
+  const notes = Array.from(elements.boardGearList?.querySelectorAll(":scope .board-gear-item") || []);
+  const fallbackAlign = snapshot.characterCount === 2
+    ? "left"
+    : snapshot.singleLayout === "info-right" ? "right" : "left";
+  return gear.map((items, characterIndex) => items.map((item, itemIndex) => {
+    const note = notes.find((element) => Number(element.dataset.characterIndex) === characterIndex && Number(element.dataset.gearIndex) === itemIndex);
+    const copy = note?.querySelector(":scope > .gear-tile-copy");
+    const primary = copy?.querySelector(":scope > strong");
+    if (!note || !copy || !primary) return item;
+    const noteAlign = snapshot.characterCount === 2
+      ? (note.closest(".board-gear-rail--right") ? "right" : "left")
+      : fallbackAlign;
+    const slot = captureExportTextElement(copy.querySelector(":scope > .gear-slot-label"), board, viewScale, scale, noteAlign);
+    const primaryCopy = captureExportTextElement(primary, board, viewScale, scale, noteAlign);
+    const secondaryCopy = captureExportTextElement(copy.querySelector(":scope > .gear-item-secondary"), board, viewScale, scale, noteAlign);
+    if (!primaryCopy?.lines?.length) return item;
+    return { ...item, preview: { slotCopy: slot, primaryCopy, secondaryCopy } };
+  }));
+}
+
 function captureExportLineupInfo(gear, snapshot, dimensions) {
   if (snapshot.characterCount < 3 || !snapshot.multiInfoEnabled || elements.multiInfoLayer?.hidden) return gear;
   const board = elements.board?.getBoundingClientRect();
@@ -3710,17 +3786,28 @@ function captureExportLineupInfo(gear, snapshot, dimensions) {
       const secondaryRect = secondary ? toLayoutRect(secondary) : null;
       const primaryFont = captureFont(primary);
       const secondaryFont = captureFont(secondary);
+      const primaryCopy = captureExportTextElement(primary, board, viewScale, scale, "center");
+      const secondaryCopy = captureExportTextElement(secondary, board, viewScale, scale, "center");
+      const anchorCopy = (copy, x) => copy
+        ? { ...copy, lines: copy.lines.map((line) => ({ ...line, x })) }
+        : null;
       return {
         ...item,
         preview: {
           x: primaryRect.x,
           primaryY: primaryRect.y,
           secondaryY: secondaryRect?.y ?? null,
+          width: primaryRect.width,
+          height: primaryRect.height,
           primaryFont: primaryFont.font,
           secondaryFont: secondaryFont.font,
           primarySize: primaryFont.size,
           secondarySize: secondaryFont.size,
           textAlign: getComputedStyle(primary).textAlign,
+          primaryCopy: primaryCopy ? { ...anchorCopy(primaryCopy, primaryRect.x), textBaseline: "top" } : null,
+          secondaryCopy: secondaryCopy ? { ...anchorCopy(secondaryCopy, secondaryRect?.x ?? primaryRect.x), textBaseline: "top" } : null,
+          primaryLines: primaryCopy?.lines?.map((line) => line.text) || [],
+          secondaryLines: secondaryCopy?.lines?.map((line) => line.text) || [],
         },
       };
     });
@@ -3796,7 +3883,7 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
     fitBoardTitle();
     const copyLayout = captureExportCopy();
     renderCardCopyPreview(copyLayout);
-    gear = captureExportLineupInfo(gear, state, dimensions);
+    gear = captureExportGearInfo(gear, state, dimensions);
     const images = await Promise.all(activeCharacters.map((character) => loadCanvasImage(resolveCharacterAsset(character, "hero"))));
     const backgroundSurfaceAsset = backgroundSurfaceAssets[state.backgroundPattern];
     const backgroundImage = backgroundSurfaceAsset

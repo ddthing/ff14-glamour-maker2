@@ -26,14 +26,14 @@ if (output === root) throw new Error('Build output must be a child directory of 
 if (configuredOutput) fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(output, { recursive: true });
 
-for (const entry of ['index.html', 'app.js', 'styles.css', 'styles', 'assets', 'functions', 'models', 'robots.txt', 'sitemap.xml', 'google96c42eb007c2a9a8.html', ...publicPageDirectories]) {
+for (const entry of ['index.html', 'app.js', 'styles.css', 'styles', 'assets', 'functions', 'models', 'robots.txt', 'sitemap.xml', 'site.webmanifest', 'google96c42eb007c2a9a8.html', ...publicPageDirectories]) {
   fs.cpSync(path.join(root, entry), path.join(output, entry), { recursive: true });
 }
 partitionKoreanItemIndex(output);
 const htmlFiles = [path.join(output, 'index.html'), ...publicPageDirectories.map((page) => path.join(output, page, 'index.html'))];
 for (const htmlFile of htmlFiles) {
   const html = fs.readFileSync(htmlFile, 'utf8');
-  for (const match of html.matchAll(/(?:src|href)="((?:\.\.\/)?(?:models\/|styles\/|assets\/|app\.js|styles\.css)[^"?]*)(?:\?[^\"]*)?"/g)) {
+  for (const match of html.matchAll(/(?:src|href)="((?:\.\.\/)?(?:models\/|styles\/|assets\/|app\.js|styles\.css|site\.webmanifest)[^"?]*)(?:\?[^\"]*)?"/g)) {
     const assetReference = match[1].split('#', 1)[0];
     const assetPath = path.resolve(path.dirname(htmlFile), assetReference);
     if (!assetPath.startsWith(`${output}${path.sep}`) || !fs.existsSync(assetPath)) throw new Error(`Missing build asset: ${match[1]} referenced by ${path.relative(output, htmlFile)}`);

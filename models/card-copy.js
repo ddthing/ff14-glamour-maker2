@@ -8,7 +8,8 @@ const CardCopy = (() => {
       context.save();
       context.globalAlpha = Number.isFinite(copy.opacity) ? copy.opacity : 1;
       context.textAlign = ["left", "center", "right"].includes(copy.textAlign) ? copy.textAlign : "left";
-      context.textBaseline = "alphabetic";
+      const textBaseline = copy.textBaseline === "top" ? "top" : "alphabetic";
+      context.textBaseline = textBaseline;
       const fontStyle = copy.fontStyle === "italic" ? "italic " : "";
       context.font = `${fontStyle}${copy.font || "400 16px sans-serif"}`;
       context.fillStyle = copy.color || "#000";
@@ -19,7 +20,7 @@ const CardCopy = (() => {
       for (const line of copy.lines || []) {
         const metrics = context.measureText(line.text);
         const descent = Number.isFinite(metrics.fontBoundingBoxDescent) ? metrics.fontBoundingBoxDescent : 0;
-        const baseline = line.y + line.height - descent;
+        const baseline = textBaseline === "top" ? line.y : line.y + line.height - descent;
         if (context.lineWidth > 0) context.strokeText(line.text, line.x, baseline);
         context.fillText(line.text, line.x, baseline);
         if (copy.textDecoration === "underline" && line.text) {

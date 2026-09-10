@@ -30,7 +30,9 @@ const currentKeys = {
       wordmarkLabel: document.querySelector(".wordmark")?.getAttribute("aria-label"),
       mainLabel: document.querySelector("main")?.getAttribute("aria-label"),
       siteName: document.querySelector('meta[property="og:site_name"]')?.getAttribute("content"),
+      applicationName: document.querySelector('meta[name="application-name"]')?.getAttribute("content"),
       favicon: document.querySelector('link[rel="icon"]')?.getAttribute("href") ?? null,
+      manifest: document.querySelector('link[rel="manifest"]')?.getAttribute("href") ?? null,
       oldStorage: Object.fromEntries(Object.values(oldKeys).map((key) => [key, localStorage.getItem(key)])),
       currentStorage: Object.fromEntries(Object.values(currentKeys).map((key) => [key, localStorage.getItem(key)])),
     }), { oldKeys, currentKeys });
@@ -40,7 +42,9 @@ const currentKeys = {
     assert.equal(branding.wordmarkLabel, "투영세트메이커 02 · 룩북 홈");
     assert.equal(branding.mainLabel, "투영세트메이커 02 · 룩북 편집기");
     assert.equal(branding.siteName, "투영세트메이커");
-    assert.equal(branding.favicon, null, "the rejected favicon must not be linked");
+    assert.equal(branding.applicationName, "투영세트메이커2");
+    assert.equal(branding.favicon, "assets/icons/favicon-02.svg");
+    assert.equal(branding.manifest, "site.webmanifest");
     assert.deepEqual(branding.currentStorage[currentKeys.ui], JSON.stringify({ libraryCollapsed: false }));
     assert.ok(branding.currentStorage[currentKeys.draft]);
     assert.deepEqual(Object.values(branding.oldStorage), [null, null]);
