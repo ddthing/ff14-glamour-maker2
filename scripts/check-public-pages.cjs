@@ -12,6 +12,7 @@ const publicStyles = fs.readFileSync(path.join(root, "styles", "public-pages.css
 assert.match(publicStyles, /--public-bg:\s*var\(--muted\)/, "public pages must use the shared Neutral surface token");
 assert.match(publicStyles, /--public-accent:\s*var\(--primary\)/, "public pages must use the shared action token");
 assert.match(publicStyles, /scrollbar-width:\s*thin/, "public pages must use the shared thin-scrollbar contract");
+assert.match(publicStyles, /favicon-02\.svg/, "public pages must use the edition-02 brand mark");
 
 function assertStaticPages() {
   for (const page of pages) {
@@ -57,6 +58,11 @@ async function assertBrowserPages() {
     assert.equal(await page.locator("#pageLanguageSelect").inputValue(), "ko");
     assert.equal(await page.locator('[data-page-nav="terms"]').count(), 0, "terms should not need a header link");
     assert.equal(await page.locator(".public-nav").getAttribute("aria-label"), "서비스 안내");
+    assert.match(
+      await page.locator(".public-brand").evaluate((element) => getComputedStyle(element, "::before").backgroundImage),
+      /favicon-02\.svg/,
+      "public page brand mark must use the edition-02 icon",
+    );
     assert.equal(await page.locator('.public-nav a[href="https://ff14-glamour-maker.pages.dev/"]').count(), 1, "public pages must link to the card maker");
 
     await page.locator("#pageLanguageSelect").selectOption("en");

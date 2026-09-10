@@ -106,11 +106,14 @@ select:focus-visible {
 }
 
 .public-brand::before {
-  width: 8px;
-  height: 8px;
+  width: 18px;
+  height: 18px;
   flex: 0 0 auto;
-  border: 1.5px solid var(--public-muted);
-  border-radius: 2px;
+  border: 0;
+  border-radius: 4px;
+  background: #fff url("../assets/icons/favicon-02.svg") center / cover no-repeat;
+  box-shadow: 0 0 0 1px var(--public-line);
+  overflow: hidden;
   content: "";
 }
 

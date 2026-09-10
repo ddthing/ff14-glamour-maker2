@@ -28,6 +28,7 @@ const currentKeys = {
       wordmark: document.querySelector(".wordmark-copy strong")?.textContent,
       tagline: document.querySelector(".wordmark-copy small")?.textContent,
       wordmarkLabel: document.querySelector(".wordmark")?.getAttribute("aria-label"),
+      wordmarkMark: getComputedStyle(document.querySelector(".wordmark-mark")).backgroundImage,
       mainLabel: document.querySelector("main")?.getAttribute("aria-label"),
       siteName: document.querySelector('meta[property="og:site_name"]')?.getAttribute("content"),
       applicationName: document.querySelector('meta[name="application-name"]')?.getAttribute("content"),
@@ -40,6 +41,7 @@ const currentKeys = {
     assert.equal(branding.wordmark, "투영세트메이커");
     assert.equal(branding.tagline, "02 · 룩북");
     assert.equal(branding.wordmarkLabel, "투영세트메이커 02 · 룩북 홈");
+    assert.match(branding.wordmarkMark, /favicon-02\.svg/);
     assert.equal(branding.mainLabel, "투영세트메이커 02 · 룩북 편집기");
     assert.equal(branding.siteName, "투영세트메이커");
     assert.equal(branding.applicationName, "투영세트메이커2");
