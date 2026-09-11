@@ -26,7 +26,7 @@ if (output === root) throw new Error('Build output must be a child directory of 
 if (configuredOutput) fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(output, { recursive: true });
 
-for (const entry of ['index.html', 'app.js', 'styles.css', 'styles', 'assets', 'functions', 'models', 'robots.txt', 'sitemap.xml', 'site.webmanifest', 'google96c42eb007c2a9a8.html', ...publicPageDirectories]) {
+for (const entry of ['index.html', 'app.js', 'styles.css', 'styles', 'assets', 'models', 'robots.txt', 'sitemap.xml', 'site.webmanifest', 'google96c42eb007c2a9a8.html', ...publicPageDirectories]) {
   fs.cpSync(path.join(root, entry), path.join(output, entry), { recursive: true });
 }
 partitionKoreanItemIndex(output);

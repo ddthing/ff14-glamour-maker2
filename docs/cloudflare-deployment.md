@@ -14,6 +14,8 @@
 
 Pages Function은 `env.ASSETS.fetch()`로 정적 인덱스를 읽고, 영문·일문만 XIVAPI에 서버 측 요청합니다. 브라우저에 외부 API 주소나 비밀값을 노출하지 않으며, 빈 인덱스나 외부 오류를 임의 샘플로 대체하지 않습니다.
 
+루트 `functions/_middleware.js`는 정적 자산과 Functions 응답 모두에 `nosniff`, 엄격한 referrer 정책, 카메라·마이크·위치 권한 차단, 동일 출처 프레임 정책을 적용합니다. 현재 앱은 외부 폰트와 이미지 리소스를 사용하므로 CSP는 별도 검증 후 도입합니다.
+
 한국어 Item.csv 갱신은 `.github/workflows/sync-korean-item-data.yml`이 매일 04:00 KST와 수동 실행 시 처리합니다. workflow는 upstream 파일 변경 커밋 SHA를 먼저 확인하고 해당 SHA의 raw CSV만 내려받습니다. CSV 감사·급감 방지·필수 회귀 아이템·Pages 빌드 검사가 모두 통과한 변경만 데이터 전용 PR로 자동 병합합니다. `main` push 이후에는 연결된 Pages Production 배포와 manifest SHA smoke test까지 확인합니다. 상세한 실패 정책과 수동 실행 명령은 [아이템 데이터 자동 갱신](item-data-automation.md)을 참고하세요.
 
 배경 제거는 `CUTOUT_SERVICE_URL`로 지정한 별도 GPU 서버에 원본 이미지를 전달하고, `CUTOUT_SERVICE_TOKEN`을 Bearer 인증으로 사용합니다. GPU 서버는 원본 이미지 바이트를 받아 `image/png` 또는 다른 `image/*` 결과를 반환해야 합니다. Pages Function은 16MB를 넘는 업로드를 거부하고, 결과를 저장하지 않으며, 서버 주소가 비어 있으면 임의 결과 대신 503 상태를 반환합니다.
@@ -29,15 +31,16 @@ styles/
 models/
 app.js
 assets/
-functions/
 ```
+
+Functions 디렉터리는 정적 산출물에 복사하지 않습니다. Pages Functions는 저장소 루트의 /functions 디렉터리에서 라우팅되며, dist/functions를 정적 파일로 함께 올리면 서버 코드가 공개 자산으로 노출되고 Git integration과 Direct Upload의 동작 경계가 흐려질 수 있습니다.
 
 배포 준비 순서는 다음과 같습니다.
 
 ```powershell
 node scripts/build_item_index.mjs
 npm run build:pages
-npx wrangler pages dev dist
+npx wrangler pages dev
 ```
 
 프록시 계약의 로컬 단위 테스트는 외부 GPU 서버를 호출하지 않습니다.
@@ -49,6 +52,15 @@ node scripts/test-cloudflare-functions.mjs
 `wrangler pages dev`는 정적 자산과 Pages Functions를 함께 로컬에서 실행하는 공식 개발 경로입니다. 실제 배포에서는 Git integration 또는 Direct Upload 중 하나를 선택하고, 두 방식을 나중에 서로 전환할 수 없다는 점을 먼저 확인합니다.
 
 Git 연동 Pages 프로젝트에서는 Build command를 `npm run build:pages`로, 출력 디렉터리를 `dist`로 설정합니다. 이 단계에서 4.7MB에 가까운 전체 한국어 인덱스는 장비 부위별 파일로 나뉘며 Pages 산출물에는 포함되지 않습니다. Cloudflare Pages는 정적 HTML 사이트와 Pages Functions를 함께 지원합니다.
+
+Direct Upload을 선택하는 경우에는 저장소 루트에서 다음 명령을 실행합니다. `wrangler.toml`이 프로젝트 이름과 Pages 출력 디렉터리를 고정하며, Wrangler가 현재 작업 디렉터리의 루트 `functions/`를 함께 처리하므로 `dist`만 별도 폴더로 옮겨 실행하지 않습니다.
+
+```powershell
+npm run build:pages
+npx wrangler pages deploy dist
+```
+
+Pages Functions가 포함된 프로젝트는 Cloudflare 대시보드의 드래그 앤 드롭 배포를 사용하지 않습니다. Functions 배포에는 Git integration 또는 Wrangler Direct Upload를 사용해야 합니다.
 
 ## 배경 제거 실행 경로
 

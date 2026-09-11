@@ -356,8 +356,7 @@
   transition: opacity 180ms ease;
 }
 
-.canvas-board[data-background="ink"] .scene-pattern,
-.canvas-board[data-background="charcoal"] .scene-pattern {
+.canvas-board[data-background-tone="dark"] .scene-pattern {
   mix-blend-mode: screen;
 }
 
@@ -1585,6 +1584,25 @@
 
 .canvas-board[data-style] .scene-pattern {
   opacity: var(--pattern-opacity, 0) !important;
+}
+
+/* Dark surfaces keep the pattern in the same tonal family as the solid base,
+   but need a little more ink so small marks survive the screen blend. Light
+   surfaces retain the quieter print strengths above. */
+.canvas-board[data-background-tone="dark"] .scene-pattern[data-pattern="dots"] {
+  opacity: .28 !important;
+}
+
+.canvas-board[data-background-tone="dark"] .scene-pattern[data-pattern="stars"] {
+  opacity: .3 !important;
+}
+
+.canvas-board[data-background-tone="dark"] .scene-pattern[data-pattern="halftone"] {
+  opacity: .3 !important;
+}
+
+.canvas-board[data-background-tone="dark"] .scene-pattern[data-pattern="bitmap"] {
+  opacity: .32 !important;
 }
 
 .canvas-board .scene-pattern[data-pattern="none"],

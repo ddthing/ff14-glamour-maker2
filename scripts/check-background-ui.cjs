@@ -63,6 +63,31 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     }));
     assert.deepEqual(selected, { background: "charcoal", pattern: "dots", texture: "grain", groups: [1, 1, 1] }, "background axis selection did not stay independent");
 
+    const darkPatternContract = [];
+    for (const patternName of ["dots", "stars", "halftone", "bitmap"]) {
+      await page.locator(`#backgroundArtPanel button[data-pattern="${patternName}"]`).click();
+      await page.waitForFunction((expected) => document.querySelector("#canvasBoard")?.dataset.backgroundPattern === expected, patternName);
+      darkPatternContract.push(await page.evaluate(() => {
+        const board = document.querySelector("#canvasBoard");
+        const pattern = document.querySelector("#scenePattern");
+        const before = getComputedStyle(pattern, "::before");
+        return {
+          pattern: board?.dataset.backgroundPattern,
+          tone: board?.dataset.backgroundTone,
+          blend: getComputedStyle(pattern).mixBlendMode,
+          opacity: Number.parseFloat(getComputedStyle(pattern).opacity),
+          ink: getComputedStyle(board).getPropertyValue("--pattern-ink").trim(),
+          light: getComputedStyle(board).getPropertyValue("--pattern-light").trim(),
+          motifCount: pattern?.querySelectorAll(".pattern-motif").length || 0,
+          beforeImage: before.backgroundImage,
+        };
+      }));
+    }
+    assert.deepEqual(darkPatternContract.map(({ pattern }) => pattern), ["dots", "stars", "halftone", "bitmap"], `dark patterns did not reach the card: ${JSON.stringify(darkPatternContract)}`);
+    assert.ok(darkPatternContract.every(({ tone, blend, opacity, ink, light }) => tone === "dark" && blend === "screen" && opacity >= 0.28 && ink && light), `dark patterns lost their contrast-aware ink: ${JSON.stringify(darkPatternContract)}`);
+    assert.ok(darkPatternContract.find(({ pattern }) => pattern === "stars")?.motifCount >= 30, `dark star pattern lost its motifs: ${JSON.stringify(darkPatternContract)}`);
+    assert.ok(darkPatternContract.filter(({ pattern }) => pattern !== "stars").every(({ beforeImage }) => beforeImage !== "none"), `dark pattern layers are not painted: ${JSON.stringify(darkPatternContract)}`);
+
     const textureRecipes = [];
     for (const texture of ["risograph", "dust", "fiber", "halftone"]) {
       await page.locator(`[data-texture="${texture}"]`).click();
@@ -118,6 +143,9 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
         input: document.querySelector("#customBackgroundColorInput").value,
         output: document.querySelector("#customBackgroundColorValue").textContent,
         recipeInk: getComputedStyle(document.querySelector("#canvasBoard")).getPropertyValue("--recipe-ink").trim(),
+        patternBlend: getComputedStyle(document.querySelector("#scenePattern")).mixBlendMode,
+        patternInk: getComputedStyle(document.querySelector("#canvasBoard")).getPropertyValue("--pattern-ink").trim(),
+        patternLight: getComputedStyle(document.querySelector("#canvasBoard")).getPropertyValue("--pattern-light").trim(),
         storedColor: draft?.customBackgroundColor,
         storedLookColor: draft?.looks?.[0]?.customBackgroundColor,
       };
@@ -128,6 +156,9 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.equal(custom.input, "#123456", `custom picker value was not normalized: ${JSON.stringify(custom)}`);
     assert.equal(custom.output, "#123456", `custom picker readout was not updated: ${JSON.stringify(custom)}`);
     assert.equal(custom.recipeInk, "#f7f3ed", `custom dark surfaces did not switch copy to light ink: ${JSON.stringify(custom)}`);
+    assert.equal(custom.patternBlend, "screen", `custom dark surfaces should use the readable screen pattern blend: ${JSON.stringify(custom)}`);
+    assert.notEqual(custom.patternInk, "#ffffff", `custom dark patterns should stay in the background color family: ${JSON.stringify(custom)}`);
+    assert.notEqual(custom.patternLight, "rgba(255, 255, 255, 0.66)", `custom dark secondary pattern ink should be tonal: ${JSON.stringify(custom)}`);
     assert.equal(custom.storedColor, "#123456", `custom color was not persisted in the draft: ${JSON.stringify(custom)}`);
     assert.equal(custom.storedLookColor, "#123456", `custom color was not persisted in the selected look: ${JSON.stringify(custom)}`);
 

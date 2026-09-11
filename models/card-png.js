@@ -141,11 +141,12 @@ function drawExportTexture(context, width, height, background, texture, textureI
 function drawExportPattern(context, width, height, background, snapshot, patternStars, textureInk = null) {
   const state = snapshot;
   if (state.backgroundPattern === "none" && state.backgroundTexture === "none") return;
+  const isDarkSurface = background?.tone === "dark";
   const exportStrength = {
-    dots: 0.16,
-    stars: 0.2,
-    halftone: 0.2,
-    bitmap: 0.26,
+    dots: isDarkSurface ? 0.28 : 0.16,
+    stars: isDarkSurface ? 0.3 : 0.2,
+    halftone: isDarkSurface ? 0.3 : 0.2,
+    bitmap: isDarkSurface ? 0.32 : 0.26,
   };
   const strength = exportStrength[state.backgroundPattern] ?? 0;
   const ink = background.pattern[0];

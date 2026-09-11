@@ -9,6 +9,10 @@ const root = path.resolve(__dirname, "..");
 fs.mkdirSync(path.join(root, ".runtime"), { recursive: true });
 const output = fs.mkdtempSync(path.join(root, ".runtime", "pages-assets-check-"));
 const slots = ["head", "body", "hands", "legs", "feet", "weapon"];
+const wranglerConfig = fs.readFileSync(path.join(root, "wrangler.toml"), "utf8");
+assert.match(wranglerConfig, /^name\s*=\s*"ff14-glamour-maker2"\s*$/m, "Pages project name must stay explicit in Wrangler config");
+assert.match(wranglerConfig, /^pages_build_output_dir\s*=\s*"\.\/dist"\s*$/m, "Wrangler must use the verified Pages build output");
+assert.match(wranglerConfig, /^compatibility_date\s*=\s*"\d{4}-\d{2}-\d{2}"\s*$/m, "Pages runtime compatibility date must be pinned");
 
 (async () => {
   try {
@@ -46,6 +50,7 @@ const slots = ["head", "body", "hands", "legs", "feet", "weapon"];
       recordsBySlot.set(slot, records);
     });
     assert.equal(fs.existsSync(path.join(output, "assets", "data", "items-ko.json")), false, "the full index should not ship in the Pages bundle");
+    assert.equal(fs.existsSync(path.join(output, "functions")), false, "Pages Functions must stay at the project root instead of shipping as static source files");
 
     const { onRequestGet } = await import(pathToFileURL(path.join(root, "functions", "api", "items", "search.js")).href);
     const assetRequests = [];

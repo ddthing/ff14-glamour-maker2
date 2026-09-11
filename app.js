@@ -567,15 +567,45 @@ const legacyStyleRecipes = {
 function getBackgroundTheme(source = state) {
   const backgroundKey = backgrounds[source?.background] ? source.background : "paper";
   const base = backgrounds[backgroundKey];
-  if (backgroundKey !== "custom") return base;
+  if (backgroundKey !== "custom") {
+    const contrast = ColorContrast.themeFor(base.solid);
+    return {
+      ...base,
+      tone: contrast.foreground === "#ffffff" ? "dark" : "light",
+      pattern: getPatternPalette(base.solid, base.pattern),
+    };
+  }
   const solid = normaliseHexColor(source?.customBackgroundColor, customBackgroundDefault);
   const contrast = ColorContrast.themeFor(solid);
-  const muted = contrast.foreground === "#ffffff" ? "rgba(255, 255, 255, .66)" : "rgba(17, 17, 17, .66)";
   return {
     ...base,
     solid,
-    pattern: [contrast.foreground, muted],
+    tone: contrast.foreground === "#ffffff" ? "dark" : "light",
+    pattern: getPatternPalette(solid, [contrast.foreground, contrast.muted]),
   };
+}
+
+function mixHexColors(baseHex, tintHex, tintWeight = 0.5) {
+  const base = normaliseHexColor(baseHex, "#25262b").slice(1);
+  const tint = normaliseHexColor(tintHex, "#f7f3ed").slice(1);
+  const weight = Math.min(1, Math.max(0, Number(tintWeight) || 0));
+  const channels = [0, 2, 4].map((offset) => {
+    const baseChannel = Number.parseInt(base.slice(offset, offset + 2), 16);
+    const tintChannel = Number.parseInt(tint.slice(offset, offset + 2), 16);
+    return Math.round(baseChannel + (tintChannel - baseChannel) * weight).toString(16).padStart(2, "0");
+  });
+  return `#${channels.join("")}`;
+}
+
+function getPatternPalette(solid, pattern = []) {
+  const contrast = ColorContrast.themeFor(solid);
+  if (contrast.foreground !== "#ffffff") return pattern;
+  const ink = normaliseHexColor(pattern?.[0], "#f7f3ed");
+  const light = normaliseHexColor(pattern?.[1], "#f7f3ed");
+  return [
+    mixHexColors(solid, ink, 0.44),
+    mixHexColors(solid, light, 0.36),
+  ];
 }
 
 function getTextureInk(background) {
