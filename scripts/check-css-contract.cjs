@@ -167,12 +167,37 @@ assert.match(composer, /\.board-gear-item\s*\{/, "card composition must own the 
 assert.match(composer, /\.gear-tile-copy\s*\{/, "card composition must own the gear-copy base contract");
 assert.match(composer, /\.multi-info-layer\s*\{/, "card composition must own the lineup information-layer contract");
 assert.match(composer, /\.multi-info-column\s*\{/, "card composition must own the lineup information-column contract");
+assert.match(
+  readability,
+  /\.canvas-board\[data-background-tone="dark"\]\[data-background-pattern="none"\][\s\S]*?\.board-gear-tiles \.gear-tile-copy[\s\S]*?color:\s*var\(--recipe-ink\) !important/,
+  "dark solid backgrounds must keep equipment-card copy on the inverse recipe",
+);
 
 const catalogContract = controls.match(/\.inspector \.catalog-results\s*\{([\s\S]*?)\}/);
 assert.ok(catalogContract, "catalog results must declare their own nested-scroll contract");
 assert.match(catalogContract[1], /scrollbar-width:\s*thin/, "catalog results must be thin in Firefox-compatible engines");
 assert.match(catalogContract[1], /scrollbar-color:\s*var\(--scrollbar-thumb\)/, "catalog results must use the shared thumb token");
 assert.doesNotMatch(controls, /scrollbar-(?:color|width):\s*color-mix/, "scrollbar colors must not be duplicated as local formulas");
+
+assert.match(
+  controls,
+  /\/\* Item surface contract:[\s\S]*?\.equipment-section \.equipment-row\s*\{[\s\S]*?grid-template-columns:\s*52px minmax\(0, 1fr\) auto;[\s\S]*?padding:\s*7px 10px;/,
+  "item surfaces must keep their row geometry in the canonical contract",
+);
+assert.match(
+  controls,
+  /\.equipment-section \.equipment-icon,\s*\.catalog-section \.catalog-result-icon\s*\{[\s\S]*?width:\s*52px;[\s\S]*?height:\s*60px;/,
+  "item surfaces must share the canonical icon geometry",
+);
+assert.match(
+  controls,
+  /\.catalog-section \.catalog-result\s*\{[\s\S]*?display:\s*flex;[\s\S]*?padding:\s*7px 6px;/,
+  "catalog results must own their flex surface contract",
+);
+const equipmentGeometryBlocks = controls.match(/(?:^|\n)\.equipment-section \.equipment-row\s*\{[^}]*grid-template-columns:[^}]*\}/gm) || [];
+assert.equal(equipmentGeometryBlocks.length, 1, "equipment rows should have one canonical grid geometry block");
+const catalogGridGeometryBlocks = controls.match(/(?:^|\n)\.catalog-section \.catalog-result\s*\{[^}]*grid-template-columns:[^}]*\}/gm) || [];
+assert.equal(catalogGridGeometryBlocks.length, 0, "flex catalog results must not carry dead grid geometry blocks");
 
 // These selectors belonged to removed prototype chrome and have no live
 // markup or renderer path. Keeping them out of the shared sheet prevents a

@@ -578,6 +578,10 @@ function getBackgroundTheme(source = state) {
   };
 }
 
+function getTextureInk(background) {
+  return ColorContrast.themeFor(background?.solid).foreground;
+}
+
 function getExportTheme(source = state) {
   const background = getBackgroundTheme(source);
   const isDark = ColorContrast.themeFor(background.solid).foreground === "#ffffff";
@@ -1626,9 +1630,8 @@ function normaliseTitleAlign(value) {
 
 function resolveTitleAlign() {
   if (state.titleAlign !== "auto") return state.titleAlign;
-  if (state.characterCount === 1 && state.singleRatio === "portrait") return "center";
+  if (state.characterCount === 1) return "center";
   if (state.characterCount >= 2) return "center";
-  if (state.characterCount === 1 && state.singleLayout === "info-right") return "right";
   return "left";
 }
 
@@ -2607,6 +2610,7 @@ function syncCustomBackgroundControl() {
 function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = true, refreshControls = true } = {}) {
   const background = getBackgroundTheme();
   const silhouetteInfoTheme = getSilhouetteInfoTheme(background);
+  const textureInk = getTextureInk(background);
   if (!titleFonts[state.titleFont]) state.titleFont = defaultTitleFont;
   state.titleWeight = normaliseTitleWeight(state.titleFont, state.titleWeight ?? defaultTitleWeight);
   const backgroundCss = getBackgroundSurfaceCss(background);
@@ -2615,6 +2619,7 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
   elements.board.style.setProperty("--board-bg", backgroundCss);
   elements.board.style.setProperty("--pattern-ink", background.pattern[0]);
   elements.board.style.setProperty("--pattern-light", background.pattern[1]);
+  elements.board.style.setProperty("--texture-ink", textureInk);
   elements.board.style.setProperty("--silhouette-info-color", silhouetteInfoTheme.foreground);
   elements.board.style.setProperty("--silhouette-info-muted", silhouetteInfoTheme.muted);
   elements.board.style.setProperty("--silhouette-info-halo", silhouetteInfoTheme.halo);
@@ -3978,6 +3983,7 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
   const dimensions = layout.dimensions;
   const background = getBackgroundTheme(state);
   const exportTheme = getExportTheme(state);
+  const textureInk = getTextureInk(background);
   let gear = state.characters.map((character, index) => getCharacterItemIds(index, look).map(getItem).filter(Boolean).map(item => ({
     name: getItemName(item, state.language), secondaryName: getSecondaryItemName(item, state.language),
     slot: item.slot, slotName: getOutfitSlotName(item.slot, state.language),
@@ -4024,7 +4030,7 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
     const layoutBoardWidth = board.width / getCanvasViewScale();
     const placementScale = layoutBoardWidth > 0 ? dimensions.layoutWidth / layoutBoardWidth : 1;
     const outputBlob = await CardPng.render({ state, layout, dimensions, exportTheme,
-      background, patternStars, images, backgroundImage, copyLayout, gear,
+      background, textureInk, patternStars, images, backgroundImage, copyLayout, gear,
       placementScale, outlineColor: rgba(state.outline.color, 0.8), infoTextColor: infoTextTheme.foreground,
       infoTextMuted: infoTextTheme.muted, infoTextHalo: infoTextTheme.halo });
     assertUnchanged();

@@ -86,14 +86,31 @@ assert.deepEqual(CardLayout.portraitGearPositions({ singleLayout: "info-right" }
   676, 34, 676, 34, 676,
 ], "right-side portrait layout must mirror the same gear notes without changing their y coordinates");
 assert.deepEqual(CardLayout.landscapeSoloGearPositions(), [
-  { slot: "head", x: 24, y: 146, width: 360, height: 82 },
-  { slot: "body", x: 24, y: 250, width: 360, height: 82 },
-  { slot: "hands", x: 24, y: 354, width: 360, height: 82 },
-  { slot: "legs", x: 24, y: 458, width: 360, height: 82 },
-  { slot: "feet", x: 24, y: 562, width: 360, height: 82 },
+  { slot: "head", x: 28, y: 156, width: 300, height: 92 },
+  { slot: "body", x: 872, y: 156, width: 300, height: 92 },
+  { slot: "hands", x: 28, y: 292, width: 300, height: 92 },
+  { slot: "legs", x: 872, y: 292, width: 300, height: 92 },
+  { slot: "feet", x: 28, y: 428, width: 300, height: 92 },
 ]);
 assert.deepEqual(CardLayout.landscapeSoloGearPositions({ singleLayout: "info-right" }).map(({ x }) => x), [
-  816, 816, 816, 816, 816,
-], "right-side landscape layout must mirror the same gear notes without changing their y coordinates");
+  872, 28, 872, 28, 872,
+], "right-side landscape layout must mirror the alternating gear notes without changing their y coordinates");
+const landscapeFrame = CardLayout.characterFrames({
+  characterCount: 1,
+  singleRatio: "landscape",
+  singleLayout: "info-left",
+  characters: [{ cutout: true }],
+});
+assert.deepEqual(landscapeFrame, [{ x: 342, y: 108, width: 516, height: 532 }], "landscape solo character should stay in the central gap between gear notes");
+const landscapeFrameRight = landscapeFrame[0].x + landscapeFrame[0].width;
+assert.ok(
+  CardLayout.landscapeSoloGearPositions().every(({ x, width }) => x + width <= landscapeFrame[0].x || x >= landscapeFrameRight),
+  "landscape solo gear notes must not overlap the character frame",
+);
+assert.deepEqual(
+  CardLayout.characterFrames({ characterCount: 1, singleRatio: "landscape", singleLayout: "info-right", characters: [{ cutout: true }] }),
+  landscapeFrame,
+  "landscape solo side selection should mirror notes without moving the central character",
+);
 
 console.log("PASS: CardLayout owns image placement and portrait/landscape gear geometry.");

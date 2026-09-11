@@ -18,7 +18,7 @@ function traceFivePointStar(context, radius) {
   context.closePath();
 }
 
-function drawExportTexture(context, width, height, background, texture) {
+function drawExportTexture(context, width, height, background, texture, textureInk = null) {
   const textureStrength = {
     grain: 0.1,
     risograph: 0.12,
@@ -28,8 +28,8 @@ function drawExportTexture(context, width, height, background, texture) {
   }[texture] ?? 0;
   if (!textureStrength) return;
 
-  const ink = background.pattern[0];
-  const light = background.pattern[1];
+  const ink = textureInk || background.pattern[0];
+  const light = ink;
   const seededUnit = (index, salt) => {
     const seed = Math.sin(index * 12.9898 + salt) * 43758.5453;
     return seed - Math.floor(seed);
@@ -138,7 +138,7 @@ function drawExportTexture(context, width, height, background, texture) {
   context.restore();
 }
 
-function drawExportPattern(context, width, height, background, snapshot, patternStars) {
+function drawExportPattern(context, width, height, background, snapshot, patternStars, textureInk = null) {
   const state = snapshot;
   if (state.backgroundPattern === "none" && state.backgroundTexture === "none") return;
   const exportStrength = {
@@ -186,7 +186,7 @@ function drawExportPattern(context, width, height, background, snapshot, pattern
     }
   }
 
-  drawExportTexture(context, width, height, background, state.backgroundTexture);
+  drawExportTexture(context, width, height, background, state.backgroundTexture, textureInk);
 
   if (state.backgroundPattern === "stars") {
     patternStars.forEach(({ x, y, size, rotate, tone, shape = "star", opacity }) => {
@@ -446,7 +446,7 @@ function drawExportBackground(context, width, height, background, backgroundImag
   context.restore();
 }
 
-async function render({ state, dimensions, layout = null, exportTheme, background, patternStars, images, backgroundImage = null, copyLayout, gear, outlineColor, placementScale = 1, infoTextColor = exportTheme.text, infoTextMuted = exportTheme.muted, infoTextHalo = exportTheme.infoShadow }) {
+async function render({ state, dimensions, layout = null, exportTheme, background, textureInk = null, patternStars, images, backgroundImage = null, copyLayout, gear, outlineColor, placementScale = 1, infoTextColor = exportTheme.text, infoTextMuted = exportTheme.muted, infoTextHalo = exportTheme.infoShadow }) {
   const activeCharacters = state.characters.slice(0, state.characterCount);
   const resolvedLayout = layout || CardLayout.layoutFor({
     characterCount: state.characterCount,
@@ -465,7 +465,7 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
     const context = canvas.getContext("2d");
     context.scale(outputScale, outputScale);
     drawExportBackground(context, layoutWidth, layoutHeight, background, backgroundImage);
-    drawExportPattern(context, layoutWidth, layoutHeight, background, state, patternStars);
+    drawExportPattern(context, layoutWidth, layoutHeight, background, state, patternStars, textureInk);
 
     const roundRect = (x, y, width, height, radius) => {
       context.beginPath();

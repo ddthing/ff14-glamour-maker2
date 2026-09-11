@@ -199,13 +199,16 @@ input[type="range"]:focus-visible {
   margin-top: 11px;
 }
 
+/* Item surface contract: selection rows and catalog results share one
+   geometry language. Keeping the structural values here prevents a later
+   visual layer from silently re-defining the same surface. */
 .equipment-section .equipment-row {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) auto;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
   align-items: center;
   gap: 9px;
-  min-height: 48px;
-  padding: 7px 8px;
+  min-height: 52px;
+  padding: 7px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--background);
@@ -226,16 +229,26 @@ input[type="range"]:focus-visible {
   background: color-mix(in oklch, var(--background) 86%, var(--muted));
 }
 
-.equipment-section .equipment-icon {
-  width: 30px;
-  height: 30px;
-  border: 0;
-  border-radius: 6px;
+.equipment-section .equipment-icon,
+.catalog-section .catalog-result-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 52px;
+  min-width: 44px;
+  height: 60px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   color: var(--foreground);
   background: var(--muted);
   font-family: var(--sans);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
+  letter-spacing: -.03em;
+  line-height: 1;
+  text-align: center;
 }
 
 .equipment-section .equipment-row.is-selected .equipment-icon {
@@ -284,8 +297,12 @@ input[type="range"]:focus-visible {
 }
 
 .catalog-section .catalog-result {
-  min-height: 48px;
-  padding: 7px 4px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 52px;
+  padding: 7px 6px;
 }
 
 .catalog-result-action {
@@ -759,16 +776,14 @@ input[type="range"]:focus-visible {
   transform: rotate(11deg);
 }
 
-/* Pattern swatches are intentionally neutral: they show the motif and keep
-   the inspector visually quiet. The selected background still owns the card
-   palette; these previews are not miniature color themes. */
+/* Pattern swatches use one-color ink when the option describes a repeatable
+   motif. Material patterns keep their paper colors so the two editorial
+   surfaces remain distinguishable at a glance. */
 :where(
   .background-art-preview--dots,
   .background-art-preview--stars,
   .background-art-preview--halftone,
-  .background-art-preview--bitmap,
-  .background-art-preview--collage,
-  .background-art-preview--scrapbook
+  .background-art-preview--bitmap
 ) {
   --pattern-preview-paper: var(--card);
   --pattern-preview-ink: color-mix(in oklch, var(--foreground) 78%, transparent);
@@ -783,26 +798,6 @@ input[type="range"]:focus-visible {
   background-image: radial-gradient(circle, var(--pattern-preview-ink-strong) 0 1.15px, transparent 1.35px);
 }
 
-.background-art-preview--stars {
-  background-image:
-    radial-gradient(circle, var(--pattern-preview-ink) 0 1px, transparent 1.4px),
-    radial-gradient(circle, color-mix(in oklch, var(--pattern-preview-paper) 72%, transparent) 0 1px, transparent 1.35px);
-}
-
-.background-art-preview--stars::before {
-  background: var(--pattern-preview-ink);
-  box-shadow:
-    12px 12px 0 -3px var(--pattern-preview-ink-soft),
-    4px 20px 0 -4px var(--pattern-preview-ink),
-    21px 7px 0 -4px var(--pattern-preview-ink),
-    22px 22px 0 -5px var(--pattern-preview-ink-soft);
-}
-
-.background-art-preview--stars::after {
-  border-color: var(--pattern-preview-ink);
-  box-shadow: -11px -4px 0 -2px var(--pattern-preview-ink-soft), -4px -14px 0 -3px var(--pattern-preview-ink);
-}
-
 .background-art-preview--halftone {
   background-image:
     repeating-linear-gradient(90deg, var(--pattern-preview-ink-soft) 0 6px, transparent 6px 16px),
@@ -813,53 +808,6 @@ input[type="range"]:focus-visible {
   background-image:
     linear-gradient(45deg, var(--pattern-preview-ink) 25%, transparent 25%, transparent 75%, var(--pattern-preview-ink) 75%),
     linear-gradient(45deg, var(--pattern-preview-ink) 25%, transparent 25%, transparent 75%, var(--pattern-preview-ink) 75%);
-}
-
-.background-art-preview--collage {
-  border-color: var(--pattern-preview-line);
-  background:
-    linear-gradient(156deg, transparent 0 18%, var(--pattern-preview-ink-soft) 18% 36%, transparent 36% 48%, var(--pattern-preview-ink) 48% 74%, transparent 74%),
-    linear-gradient(24deg, var(--pattern-preview-ink-soft) 0 28%, transparent 28% 100%),
-    var(--pattern-preview-paper);
-  background-image:
-    radial-gradient(circle at 22% 76%, var(--pattern-preview-ink-soft) 0 .7px, transparent 1px),
-    linear-gradient(156deg, transparent 0 18%, var(--pattern-preview-ink-soft) 18% 36%, transparent 36% 48%, var(--pattern-preview-ink) 48% 74%, transparent 74%),
-    linear-gradient(24deg, var(--pattern-preview-ink-soft) 0 28%, transparent 28% 100%);
-}
-
-.background-art-preview--collage::before {
-  border-color: var(--pattern-preview-line);
-  background: var(--pattern-preview-paper);
-  box-shadow: 8px 10px 0 -1px var(--pattern-preview-ink-soft), 10px 10px 0 0 color-mix(in oklch, var(--pattern-preview-paper) 55%, transparent);
-}
-
-.background-art-preview--collage::after {
-  border-color: var(--pattern-preview-line);
-  background: var(--pattern-preview-ink);
-  box-shadow: -16px -19px 0 -3px var(--pattern-preview-ink-soft);
-}
-
-.background-art-preview--scrapbook {
-  border-color: var(--pattern-preview-line);
-  background:
-    linear-gradient(146deg, transparent 0 24%, var(--pattern-preview-ink-soft) 24% 46%, transparent 46% 61%, var(--pattern-preview-ink-soft) 61% 83%, transparent 83%),
-    linear-gradient(28deg, var(--pattern-preview-paper) 0 40%, transparent 40% 100%),
-    var(--pattern-preview-paper);
-  background-image:
-    linear-gradient(90deg, transparent 0 70%, var(--pattern-preview-ink-soft) 70% 72%, transparent 72%),
-    linear-gradient(146deg, transparent 0 24%, var(--pattern-preview-ink-soft) 24% 46%, transparent 46% 61%, var(--pattern-preview-ink-soft) 61% 83%, transparent 83%),
-    linear-gradient(28deg, var(--pattern-preview-paper) 0 40%, transparent 40% 100%);
-}
-
-.background-art-preview--scrapbook::before {
-  border-color: var(--pattern-preview-line);
-  background: var(--pattern-preview-paper);
-  box-shadow: 10px 12px 0 -1px var(--pattern-preview-ink-soft);
-}
-
-.background-art-preview--scrapbook::after {
-  background: var(--pattern-preview-ink-soft);
-  box-shadow: -8px 22px 0 -1px var(--pattern-preview-ink-soft);
 }
 
 @media (max-width: 560px) {
@@ -1143,11 +1091,6 @@ input[type="range"]:focus-visible {
   box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--primary) 42%, transparent);
 }
 
-.equipment-section .equipment-row {
-  min-height: 52px;
-  padding-inline: 10px;
-}
-
 .equipment-section .equipment-row.is-selected {
   border-color: var(--primary);
   box-shadow: 0 0 0 1px var(--primary), 0 4px 12px color-mix(in oklch, var(--primary) 9%, transparent);
@@ -1186,11 +1129,6 @@ input[type="range"]:focus-visible {
   border-color: var(--primary);
   color: var(--primary-foreground);
   background: var(--primary);
-}
-
-.catalog-section .catalog-result {
-  min-height: 52px;
-  padding-inline: 6px;
 }
 
 .catalog-section .catalog-result-action {
@@ -1350,43 +1288,32 @@ input[type="range"]:focus-visible {
   display: none;
 }
 
-.background-art-preview--stars {
-  background-color: #f1dfe1;
-  background-image:
-    radial-gradient(circle, rgb(139 98 108 / .6) 0 1px, transparent 1.4px),
-    radial-gradient(circle, rgb(255 255 255 / .72) 0 1px, transparent 1.35px);
-  background-position: 2px 3px, 10px 10px;
-  background-size: 9px 9px, 13px 13px;
+.background-art-preview--dots,
+.background-art-preview--stars,
+.background-art-preview--halftone,
+.background-art-preview--bitmap {
+  background-color: var(--pattern-preview-paper);
 }
 
 .background-art-preview--stars::before {
   position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 13px;
-  height: 13px;
-  background: #8b626c;
+  top: 50%;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  background: var(--pattern-preview-ink);
   content: "";
   clip-path: polygon(50% 0, 61.8% 34.5%, 97.5% 34.5%, 68.5% 55.5%, 79.5% 90.5%, 50% 69%, 20.5% 90.5%, 31.5% 55.5%, 2.5% 34.5%, 38.2% 34.5%);
-  box-shadow: 12px 12px 0 -3px #b9828b, 4px 20px 0 -4px #8b626c, 21px 7px 0 -4px #8b626c, 22px 22px 0 -5px #b9828b;
+  box-shadow: none;
+  transform: translate(-50%, -50%) rotate(-6deg);
 }
 
 .background-art-preview--stars::after {
-  position: absolute;
-  right: 3px;
-  bottom: 5px;
-  display: block;
-  width: 7px;
-  height: 7px;
-  border: 1px solid #8b626c;
-  border-radius: 50%;
-  background: transparent;
-  box-shadow: -11px -4px 0 -2px #b9828b, -4px -14px 0 -3px #8b626c;
-  content: "";
+  display: none;
 }
 
 .background-texture-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .background-art-preview--texture-none {
@@ -1435,6 +1362,66 @@ input[type="range"]:focus-visible {
   background-size: 5px 5px;
   mask-image: linear-gradient(180deg, transparent 0%, #000 42%, rgb(0 0 0 / .78) 100%);
   -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 42%, rgb(0 0 0 / .78) 100%);
+}
+
+/* Texture swatches are samples, not miniature colour presets. A shared paper
+   ground makes the material mark itself legible at 24px, and keeps selecting
+   a texture visually separate from selecting a coloured background. */
+.background-texture-choice .background-art-preview {
+  --texture-preview-paper: var(--card);
+  --texture-preview-ink: color-mix(in oklch, var(--foreground) 54%, transparent);
+  --texture-preview-ink-strong: color-mix(in oklch, var(--foreground) 76%, transparent);
+  --texture-preview-ink-soft: color-mix(in oklch, var(--foreground) 30%, transparent);
+  border-color: color-mix(in oklch, var(--foreground) 22%, var(--card));
+  background-color: var(--texture-preview-paper);
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+.background-texture-choice .background-art-preview--texture-none {
+  background: var(--texture-preview-paper);
+}
+
+.background-texture-choice .background-art-preview--texture-grain {
+  background-color: var(--texture-preview-paper);
+  background-image:
+    radial-gradient(circle, var(--texture-preview-ink-strong) 0 .55px, transparent .85px),
+    radial-gradient(circle, var(--texture-preview-ink-soft) 0 .7px, transparent 1px);
+  background-position: 0 0, 2px 3px;
+  background-size: 5px 6px, 8px 9px;
+}
+
+.background-texture-choice .background-art-preview--texture-risograph {
+  background-color: var(--texture-preview-paper);
+  background-image:
+    radial-gradient(circle, var(--texture-preview-ink-strong) 0 .9px, transparent 1.35px),
+    radial-gradient(circle, var(--texture-preview-ink-soft) 0 .8px, transparent 1.25px);
+  background-position: 0 0, 2px 1px;
+  background-size: 6px 6px, 7px 7px;
+}
+
+.background-texture-choice .background-art-preview--texture-dust {
+  background-color: var(--texture-preview-paper);
+  background-image:
+    radial-gradient(circle at 15% 18%, var(--texture-preview-ink-strong) 0 1px, transparent 1.55px),
+    radial-gradient(circle at 74% 34%, var(--texture-preview-ink) 0 .75px, transparent 1.35px),
+    radial-gradient(circle at 36% 72%, var(--texture-preview-ink-soft) 0 1px, transparent 1.7px),
+    repeating-linear-gradient(18deg, transparent 0 13px, var(--texture-preview-ink-soft) 13px 13.8px, transparent 13.8px 29px);
+}
+
+.background-texture-choice .background-art-preview--texture-fiber {
+  background-color: var(--texture-preview-paper);
+  background-image:
+    repeating-linear-gradient(92deg, var(--texture-preview-ink) 0 .65px, transparent .65px 6px),
+    repeating-linear-gradient(5deg, var(--texture-preview-ink-soft) 0 .65px, transparent .65px 8px);
+  background-size: 8px 12px, 11px 9px;
+}
+
+.background-texture-choice .background-art-preview--texture-halftone {
+  background-color: var(--texture-preview-paper);
+  background-image: radial-gradient(circle, var(--texture-preview-ink-strong) 0 .9px, transparent 1.35px);
+  background-position: 1px 1px;
+  background-size: 5px 5px;
 }
 
 .background-art-choice:focus-visible,
@@ -2177,40 +2164,10 @@ input[type="range"]:focus-visible {
   accent-color: var(--primary);
 }
 
-.equipment-section .equipment-row {
-  grid-template-columns: 48px minmax(0, 1fr) auto;
-}
-
-.equipment-section .equipment-icon,
-.catalog-section .catalog-result-icon {
-  width: 44px;
-  min-width: 44px;
-  height: 34px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--foreground);
-  background: var(--muted);
-  font-family: var(--sans);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: -.03em;
-  line-height: 1;
-  text-align: center;
-}
-
 .equipment-section .equipment-row.is-selected .equipment-icon {
   border-color: var(--primary);
   color: var(--primary-foreground);
   background: var(--primary);
-}
-
-.catalog-section .catalog-result {
-  grid-template-columns: 44px minmax(0, 1fr) 32px;
-}
-
-.catalog-section .catalog-result-icon {
-  display: grid;
-  place-items: center;
 }
 
 .source-thumb.is-empty {
@@ -2459,13 +2416,6 @@ input[type="range"]:focus-visible {
 }
 
 .outfit-icon { display: block; width: 24px; height: 24px; }
-.equipment-section .equipment-icon, .catalog-section .catalog-result-icon {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 4px; height: 60px; width: 52px; font-size: 11px;
-}
-.equipment-section .equipment-row { grid-template-columns: 52px minmax(0, 1fr) auto; }
-.catalog-section .catalog-result { grid-template-columns: 52px minmax(0, 1fr) 32px; }
-
 /* An assigned slot keeps selection/change on the row and exposes removal as
    a sibling action. The sibling avoids nested interactive controls while
    keeping the destructive action visibly adjacent to the selected item. */

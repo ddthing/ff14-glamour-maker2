@@ -75,11 +75,18 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
           texture: board.dataset.backgroundTexture,
           opacity: style.opacity,
           backgroundImage: style.backgroundImage,
+          textureInk: getComputedStyle(board).getPropertyValue("--texture-ink").trim(),
         };
       }));
     }
     assert.deepEqual(textureRecipes.map(({ texture }) => texture), ["risograph", "dust", "fiber", "halftone"], "new texture choices did not reach the live card");
     assert.ok(textureRecipes.every(({ opacity, backgroundImage }) => Number.parseFloat(opacity) > 0 && backgroundImage !== "none"), `texture overlay recipes are not painted: ${JSON.stringify(textureRecipes)}`);
+    assert.equal(new Set(textureRecipes.map(({ textureInk }) => textureInk)).size, 1, `texture recipes should use one contrast-aware ink: ${JSON.stringify(textureRecipes)}`);
+    assert.equal(textureRecipes[0].textureInk, "#ffffff", `dark solid textures should use the inverse ink: ${JSON.stringify(textureRecipes)}`);
+    assert.ok(
+      textureRecipes.every(({ backgroundImage }) => backgroundImage.includes("color(srgb 1 1 1")),
+      `dark solid texture recipes still contain a second colour: ${JSON.stringify(textureRecipes)}`,
+    );
 
     await page.locator('[data-background="custom"]').click();
     const customControl = await page.evaluate(() => ({
@@ -168,6 +175,133 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.notEqual(checkerboard.backgroundImage, "none", `checkerboard preview has no painted tiles: ${JSON.stringify(checkerboard)}`);
     assert.notEqual(checkerboard.backgroundSize, "auto", `checkerboard preview has no tile size: ${JSON.stringify(checkerboard)}`);
     assert.match(checkerboard.label, /체커보드|Checkerboard|チェッカーボード/);
+
+    const patternPreviewContract = await page.evaluate(() => {
+      const read = (key) => {
+        const preview = document.querySelector(`[data-pattern="${key}"] .background-art-preview`);
+        const style = getComputedStyle(preview);
+        const before = getComputedStyle(preview, "::before");
+        return {
+          backgroundColor: style.backgroundColor,
+          backgroundImage: style.backgroundImage,
+          beforeWidth: before.width,
+          beforeHeight: before.height,
+          beforeBackground: before.backgroundColor,
+          beforeShadow: before.boxShadow,
+          afterDisplay: getComputedStyle(preview, "::after").display,
+        };
+      };
+      return {
+        monochrome: Object.fromEntries(["dots", "stars", "halftone", "bitmap"].map((key) => [key, read(key)])),
+        materials: Object.fromEntries(["collage", "scrapbook"].map((key) => [key, read(key)])),
+        ginghamLabel: document.querySelector('[data-pattern="halftone"] [data-i18n="pattern.halftone"]')?.textContent.trim(),
+      };
+    });
+    const monochromeColors = Object.values(patternPreviewContract.monochrome).map(({ backgroundColor }) => backgroundColor);
+    assert.equal(new Set(monochromeColors).size, 1, `motif previews should share one paper color: ${JSON.stringify(patternPreviewContract)}`);
+    assert.ok(
+      Object.entries(patternPreviewContract.monochrome)
+        .filter(([key]) => key !== "stars")
+        .every(([, preview]) => preview.backgroundImage !== "none"),
+      `motif previews lost their monochrome paint: ${JSON.stringify(patternPreviewContract)}`,
+    );
+    assert.deepEqual(
+      [patternPreviewContract.monochrome.stars.beforeWidth, patternPreviewContract.monochrome.stars.beforeHeight],
+      ["18px", "18px"],
+      "the star thumbnail should show one large star",
+    );
+    assert.equal(patternPreviewContract.monochrome.stars.beforeShadow, "none", "the star thumbnail should not carry secondary motifs");
+    assert.equal(patternPreviewContract.monochrome.stars.afterDisplay, "none", "the star thumbnail should not carry a second pseudo motif");
+    assert.notEqual(
+      patternPreviewContract.materials.collage.backgroundColor,
+      patternPreviewContract.monochrome.dots.backgroundColor,
+      "memory fragments should retain their material color",
+    );
+    assert.notEqual(
+      patternPreviewContract.materials.collage.backgroundColor,
+      patternPreviewContract.materials.scrapbook.backgroundColor,
+      "memory fragments and quiet blue should remain distinguishable",
+    );
+    assert.match(patternPreviewContract.ginghamLabel, /깅엄체크|Gingham Check|ギンガムチェック/);
+
+    const textureColumns = {};
+    for (const width of [1280, 390, 320]) {
+      await page.setViewportSize({ width, height: 900 });
+      textureColumns[width] = await page.locator(".background-texture-grid").evaluate((grid) => {
+        const columns = getComputedStyle(grid).gridTemplateColumns.trim();
+        return columns ? columns.split(/\s+/u).length : 0;
+      });
+    }
+    await page.setViewportSize({ width: 1280, height: 900 });
+    assert.deepEqual(textureColumns, { 1280: 3, 390: 3, 320: 3 }, `texture choices should stay in three columns: ${JSON.stringify(textureColumns)}`);
+
+    const texturePreviewContract = await page.evaluate(() => {
+      const read = (key) => {
+        const preview = document.querySelector(`[data-texture="${key}"] .background-art-preview`);
+        const style = getComputedStyle(preview);
+        return {
+          backgroundColor: style.backgroundColor,
+          backgroundImage: style.backgroundImage,
+          maskImage: style.maskImage,
+        };
+      };
+      return Object.fromEntries(["none", "grain", "risograph", "dust", "fiber", "halftone"].map((key) => [key, read(key)]));
+    });
+    const texturePreviewColors = Object.values(texturePreviewContract).map(({ backgroundColor }) => backgroundColor);
+    assert.equal(new Set(texturePreviewColors).size, 1, `texture previews should share one paper ground: ${JSON.stringify(texturePreviewContract)}`);
+    assert.equal(texturePreviewContract.none.backgroundImage, "none", "the empty texture preview should stay solid");
+    assert.ok(
+      Object.entries(texturePreviewContract)
+        .filter(([key]) => key !== "none")
+        .every(([, preview]) => preview.backgroundImage !== "none" && preview.maskImage === "none"),
+      `texture previews should show a visible mark without a fading mask: ${JSON.stringify(texturePreviewContract)}`,
+    );
+
+    const darkGearCardContract = await page.evaluate(() => {
+      const records = [
+        ["92001", "head", "먹빛 테스트 모자"],
+        ["92002", "body", "차콜 테스트 상의"],
+        ["92003", "hands", "질감 테스트 장갑"],
+        ["92004", "legs", "기록 테스트 바지"],
+        ["92005", "feet", "푸른 테스트 장화"],
+      ];
+      records.forEach(([id, slot, name]) => itemRecordCache.set(id, { id, slot, names: { ko: name, en: name, ja: name } }));
+      const outfit = getSelectedLook().outfits[0];
+      records.forEach(([id, slot]) => { outfit[slot] = id; });
+      const results = [];
+      for (const background of ["ink", "charcoal"]) {
+        state.background = background;
+        state.backgroundPattern = "none";
+        state.backgroundTexture = "none";
+        renderAll();
+        const board = document.querySelector("#canvasBoard");
+        const note = document.querySelector("#boardGearList .board-gear-item");
+        const primary = note?.querySelector(".gear-tile-copy > strong");
+        const slot = note?.querySelector(".gear-slot-label");
+        const read = (element) => element ? getComputedStyle(element) : null;
+        const noteStyle = read(note);
+        const primaryStyle = read(primary);
+        const slotStyle = read(slot);
+        results.push({
+          background,
+          tone: board?.dataset.backgroundTone,
+          noteBackground: noteStyle?.backgroundColor,
+          noteBorder: noteStyle?.borderColor,
+          primaryColor: primaryStyle?.color,
+          slotColor: slotStyle?.color,
+        });
+      }
+      return results;
+    });
+    assert.ok(
+      darkGearCardContract.every(({ tone, noteBackground, noteBorder, primaryColor, slotColor }) =>
+        tone === "dark"
+        && noteBackground === "rgba(29, 34, 40, 0.94)"
+        && noteBorder === "rgba(247, 243, 237, 0.22)"
+        && primaryColor === "rgb(247, 243, 237)"
+        && slotColor === "rgba(247, 243, 237, 0.62)"),
+      `dark solid gear cards lost their inverse readability contract: ${JSON.stringify(darkGearCardContract)}`,
+    );
 
     await page.emulateMedia({ reducedMotion: "reduce" });
     assert.ok(await page.locator("#backgroundArtPanel .background-art-choice").first().evaluate((element) => parseFloat(getComputedStyle(element).transitionDuration) < 0.001), "background cards ignore reduced-motion");

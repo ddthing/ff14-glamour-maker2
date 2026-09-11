@@ -21,12 +21,15 @@ const CardLayout = (() => {
     Object.freeze({ slot: "feet", x: 34, y: 990, width: 370, height: 116 }),
   ]);
   const landscapeSoloGearLayout = Object.freeze([
-    Object.freeze({ slot: "head", x: 24, y: 146, width: 360, height: 82 }),
-    Object.freeze({ slot: "body", x: 24, y: 250, width: 360, height: 82 }),
-    Object.freeze({ slot: "hands", x: 24, y: 354, width: 360, height: 82 }),
-    Object.freeze({ slot: "legs", x: 24, y: 458, width: 360, height: 82 }),
-    Object.freeze({ slot: "feet", x: 24, y: 562, width: 360, height: 82 }),
+    // The landscape solo card keeps the portrait rhythm: odd slots sit on the
+    // left, even slots on the right, leaving the character a visual center.
+    Object.freeze({ slot: "head", x: 28, y: 156, width: 300, height: 92 }),
+    Object.freeze({ slot: "body", x: 872, y: 156, width: 300, height: 92 }),
+    Object.freeze({ slot: "hands", x: 28, y: 292, width: 300, height: 92 }),
+    Object.freeze({ slot: "legs", x: 872, y: 292, width: 300, height: 92 }),
+    Object.freeze({ slot: "feet", x: 28, y: 428, width: 300, height: 92 }),
   ]);
+  const landscapeSoloCharacterFrame = Object.freeze({ x: 342, y: 108, width: 516, height: 532 });
 
   function normaliseCharacterCount(value) {
     return Math.min(5, Math.max(1, Number(value) || 1));
@@ -82,7 +85,7 @@ const CardLayout = (() => {
     if (count === 1) {
       return ratio === "portrait"
         ? [{ x: 95, y: 150, width: 890, height: 1180 }]
-        : [{ x: singleLayout === "info-right" ? 18 : 362, y: 108, width: 820, height: 532 }];
+        : [{ ...landscapeSoloCharacterFrame }];
     }
 
     if (count === 2) {
@@ -116,10 +119,10 @@ const CardLayout = (() => {
     if (Number(characterCount) !== 2) return [];
     const { layoutWidth } = dimensions.landscape;
     const inset = Math.round(layoutWidth * 0.06);
-    const width = Math.round(layoutWidth * 0.19);
-    const y = 150;
-    const itemHeight = 82;
-    const gap = 6;
+    const width = 250;
+    const y = 132;
+    const itemHeight = 90;
+    const gap = 8;
     const height = itemHeight * 5 + gap * 4;
     return [
       { x: inset, y, width, height, itemHeight, gap, textAlign: "left" },

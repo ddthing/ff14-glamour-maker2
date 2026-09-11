@@ -52,7 +52,45 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.ok(Math.abs(left.textLeft - left.blockLeft) < 8, `solo portrait left alignment is not card-relative: ${JSON.stringify(left)}`);
     assert.ok(Math.abs(center.textCenter - center.boardCenter) < 4, `solo portrait center alignment is not card-relative: ${JSON.stringify(center)}`);
     assert.ok(Math.abs(right.textRight - right.blockRight) < 8, `solo portrait right alignment is not card-relative: ${JSON.stringify(right)}`);
-    console.log("PASS: solo portrait title copy is centered to the card.");
+
+    await page.evaluate(() => {
+      state.titleAlign = "auto";
+      renderStyles({ refreshInfo: false, refreshPattern: false });
+    });
+    await page.locator('[data-single-ratio="landscape"]').click();
+    await page.waitForFunction(() => document.querySelector("#canvasBoard")?.dataset.ratio === "landscape");
+    const landscape = await page.evaluate(() => {
+      const boardElement = document.querySelector("#canvasBoard");
+      const header = document.querySelector(".board-editorial-header");
+      const block = document.querySelector("#boardTitle").parentElement;
+      const board = boardElement.getBoundingClientRect();
+      const title = document.querySelector("#boardTitle");
+      const subtitle = document.querySelector("#boardSubtitle");
+      const titleRange = document.createRange();
+      titleRange.selectNodeContents(title);
+      const titleText = titleRange.getBoundingClientRect();
+      const subtitleStyle = getComputedStyle(subtitle);
+      const copy = captureExportCopy().find((entry) => entry.lines.length > 0);
+      return {
+        boardCenter: (board.left + board.right) / 2,
+        blockCenter: (block.getBoundingClientRect().left + block.getBoundingClientRect().right) / 2,
+        titleCenter: (titleText.left + titleText.right) / 2,
+        copyAnchor: copy?.lines[0]?.x,
+        layoutCenter: getExportDimensions().layoutWidth / 2,
+        titleAlign: getComputedStyle(title).textAlign,
+        subtitleAlign: subtitleStyle.textAlign,
+        headerJustify: getComputedStyle(header).justifyContent,
+        blockWidthRatio: block.getBoundingClientRect().width / board.width,
+      };
+    });
+    assert.equal(landscape.titleAlign, "center", `solo landscape should default to centered copy: ${JSON.stringify(landscape)}`);
+    assert.equal(landscape.subtitleAlign, "center", `solo landscape subtitle should follow title alignment: ${JSON.stringify(landscape)}`);
+    assert.equal(landscape.headerJustify, "center", `solo landscape header should use the central editorial gap: ${JSON.stringify(landscape)}`);
+    assert.ok(Math.abs(landscape.blockCenter - landscape.boardCenter) < 4, `solo landscape title box is not centered to the card: ${JSON.stringify(landscape)}`);
+    assert.ok(Math.abs(landscape.titleCenter - landscape.boardCenter) < 4, `solo landscape title copy is not centered to the card: ${JSON.stringify(landscape)}`);
+    assert.ok(Math.abs(landscape.copyAnchor - landscape.layoutCenter) < 4, `solo landscape PNG copy is not centered to the card: ${JSON.stringify(landscape)}`);
+    assert.ok(landscape.blockWidthRatio > .4 && landscape.blockWidthRatio < .5, `solo landscape title box is not ratio-sized: ${JSON.stringify(landscape)}`);
+    console.log("PASS: solo portrait and landscape title copy use card-relative alignment.");
   } finally {
     await browser.close();
   }

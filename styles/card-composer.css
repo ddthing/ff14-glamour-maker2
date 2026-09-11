@@ -552,9 +552,9 @@
 .canvas-board[data-ratio="portrait"][data-cast="1"] .board-gear-item:nth-child(4) { top: 58.5185%; right: 3.1481%; }
 .canvas-board[data-ratio="portrait"][data-cast="1"] .board-gear-item:nth-child(5) { top: 73.3333%; left: 3.1481%; }
 
-/* Keep the supported solo landscape export on the same five fixed notes as
-   the PNG renderer. The older grid fill used a proportional bottom inset,
-   which made the browser preview drift from the saved image. */
+/* Keep the solo landscape export on the same five fixed notes as the PNG
+   renderer. Alternating sides gives the character a visual center instead of
+   pushing every equipment note into one crowded rail. */
 .canvas-board[data-ratio="landscape"][data-cast="1"] .board-gear-list {
   inset: 0 !important;
   display: block !important;
@@ -562,19 +562,27 @@
 
 .canvas-board[data-ratio="landscape"][data-cast="1"] .board-gear-item {
   position: absolute;
-  width: 30%;
-  height: 12.1481%;
+  width: 25%;
+  height: 13.6296%;
 }
 
-.canvas-board[data-ratio="landscape"][data-cast="1"] .board-gear-item:nth-child(1) { top: 21.6296%; left: 2%; }
-.canvas-board[data-ratio="landscape"][data-cast="1"] .board-gear-item:nth-child(2) { top: 37.0370%; left: 2%; }
-.canvas-board[data-ratio="landscape"][data-cast="1"] .board-gear-item:nth-child(3) { top: 52.4444%; left: 2%; }
-.canvas-board[data-ratio="landscape"][data-cast="1"] .board-gear-item:nth-child(4) { top: 67.8519%; left: 2%; }
-.canvas-board[data-ratio="landscape"][data-cast="1"] .board-gear-item:nth-child(5) { top: 83.2593%; left: 2%; }
+.canvas-board[data-ratio="landscape"][data-cast="1"] .board-gear-item:nth-child(1) { top: 23.1111%; left: 2.3333%; }
+.canvas-board[data-ratio="landscape"][data-cast="1"] .board-gear-item:nth-child(2) { top: 23.1111%; right: 2.3333%; }
+.canvas-board[data-ratio="landscape"][data-cast="1"] .board-gear-item:nth-child(3) { top: 43.2593%; left: 2.3333%; }
+.canvas-board[data-ratio="landscape"][data-cast="1"] .board-gear-item:nth-child(4) { top: 43.2593%; right: 2.3333%; }
+.canvas-board[data-ratio="landscape"][data-cast="1"] .board-gear-item:nth-child(5) { top: 63.4074%; left: 2.3333%; }
 
-.canvas-board[data-ratio="landscape"][data-cast="1"][data-single-layout="info-right"] .board-gear-item {
-  right: 2%;
+.canvas-board[data-ratio="landscape"][data-cast="1"][data-single-layout="info-right"] .board-gear-item:nth-child(1),
+.canvas-board[data-ratio="landscape"][data-cast="1"][data-single-layout="info-right"] .board-gear-item:nth-child(3),
+.canvas-board[data-ratio="landscape"][data-cast="1"][data-single-layout="info-right"] .board-gear-item:nth-child(5) {
+  right: 2.3333%;
   left: auto;
+}
+
+.canvas-board[data-ratio="landscape"][data-cast="1"][data-single-layout="info-right"] .board-gear-item:nth-child(2),
+.canvas-board[data-ratio="landscape"][data-cast="1"][data-single-layout="info-right"] .board-gear-item:nth-child(4) {
+  right: auto;
+  left: 2.3333%;
 }
 
 .canvas-board[data-ratio="portrait"][data-cast="1"][data-single-layout="info-right"] .board-gear-item:nth-child(1),
@@ -1467,6 +1475,35 @@
   background: transparent !important;
 }
 
+/* Solo landscape copy belongs to the central editorial gap created by the
+   split equipment notes. Keeping the box ratio-based prevents info-left and
+   info-right from pulling the title/subtitle toward one outer edge. */
+.canvas-board[data-ratio="landscape"][data-cast="1"] .board-editorial-header {
+  justify-content: center;
+  padding: 4.5% 5% 0 !important;
+  text-align: center;
+}
+
+.canvas-board[data-ratio="landscape"][data-cast="1"] .board-editorial-header .board-title-block {
+  width: 100%;
+  max-width: 46%;
+  align-items: stretch;
+}
+
+.canvas-board[data-ratio="landscape"][data-cast="1"] .board-editorial-header .board-title-block > strong {
+  font-family: var(--card-title-font, var(--sans));
+  font-size: clamp(24px, var(--card-title-font-size-scale, 6cqw), 54px);
+  line-height: .93;
+}
+
+.canvas-board[data-ratio="landscape"][data-cast="1"] .board-editorial-header .caption-description {
+  display: block;
+  max-width: 100%;
+  margin-top: 10px;
+  font-size: clamp(8px, 1.15cqw, 14px);
+  line-height: 1.35;
+}
+
 /* Full-frame source screenshots are a single visual field. Let their image
    boxes reach the card edges so the title does not sit above a second,
    unrelated horizontal surface. Text layers remain above the images. */
@@ -1487,14 +1524,13 @@
 }
 
 /* Material overlays stay on the texture axis so they can be combined with
-   any solid, pattern, or image background. The recipes are deliberately
-   restrained: each one adds a printing artifact without turning the card
-   into a full-frame filter. */
+   any solid, pattern, or image background. Every recipe uses one contrast-
+   aware ink so texture reads as a material mark rather than a second palette. */
 .canvas-board[data-background-texture="risograph"] .scene-texture {
   opacity: .15;
   background-image:
-    radial-gradient(circle, color-mix(in srgb, var(--pattern-ink, #686879) 66%, transparent) 0 .9px, transparent 1.45px),
-    radial-gradient(circle, color-mix(in srgb, var(--pattern-light, #f5f1ea) 38%, transparent) 0 .8px, transparent 1.35px);
+    radial-gradient(circle, color-mix(in srgb, var(--texture-ink, #686879) 66%, transparent) 0 .9px, transparent 1.45px),
+    radial-gradient(circle, color-mix(in srgb, var(--texture-ink, #686879) 38%, transparent) 0 .8px, transparent 1.35px);
   background-position: 0 0, 2px 1px;
   background-size: 7px 7px, 8px 8px;
   mix-blend-mode: multiply;
@@ -1503,16 +1539,16 @@
 .canvas-board[data-background-texture="dust"] .scene-texture {
   opacity: .19;
   background-image:
-    radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--pattern-ink, #686879) 62%, transparent) 0 1px, transparent 1.8px),
-    radial-gradient(circle at 76% 27%, color-mix(in srgb, var(--pattern-ink, #686879) 46%, transparent) 0 .75px, transparent 1.55px),
-    radial-gradient(circle at 34% 71%, color-mix(in srgb, var(--pattern-light, #f5f1ea) 72%, transparent) 0 1.1px, transparent 1.9px),
-    radial-gradient(circle at 91% 84%, color-mix(in srgb, var(--pattern-ink, #686879) 42%, transparent) 0 .7px, transparent 1.45px),
-    radial-gradient(circle at 58% 48%, color-mix(in srgb, var(--pattern-ink, #686879) 38%, transparent) 0 .65px, transparent 1.35px),
-    radial-gradient(circle at 22% 91%, color-mix(in srgb, var(--pattern-ink, #686879) 32%, transparent) 0 .7px, transparent 1.4px),
-    radial-gradient(circle, color-mix(in srgb, var(--pattern-ink, #686879) 58%, transparent) 0 .55px, transparent 1.15px),
-    radial-gradient(circle, color-mix(in srgb, var(--pattern-light, #f5f1ea) 54%, transparent) 0 .45px, transparent 1px),
-    repeating-linear-gradient(14deg, transparent 0 64px, color-mix(in srgb, var(--pattern-ink, #686879) 42%, transparent) 64px 65px, transparent 65px 137px),
-    repeating-linear-gradient(102deg, transparent 0 118px, color-mix(in srgb, var(--pattern-light, #f5f1ea) 48%, transparent) 118px 119px, transparent 119px 208px);
+    radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--texture-ink, #686879) 62%, transparent) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 76% 27%, color-mix(in srgb, var(--texture-ink, #686879) 46%, transparent) 0 .75px, transparent 1.55px),
+    radial-gradient(circle at 34% 71%, color-mix(in srgb, var(--texture-ink, #686879) 72%, transparent) 0 1.1px, transparent 1.9px),
+    radial-gradient(circle at 91% 84%, color-mix(in srgb, var(--texture-ink, #686879) 42%, transparent) 0 .7px, transparent 1.45px),
+    radial-gradient(circle at 58% 48%, color-mix(in srgb, var(--texture-ink, #686879) 38%, transparent) 0 .65px, transparent 1.35px),
+    radial-gradient(circle at 22% 91%, color-mix(in srgb, var(--texture-ink, #686879) 32%, transparent) 0 .7px, transparent 1.4px),
+    radial-gradient(circle, color-mix(in srgb, var(--texture-ink, #686879) 58%, transparent) 0 .55px, transparent 1.15px),
+    radial-gradient(circle, color-mix(in srgb, var(--texture-ink, #686879) 54%, transparent) 0 .45px, transparent 1px),
+    repeating-linear-gradient(14deg, transparent 0 64px, color-mix(in srgb, var(--texture-ink, #686879) 42%, transparent) 64px 65px, transparent 65px 137px),
+    repeating-linear-gradient(102deg, transparent 0 118px, color-mix(in srgb, var(--texture-ink, #686879) 48%, transparent) 118px 119px, transparent 119px 208px);
   background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 9px 13px, 0 0, 0 0;
   background-size: auto, auto, auto, auto, auto, auto, 31px 43px, 47px 29px, auto, auto;
   mix-blend-mode: multiply;
@@ -1521,10 +1557,10 @@
 .canvas-board[data-background-texture="fiber"] .scene-texture {
   opacity: .16;
   background-image:
-    repeating-linear-gradient(92deg, color-mix(in srgb, var(--pattern-ink, #686879) 52%, transparent) 0 .65px, transparent .65px 9px),
-    repeating-linear-gradient(4deg, color-mix(in srgb, var(--pattern-light, #f5f1ea) 60%, transparent) 0 .55px, transparent .55px 12px),
-    repeating-linear-gradient(17deg, transparent 0 21px, color-mix(in srgb, var(--pattern-ink, #686879) 26%, transparent) 21px 21.5px, transparent 21.5px 46px),
-    radial-gradient(circle at 24% 38%, color-mix(in srgb, var(--pattern-ink, #686879) 40%, transparent) 0 .55px, transparent 1.2px);
+    repeating-linear-gradient(92deg, color-mix(in srgb, var(--texture-ink, #686879) 52%, transparent) 0 .65px, transparent .65px 9px),
+    repeating-linear-gradient(4deg, color-mix(in srgb, var(--texture-ink, #686879) 60%, transparent) 0 .55px, transparent .55px 12px),
+    repeating-linear-gradient(17deg, transparent 0 21px, color-mix(in srgb, var(--texture-ink, #686879) 26%, transparent) 21px 21.5px, transparent 21.5px 46px),
+    radial-gradient(circle at 24% 38%, color-mix(in srgb, var(--texture-ink, #686879) 40%, transparent) 0 .55px, transparent 1.2px);
   background-position: 0 0, 2px 1px, 0 0, 0 0;
   background-size: 11px 17px, 17px 11px, 41px 47px, 37px 41px;
   mix-blend-mode: multiply;
@@ -1532,7 +1568,7 @@
 
 .canvas-board[data-background-texture="halftone"] .scene-texture {
   opacity: .15;
-  background-image: radial-gradient(circle, color-mix(in srgb, var(--pattern-ink, #686879) 78%, transparent) 0 1.1px, transparent 1.7px);
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--texture-ink, #686879) 78%, transparent) 0 1.1px, transparent 1.7px);
   background-position: 1px 1px;
   background-size: 7px 7px;
   mask-image: linear-gradient(180deg, transparent 0%, rgb(0 0 0 / .2) 16%, #000 58%, rgb(0 0 0 / .78) 100%);

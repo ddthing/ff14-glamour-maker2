@@ -127,7 +127,7 @@ body.canvas-focus-mode .canvas-board[data-ratio="portrait"] {
 }
 
 /* Two-person cards keep each outfit attached to the character it describes.
-   Five compact notes per side are easier to scan than one mixed sequence. */
+   Wider, taller notes give the item name enough room to scan at working size. */
 .canvas-board[data-cast="2"] .portrait-wrap {
   inset: 20% 22% 3% !important;
 }
@@ -196,15 +196,16 @@ body.canvas-focus-mode .canvas-board[data-ratio="portrait"] {
 }
 
 .canvas-board[data-cast="2"] .board-gear-rail .gear-slot-label {
-  font-size: clamp(6px, .7cqw, 9px);
+  font-size: clamp(8px, 1cqw, 12px);
 }
 
 .canvas-board[data-cast="2"] .board-gear-rail .gear-tile-copy strong {
-  font-size: clamp(7px, .88cqw, 11px);
+  font-size: clamp(9px, 1.35cqw, 17px);
+  line-height: 1.16;
 }
 
 .canvas-board[data-cast="2"] .board-gear-rail .gear-item-secondary {
-  font-size: clamp(5px, .58cqw, 8px);
+  font-size: clamp(7px, .84cqw, 10px);
 }
 
 /* Full-frame screenshots have uncontrolled local contrast. Protect only the
@@ -464,8 +465,7 @@ body.image-placement-mode .character-image-actions {
   --recipe-shadow: rgb(107 57 67 / .11);
 }
 
-.canvas-board[data-style="custom"][data-background="ink"],
-.canvas-board[data-style="custom"][data-background="charcoal"] {
+.canvas-board[data-background-tone="dark"][data-background-pattern="none"] {
   --recipe-ink: #f7f3ed;
   --recipe-muted: rgb(247 243 237 / .62);
   --recipe-panel: rgb(29 34 40 / .94);
@@ -530,6 +530,25 @@ body.image-placement-mode .character-image-actions {
 
 .canvas-board[data-style] .board-gear-tiles .gear-tile-copy span,
 .canvas-board[data-style] .board-gear-tiles .gear-item-secondary {
+  color: var(--recipe-muted) !important;
+}
+
+/* Solid dark boards need an explicit inverse information surface. Keep the
+   contract keyed to the rendered tone rather than a particular preset so
+   ink, charcoal, and a dark custom color cannot fall back to dark copy. */
+.canvas-board[data-background-tone="dark"][data-background-pattern="none"] .board-gear-tiles .board-gear-item {
+  border-color: var(--recipe-edge) !important;
+  background: var(--recipe-panel) !important;
+  box-shadow: 0 10px 24px var(--recipe-shadow) !important;
+}
+
+.canvas-board[data-background-tone="dark"][data-background-pattern="none"] .board-gear-tiles .gear-tile-copy,
+.canvas-board[data-background-tone="dark"][data-background-pattern="none"] .board-gear-tiles .gear-tile-copy strong {
+  color: var(--recipe-ink) !important;
+}
+
+.canvas-board[data-background-tone="dark"][data-background-pattern="none"] .board-gear-tiles .gear-tile-copy span,
+.canvas-board[data-background-tone="dark"][data-background-pattern="none"] .board-gear-tiles .gear-item-secondary {
   color: var(--recipe-muted) !important;
 }
 
