@@ -130,6 +130,125 @@ function populateTitleFontSelect() {
     });
     select.dataset.ready = "true";
   });
+  populateTextEditorFontMenu();
+}
+
+function populateTextEditorFontMenu() {
+  const menu = document.getElementById("textEditorFontMenu");
+  if (!menu || menu.dataset.ready === "true") return;
+  const fragment = document.createDocumentFragment();
+  titleFontOrder.forEach((fontKey) => {
+    const option = document.createElement("button");
+    option.className = "text-editor-dock-font-option";
+    option.type = "button";
+    option.id = `textEditorFontOption-${fontKey}`;
+    option.dataset.fontKey = fontKey;
+    option.setAttribute("role", "option");
+    option.setAttribute("aria-selected", "false");
+    option.tabIndex = -1;
+    option.textContent = titleFonts[fontKey].label;
+    option.style.fontFamily = titleFonts[fontKey].family;
+    fragment.appendChild(option);
+  });
+  menu.appendChild(fragment);
+  menu.dataset.ready = "true";
+}
+
+function getTextEditorFontMenuOptions() {
+  return [...document.querySelectorAll("#textEditorFontMenu [role=\"option\"]")];
+}
+
+function closeTextEditorFontMenu({ restoreFocus = false } = {}) {
+  const trigger = document.getElementById("textEditorFontTrigger");
+  const menu = document.getElementById("textEditorFontMenu");
+  if (!trigger || !menu) return;
+  menu.hidden = true;
+  trigger.setAttribute("aria-expanded", "false");
+  if (restoreFocus) trigger.focus({ preventScroll: true });
+}
+
+function setTextEditorFontMenuOpen(open, { focusIndex = null } = {}) {
+  const trigger = document.getElementById("textEditorFontTrigger");
+  const menu = document.getElementById("textEditorFontMenu");
+  if (!trigger || !menu) return;
+  const nextOpen = Boolean(open);
+  menu.hidden = !nextOpen;
+  trigger.setAttribute("aria-expanded", String(nextOpen));
+  if (nextOpen) {
+    positionTextEditorFontMenu();
+    if (focusIndex === null) {
+      getTextEditorFontMenuOptions().find((option) => option.getAttribute("aria-selected") === "true")?.scrollIntoView({ block: "nearest" });
+    }
+  }
+  if (!nextOpen || focusIndex === null) return;
+  const options = getTextEditorFontMenuOptions();
+  const option = options[focusIndex];
+  option?.focus({ preventScroll: true });
+  option?.scrollIntoView({ block: "nearest" });
+}
+
+function positionTextEditorFontMenu() {
+  const trigger = document.getElementById("textEditorFontTrigger");
+  const menu = document.getElementById("textEditorFontMenu");
+  if (!trigger || !menu || menu.hidden) return;
+  const triggerRect = trigger.getBoundingClientRect();
+  const viewportGutter = 16;
+  const menuWidth = Math.min(252, Math.max(0, window.innerWidth - (viewportGutter * 2)));
+  const menuMaxHeight = Math.min(320, Math.max(160, window.innerHeight - 180));
+  const left = Math.max(viewportGutter, Math.min(triggerRect.left, window.innerWidth - menuWidth - viewportGutter));
+  const belowTop = triggerRect.bottom + 6;
+  const opensAbove = belowTop + menuMaxHeight > window.innerHeight - viewportGutter && triggerRect.top - 6 - menuMaxHeight >= viewportGutter;
+  const maxTop = Math.max(viewportGutter, window.innerHeight - menuMaxHeight - viewportGutter);
+  const top = opensAbove ? triggerRect.top - 6 - menuMaxHeight : Math.min(belowTop, maxTop);
+  menu.style.left = `${left}px`;
+  menu.style.top = `${Math.max(viewportGutter, top)}px`;
+}
+
+function focusTextEditorFontOption(index) {
+  const options = getTextEditorFontMenuOptions();
+  if (!options.length) return;
+  const selectedIndex = options.findIndex((option) => option.getAttribute("aria-selected") === "true");
+  const fallbackIndex = selectedIndex >= 0 ? selectedIndex : 0;
+  const nextIndex = Math.max(0, Math.min(options.length - 1, Number.isFinite(index) ? index : fallbackIndex));
+  options[nextIndex].focus({ preventScroll: true });
+  options[nextIndex].scrollIntoView({ block: "nearest" });
+}
+
+function moveTextEditorFontOption(direction) {
+  const options = getTextEditorFontMenuOptions();
+  if (!options.length) return;
+  const currentIndex = options.indexOf(document.activeElement);
+  const selectedIndex = options.findIndex((option) => option.getAttribute("aria-selected") === "true");
+  const baseIndex = currentIndex >= 0 ? currentIndex : (selectedIndex >= 0 ? selectedIndex : 0);
+  focusTextEditorFontOption(baseIndex + direction);
+}
+
+function commitTextEditorFont(fontKey) {
+  const select = document.getElementById("textEditorFontSelect");
+  if (!select || !titleFonts[fontKey]) return;
+  if (select.value !== fontKey) {
+    select.value = fontKey;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  closeTextEditorFontMenu({ restoreFocus: true });
+}
+
+function syncTextEditorFontPicker(fontKey, fontConfig) {
+  populateTextEditorFontMenu();
+  const trigger = document.getElementById("textEditorFontTrigger");
+  const triggerLabel = document.getElementById("textEditorFontTriggerLabel");
+  const menu = document.getElementById("textEditorFontMenu");
+  if (!trigger || !triggerLabel || !menu) return;
+  triggerLabel.textContent = fontConfig.label;
+  trigger.style.fontFamily = fontConfig.family;
+  trigger.setAttribute("aria-label", `${t("copy.dockFont")}: ${fontConfig.label}`);
+  menu.setAttribute("aria-label", t("copy.dockFont"));
+  menu.querySelectorAll('[role="option"]').forEach((option) => {
+    const selected = option.dataset.fontKey === fontKey;
+    option.setAttribute("aria-selected", String(selected));
+    option.classList.toggle("is-selected", selected);
+    option.tabIndex = selected ? 0 : -1;
+  });
 }
 
 function syncTitleFontControls() {
@@ -213,6 +332,7 @@ function syncTextEditorDock() {
   dock.hidden = !visible;
   if (!visible) {
     closeTextEditorMoreMenu();
+    closeTextEditorFontMenu();
     return;
   }
 
@@ -239,6 +359,7 @@ function syncTextEditorDock() {
     fontSelect.value = style.fontKey;
     fontSelect.style.fontFamily = style.fontConfig.family;
   }
+  syncTextEditorFontPicker(style.fontKey, style.fontConfig);
   if (boldButton) {
     const canToggleWeight = style.fontConfig.weights.length > 1;
     boldButton.disabled = !canToggleWeight;
@@ -479,8 +600,9 @@ function getSilhouetteInfoTheme(background) {
   return ColorContrast.themeFor(background?.solid);
 }
 
-// One filled five-point star is shared by the live preview and PNG export.
-// Keeping one geometry prevents the preview and downloaded card from drifting.
+// A varied star field is shared by the live preview and PNG export. Keeping
+// the motif positions and geometry data in one place prevents the preview and
+// downloaded card from drifting apart.
 const patternStars = [
   { x: 6, y: 8, size: 4.6, rotate: -4, tone: "ink", opacity: 0.62 },
   { x: 18, y: 18, size: 3, rotate: 5, tone: "light", opacity: 0.68 },
@@ -513,6 +635,53 @@ const patternStars = [
   { x: 56, y: 94, size: 3, rotate: 5, tone: "ink", opacity: 0.44 },
   { x: 74, y: 90, size: 4.6, rotate: -3, tone: "light", opacity: 0.6 },
   { x: 90, y: 94, size: 3.4, rotate: 4, tone: "ink", opacity: 0.48 },
+  { x: 3, y: 5, size: 1.1, rotate: 0, tone: "light", shape: "dot", opacity: 0.52 },
+  { x: 14, y: 5, size: 2.3, rotate: 8, tone: "ink", shape: "sparkle", opacity: 0.52 },
+  { x: 25, y: 5, size: 4.8, rotate: -5, tone: "light", shape: "outline", opacity: 0.62 },
+  { x: 37, y: 5, size: 1.4, rotate: 0, tone: "ink", shape: "dot", opacity: 0.42 },
+  { x: 50, y: 5, size: 7.4, rotate: -4, tone: "ink", shape: "star", opacity: 0.58 },
+  { x: 63, y: 5, size: 2.2, rotate: 0, tone: "light", shape: "ring", opacity: 0.54 },
+  { x: 76, y: 5, size: 5.4, rotate: 6, tone: "light", shape: "star", opacity: 0.54 },
+  { x: 89, y: 5, size: 3.6, rotate: -8, tone: "ink", shape: "outline", opacity: 0.56 },
+  { x: 98, y: 5, size: 1.2, rotate: 0, tone: "light", shape: "dot", opacity: 0.46 },
+  { x: 7, y: 24, size: 2.8, rotate: 4, tone: "ink", shape: "outline", opacity: 0.5 },
+  { x: 19, y: 24, size: 1.4, rotate: 0, tone: "light", shape: "dot", opacity: 0.4 },
+  { x: 31, y: 24, size: 4.2, rotate: -6, tone: "ink", shape: "star", opacity: 0.52 },
+  { x: 43, y: 24, size: 2.4, rotate: 11, tone: "light", shape: "sparkle", opacity: 0.56 },
+  { x: 56, y: 24, size: 3.2, rotate: 4, tone: "ink", shape: "outline", opacity: 0.48 },
+  { x: 69, y: 24, size: 1.5, rotate: 0, tone: "light", shape: "dot", opacity: 0.42 },
+  { x: 82, y: 24, size: 3.5, rotate: -8, tone: "ink", shape: "sparkle", opacity: 0.5 },
+  { x: 94, y: 24, size: 2.6, rotate: 6, tone: "light", shape: "outline", opacity: 0.58 },
+  { x: 4, y: 43, size: 2, rotate: 0, tone: "ink", shape: "ring", opacity: 0.5 },
+  { x: 17, y: 43, size: 4.6, rotate: -4, tone: "light", shape: "star", opacity: 0.56 },
+  { x: 31, y: 43, size: 1.2, rotate: 0, tone: "ink", shape: "dot", opacity: 0.38 },
+  { x: 47, y: 43, size: 3, rotate: 7, tone: "light", shape: "outline", opacity: 0.52 },
+  { x: 62, y: 43, size: 6, rotate: -6, tone: "ink", shape: "star", opacity: 0.5 },
+  { x: 78, y: 43, size: 1.6, rotate: 0, tone: "light", shape: "dot", opacity: 0.44 },
+  { x: 91, y: 43, size: 4, rotate: 5, tone: "ink", shape: "star", opacity: 0.52 },
+  { x: 5, y: 62, size: 3.2, rotate: -7, tone: "light", shape: "sparkle", opacity: 0.48 },
+  { x: 18, y: 62, size: 2.3, rotate: 0, tone: "ink", shape: "ring", opacity: 0.46 },
+  { x: 30, y: 62, size: 3.6, rotate: 5, tone: "light", shape: "outline", opacity: 0.52 },
+  { x: 43, y: 62, size: 1.5, rotate: 0, tone: "ink", shape: "dot", opacity: 0.42 },
+  { x: 56, y: 62, size: 5.2, rotate: -4, tone: "light", shape: "star", opacity: 0.56 },
+  { x: 70, y: 62, size: 2.8, rotate: 9, tone: "ink", shape: "sparkle", opacity: 0.46 },
+  { x: 85, y: 62, size: 4.4, rotate: -6, tone: "light", shape: "outline", opacity: 0.58 },
+  { x: 98, y: 62, size: 1.1, rotate: 0, tone: "ink", shape: "dot", opacity: 0.38 },
+  { x: 9, y: 80, size: 6.5, rotate: 5, tone: "ink", shape: "star", opacity: 0.52 },
+  { x: 23, y: 80, size: 1.2, rotate: 0, tone: "light", shape: "dot", opacity: 0.4 },
+  { x: 37, y: 80, size: 3, rotate: -7, tone: "ink", shape: "outline", opacity: 0.48 },
+  { x: 50, y: 80, size: 2.1, rotate: 0, tone: "light", shape: "ring", opacity: 0.44 },
+  { x: 64, y: 80, size: 4.8, rotate: -4, tone: "light", shape: "star", opacity: 0.54 },
+  { x: 78, y: 80, size: 1.4, rotate: 0, tone: "ink", shape: "dot", opacity: 0.42 },
+  { x: 91, y: 80, size: 3.2, rotate: 8, tone: "light", shape: "sparkle", opacity: 0.52 },
+  { x: 3, y: 97, size: 1, rotate: 0, tone: "light", shape: "dot", opacity: 0.38 },
+  { x: 16, y: 97, size: 3.8, rotate: -5, tone: "ink", shape: "outline", opacity: 0.52 },
+  { x: 29, y: 97, size: 5.8, rotate: 4, tone: "light", shape: "star", opacity: 0.58 },
+  { x: 44, y: 97, size: 2.6, rotate: -10, tone: "ink", shape: "sparkle", opacity: 0.46 },
+  { x: 58, y: 97, size: 1.3, rotate: 0, tone: "light", shape: "dot", opacity: 0.4 },
+  { x: 73, y: 97, size: 4.3, rotate: 6, tone: "ink", shape: "outline", opacity: 0.56 },
+  { x: 88, y: 97, size: 6.1, rotate: -5, tone: "ink", shape: "star", opacity: 0.5 },
+  { x: 98, y: 97, size: 1.8, rotate: 0, tone: "light", shape: "ring", opacity: 0.48 },
 ];
 
 const backgroundPatternOptions = new Set(["none", "dots", "stars", "halftone", "bitmap", "collage", "scrapbook"]);
@@ -521,7 +690,7 @@ const backgroundSurfaceAssets = Object.freeze({
   collage: CardMaterials.get("collage").asset,
   scrapbook: CardMaterials.get("scrapbook").asset,
 });
-const backgroundTextureOptions = new Set(["none", "grain"]);
+const backgroundTextureOptions = new Set(["none", "grain", "risograph", "dust", "fiber", "halftone"]);
 const storageNamespace = "tuyeong-set-maker2";
 const languagePreferenceStorageKey = `${storageNamespace}-language-v1`;
 const draftStorageKey = `${storageNamespace}-draft-v3`;
@@ -801,7 +970,7 @@ const state = {
   imageSrc: "",
   originalSrc: "",
   fileName: "사진 미선택",
-  fileMeta: "PNG · JPG · WebP · 여러 장 선택 가능",
+  fileMeta: "PNG · JPG · WebP · 여러 장을 한 번에 선택할 수 있어요",
   history: [],
   redo: [],
 };
@@ -1274,8 +1443,13 @@ function resolveCharacterAsset(character, role = "hero") {
   return resolver(character);
 }
 
-function getCanvasRatio() {
-  return CardLayout.ratioFor(state.characterCount, state.singleRatio);
+function getCardLayout(source = state) {
+  return CardLayout.layoutFor({
+    characterCount: source.characterCount,
+    singleRatio: source.singleRatio,
+    singleLayout: source.singleLayout,
+    characters: source.characters,
+  });
 }
 
 function getBackgroundSurfaceCss(background) {
@@ -1306,8 +1480,8 @@ function restoreBackgroundStyle(pattern, legacyMotif = "none", texture = "none")
   state.backgroundTexture = backgroundTextureOptions.has(restoredTexture) ? restoredTexture : "none";
 }
 
-function getExportDimensions() {
-  return CardLayout.dimensionsFor(state.characterCount, state.singleRatio);
+function getExportDimensions(source = state) {
+  return getCardLayout(source).dimensions;
 }
 
 function rgba(hex, alpha) {
@@ -1464,26 +1638,7 @@ function defaultTitleColor() {
 }
 
 function serializeCharacter(character = {}) {
-  const normalized = {
-    ...LookEditor.emptyCharacter(),
-    ...character,
-    assetKey: typeof character.assetKey === "string" && character.assetKey.length <= 160 ? character.assetKey : null,
-    fileName: typeof character.fileName === "string" ? character.fileName.slice(0, 160) : "이미지를 추가하세요",
-    fileMeta: typeof character.fileMeta === "string" ? character.fileMeta.slice(0, 240) : "PNG, JPG 또는 WebP · 아직 선택하지 않음",
-    cutout: character.cutout === true,
-  };
-  LookEditor.normalizeCharacter(normalized);
-  return {
-    assetKey: normalized.assetKey,
-    fileName: normalized.fileName,
-    fileMeta: normalized.fileMeta,
-    cutout: normalized.cutout,
-    imageFit: normalized.imageFit,
-    zoom: normalized.zoom,
-    panX: normalized.panX,
-    panY: normalized.panY,
-    focalPoint: normalized.focalPoint ? { ...normalized.focalPoint } : null,
-  };
+  return LookEditor.serializeCharacter(character);
 }
 
 
@@ -1668,51 +1823,14 @@ function flushScheduledSaveState() {
 function createDraftSnapshot() {
   const look = getSelectedLook();
   syncStateIntoLook(look);
-  return {
-    version: 3,
+  return DraftSchema.create({
     looks: looks.map(serializeLook),
-    title: look.title,
-    subtitle: look.subtitle,
-    background: state.background,
-    customBackgroundColor: normaliseHexColor(state.customBackgroundColor, customBackgroundDefault),
-    cutout: state.cutout,
-    outline: normaliseOutline(state.outline, "#f1dfbb", 8),
-    titleOutline: normaliseOutline(state.titleOutline, "#ffffff", 6),
-    shadow: LookEditor.normalizeShadow(state.shadow),
-    zoom: state.zoom,
-    panX: state.panX,
-    panY: state.panY,
-    language: state.language,
     selectedLookId: state.selectedLookId,
-    characterCount: state.characterCount,
-    selectedCharacter: state.selectedCharacter,
-    outfits: cloneOutfits(getLookOutfits(look)),
+    language: state.language,
     // Search results are ephemeral. Persist only records referenced by a
     // saved outfit; otherwise every search grows the localStorage draft.
     catalogItems: getPersistedItemRecords(),
-    multiInfoEnabled: state.multiInfoEnabled,
-    multiInfoMode: state.multiInfoMode,
-    titleFont: state.titleFont,
-    titleWeight: state.titleWeight,
-    titleFontSize: normaliseTitleFontSize(state.titleFontSize),
-    titleItalic: normaliseTitleBoolean(state.titleItalic),
-    titleUnderline: normaliseTitleBoolean(state.titleUnderline),
-    titleUppercase: normaliseTitleBoolean(state.titleUppercase),
-    titleAlign: normaliseTitleAlign(state.titleAlign),
-    titleColor: normaliseOptionalHexColor(state.titleColor),
-    subtitleFont: titleFonts[state.subtitleFont] ? state.subtitleFont : defaultTitleFont,
-    subtitleWeight: normaliseTitleWeight(state.subtitleFont || defaultTitleFont, state.subtitleWeight ?? defaultSubtitleWeight),
-    subtitleFontSize: normaliseSubtitleFontSize(state.subtitleFontSize),
-    subtitleItalic: normaliseTitleBoolean(state.subtitleItalic),
-    subtitleUnderline: normaliseTitleBoolean(state.subtitleUnderline),
-    subtitleUppercase: normaliseTitleBoolean(state.subtitleUppercase),
-    subtitleColor: normaliseOptionalHexColor(state.subtitleColor),
-    singleRatio: state.singleRatio,
-    singleLayout: state.singleLayout,
-    backgroundPattern: state.backgroundPattern,
-    backgroundTexture: state.backgroundTexture,
-    characters: state.characters.map(serializeCharacter),
-  };
+  });
 }
 
 function finishDraftSave(run, saveSequence, failed = false) {
@@ -1818,9 +1936,12 @@ function syncHistoryControls() {
 }
 
 function recordHistory(snapshot = createSnapshot()) {
-  state.history.push(snapshot);
-  if (state.history.length > 25) state.history.shift();
-  state.redo = [];
+  EditorHistory.record({
+    history: state.history,
+    redo: state.redo,
+    snapshot,
+    limit: EditorHistory.defaultLimit,
+  });
   syncHistoryControls();
 }
 
@@ -1918,13 +2039,7 @@ function restoreSnapshot(snapshot) {
   if (["info-left", "info-right"].includes(snapshot.singleLayout)) state.singleLayout = snapshot.singleLayout;
   restoreBackgroundStyle(snapshot.backgroundPattern, snapshot.backgroundMotif, snapshot.backgroundTexture);
   if (Array.isArray(snapshot.characters)) {
-    state.characters = snapshot.characters.slice(0, 5).map((character) => {
-      const copy = { ...character };
-      LookEditor.normalizeCharacter(copy);
-      copy.cutout = character.cutout === true;
-      return copy;
-    });
-    while (state.characters.length < 5) state.characters.push(LookEditor.emptyCharacter());
+    state.characters = LookEditor.captureCharacters(snapshot.characters);
     syncSelectedCharacter();
   }
   if (Array.isArray(snapshot.outfits)) {
@@ -1936,23 +2051,39 @@ function restoreSnapshot(snapshot) {
 }
 
 function undo() {
-  const previous = state.history.pop();
+  if (!state.history.length) {
+    showToast(t("toast.undoEmpty"));
+    return;
+  }
+  const previous = EditorHistory.undo({
+    history: state.history,
+    redo: state.redo,
+    current: createSnapshot(),
+    limit: EditorHistory.defaultLimit,
+  });
   if (!previous) {
     showToast(t("toast.undoEmpty"));
     return;
   }
-  state.redo.push(createSnapshot());
   restoreSnapshot(previous);
   showToast(t("toast.undo"));
 }
 
 function redo() {
-  const next = state.redo.pop();
+  if (!state.redo.length) {
+    showToast(t("toast.redoEmpty"));
+    return;
+  }
+  const next = EditorHistory.redo({
+    history: state.history,
+    redo: state.redo,
+    current: createSnapshot(),
+    limit: EditorHistory.defaultLimit,
+  });
   if (!next) {
     showToast(t("toast.redoEmpty"));
     return;
   }
-  state.history.push(createSnapshot());
   restoreSnapshot(next);
   showToast(t("toast.redo"));
 }
@@ -2436,8 +2567,8 @@ function renderPattern() {
   elements.scenePattern.removeAttribute("data-motif");
   elements.scenePattern.removeAttribute("data-intensity");
   const stars = state.backgroundPattern === "stars" ? patternStars : [];
-  elements.scenePattern.innerHTML = stars.map(({ x, y, size, rotate, tone, opacity }) =>
-    `<i class="pattern-motif pattern-motif--star pattern-motif--${tone}" style="--x:${x}%;--y:${y}%;--size:${size}cqw;--rotate:${rotate}deg;--motif-opacity:${opacity}"><span></span></i>`
+  elements.scenePattern.innerHTML = stars.map(({ x, y, size, rotate, tone, shape = "star", opacity }) =>
+    `<i class="pattern-motif pattern-motif--${shape} pattern-motif--${tone}" style="--x:${x}%;--y:${y}%;--size:${size}cqw;--rotate:${rotate}deg;--motif-opacity:${opacity}"><span></span>${shape === "outline" ? '<span class="pattern-motif__inner"></span>' : ""}</i>`
   ).join("");
 }
 
@@ -2498,6 +2629,7 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
   };
   elements.board.style.setProperty("--pattern-opacity", patternOpacity[state.backgroundPattern] ?? 0);
   elements.board.dataset.background = state.background;
+  elements.board.dataset.backgroundTone = ColorContrast.themeFor(background.solid).foreground === "#ffffff" ? "dark" : "light";
   elements.board.dataset.backgroundPattern = state.backgroundPattern;
   elements.board.dataset.backgroundTexture = state.backgroundTexture;
   elements.board.removeAttribute("data-background-motif");
@@ -2531,10 +2663,11 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
   // Background choices own only the three direct axes. Keep card typography,
   // geometry, and information notes on one stable visual system.
   elements.board.dataset.style = "custom";
-  elements.board.dataset.ratio = getCanvasRatio();
+  const cardLayout = getCardLayout();
+  elements.board.dataset.ratio = cardLayout.ratio;
   elements.board.dataset.singleLayout = state.singleLayout;
   const twoPersonRails = CardLayout.infoRails({ characterCount: 2 });
-  const twoPersonDimensions = CardLayout.dimensionsFor(2, "landscape");
+  const twoPersonDimensions = CardLayout.layoutFor({ characterCount: 2 }).dimensions;
   const [leftInfoRail, rightInfoRail] = twoPersonRails;
   elements.board.style.setProperty("--two-info-rail-left", `${(leftInfoRail.x / twoPersonDimensions.layoutWidth) * 100}%`);
   elements.board.style.setProperty("--two-info-rail-right", `${((twoPersonDimensions.layoutWidth - rightInfoRail.x - rightInfoRail.width) / twoPersonDimensions.layoutWidth) * 100}%`);
@@ -2542,15 +2675,9 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
   elements.board.style.setProperty("--two-info-rail-top", `${(leftInfoRail.y / twoPersonDimensions.layoutHeight) * 100}%`);
   elements.board.style.setProperty("--two-info-rail-height", `${(leftInfoRail.height / twoPersonDimensions.layoutHeight) * 100}%`);
   elements.board.style.setProperty("--two-info-rail-gap", `${(leftInfoRail.gap / twoPersonDimensions.layoutWidth) * 100}cqw`);
-  const characterFrames = CardLayout.characterFrames({
-    characterCount: state.characterCount,
-    singleRatio: state.singleRatio,
-    singleLayout: state.singleLayout,
-    characters: activeCharacters,
-  });
   elements.portraitWrap.style.setProperty(
     "inset",
-    CardLayout.cssInsetFor(characterFrames, state.characterCount, state.singleRatio),
+    CardLayout.cssInsetForLayout(cardLayout),
     "important",
   );
   const titleFontConfig = getTitleFontConfig(state.titleFont);
@@ -3110,7 +3237,7 @@ function selectLook(id) {
   getSelectedLook().redo = state.redo;
   state.selectedLookId = nextLook.id;
   const editor = nextLook.editor || defaultLookEditor();
-  Object.assign(state, editor, { characters: editor.characters.map(character => ({ ...character })), shadow: { ...editor.shadow } });
+  Object.assign(state, editor, { characters: LookEditor.captureCharacters(editor.characters), shadow: { ...editor.shadow } });
   state.background = backgrounds[nextLook.background] ? nextLook.background : "paper";
   state.customBackgroundColor = normaliseHexColor(nextLook.customBackgroundColor, customBackgroundDefault);
   restoreBackgroundStyle(nextLook.backgroundPattern, nextLook.backgroundMotif, nextLook.backgroundTexture);
@@ -3627,6 +3754,51 @@ let exportInProgress = false;
 function exportRevision() {
   return JSON.stringify([workspaceEpoch, state.selectedLookId, state.language, createSnapshot()]);
 }
+
+function captureExportTextLines(element, board, viewScale, scale, {
+  textAlign = "left",
+  uppercase = false,
+  trim = false,
+  skipEmptyRects = false,
+} = {}) {
+  const lines = [];
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  let node;
+  while ((node = walker.nextNode())) {
+    for (let index = 0; index < node.length; index += 1) {
+      const range = document.createRange();
+      range.setStart(node, index);
+      range.setEnd(node, index + 1);
+      const rect = range.getBoundingClientRect();
+      if (skipEmptyRects && !rect.width && !rect.height) continue;
+      let line = lines.find((item) => Math.abs(item.top - rect.top) < 1);
+      if (!line) {
+        line = {
+          text: "",
+          top: rect.top,
+          left: rect.left,
+          right: rect.right,
+          y: ((rect.top - board.top) / viewScale) * scale,
+          height: (rect.height / viewScale) * scale,
+        };
+        lines.push(line);
+      } else {
+        line.left = Math.min(line.left, rect.left);
+        line.right = Math.max(line.right, rect.right);
+        line.height = Math.max(line.height, (rect.height / viewScale) * scale);
+      }
+      const character = node.textContent[index];
+      line.text += uppercase ? character.toUpperCase() : character;
+    }
+  }
+  const positionedLines = lines.map(({ left, right, ...line }) => ({
+    ...line,
+    text: trim ? line.text.trim() : line.text,
+    x: (((textAlign === "right" ? right : textAlign === "center" ? (left + right) / 2 : left) - board.left) / viewScale) * scale,
+  }));
+  return trim ? positionedLines.filter((line) => line.text) : positionedLines;
+}
+
 function captureExportCopy() {
   const board = elements.board.getBoundingClientRect();
   const viewScale = getCanvasViewScale();
@@ -3639,31 +3811,8 @@ function captureExportCopy() {
     const style = getComputedStyle(element);
     const textAlign = ["left", "center", "right"].includes(style.textAlign) ? style.textAlign : "left";
     const uppercaseCopy = style.textTransform === "uppercase";
-    const lines = [];
-    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-    let node;
-    while ((node = walker.nextNode())) {
-      for (let index = 0; index < node.length; index++) {
-        const range = document.createRange(); range.setStart(node, index); range.setEnd(node, index + 1);
-        const rect = range.getBoundingClientRect();
-        let line = lines.find(item => Math.abs(item.top - rect.top) < 1);
-        if (!line) {
-          line = { text: "", top: rect.top, left: rect.left, right: rect.right, y: ((rect.top - board.top) / viewScale) * scale, height: (rect.height / viewScale) * scale };
-          lines.push(line);
-        } else {
-          line.left = Math.min(line.left, rect.left);
-          line.right = Math.max(line.right, rect.right);
-          line.height = Math.max(line.height, (rect.height / viewScale) * scale);
-        }
-        const character = node.textContent[index];
-        line.text += uppercaseCopy ? character.toUpperCase() : character;
-      }
-    }
-    const positionedLines = lines.map(({ left, right, ...line }) => ({
-      ...line,
-      x: (((textAlign === "right" ? right : textAlign === "center" ? (left + right) / 2 : left) - board.left) / viewScale) * scale,
-    }));
-    return { lines: positionedLines, textAlign, font: `${style.fontWeight} ${parseFloat(style.fontSize) * scale}px ${style.fontFamily}`,
+    const lines = captureExportTextLines(element, board, viewScale, scale, { textAlign, uppercase: uppercaseCopy });
+    return { lines, textAlign, font: `${style.fontWeight} ${parseFloat(style.fontSize) * scale}px ${style.fontFamily}`,
       color: style.color, opacity: Number.parseFloat(style.opacity) || 1,
       stroke: element === elements.boardTitle ? state.titleOutline.width * scale : 0,
       strokeColor: state.titleOutline.color, letterSpacing: (parseFloat(style.letterSpacing) || 0) * scale,
@@ -3677,36 +3826,15 @@ function captureExportTextElement(element, board, viewScale, scale, fallbackAlig
   const style = getComputedStyle(element);
   const textAlign = ["left", "center", "right"].includes(style.textAlign) ? style.textAlign : fallbackAlign;
   const uppercaseCopy = style.textTransform === "uppercase";
-  const lines = [];
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  let node;
-  while ((node = walker.nextNode())) {
-    for (let index = 0; index < node.length; index += 1) {
-      const range = document.createRange();
-      range.setStart(node, index);
-      range.setEnd(node, index + 1);
-      const rect = range.getBoundingClientRect();
-      if (!rect.width && !rect.height) continue;
-      let line = lines.find((item) => Math.abs(item.top - rect.top) < 1);
-      if (!line) {
-        line = { text: "", top: rect.top, left: rect.left, right: rect.right, y: ((rect.top - board.top) / viewScale) * scale, height: (rect.height / viewScale) * scale };
-        lines.push(line);
-      } else {
-        line.left = Math.min(line.left, rect.left);
-        line.right = Math.max(line.right, rect.right);
-        line.height = Math.max(line.height, (rect.height / viewScale) * scale);
-      }
-      const character = node.textContent[index];
-      line.text += uppercaseCopy ? character.toUpperCase() : character;
-    }
-  }
+  const lines = captureExportTextLines(element, board, viewScale, scale, {
+    textAlign,
+    uppercase: uppercaseCopy,
+    trim: true,
+    skipEmptyRects: true,
+  });
   const fontSize = Number.parseFloat(style.fontSize) || 16;
   return {
-    lines: lines.map(({ left, right, ...line }) => ({
-      ...line,
-      text: line.text.trim(),
-      x: (((textAlign === "right" ? right : textAlign === "center" ? (left + right) / 2 : left) - board.left) / viewScale) * scale,
-    })).filter((line) => line.text),
+    lines,
     textAlign,
     font: `${style.fontWeight} ${fontSize * scale}px ${style.fontFamily}`,
     color: style.color,
@@ -3736,9 +3864,7 @@ function captureExportGearInfo(gear, snapshot, dimensions) {
     const copy = note?.querySelector(":scope > .gear-tile-copy");
     const primary = copy?.querySelector(":scope > strong");
     if (!note || !copy || !primary) return item;
-    const noteAlign = snapshot.characterCount === 2
-      ? (note.closest(".board-gear-rail--right") ? "right" : "left")
-      : fallbackAlign;
+    const noteAlign = snapshot.characterCount === 2 ? "left" : fallbackAlign;
     const slot = captureExportTextElement(copy.querySelector(":scope > .gear-slot-label"), board, viewScale, scale, noteAlign);
     const primaryCopy = captureExportTextElement(primary, board, viewScale, scale, noteAlign);
     const secondaryCopy = captureExportTextElement(copy.querySelector(":scope > .gear-item-secondary"), board, viewScale, scale, noteAlign);
@@ -3848,7 +3974,8 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
   if (exportInProgress) return;
   const state = snapshot;
   const look = { ...getSelectedLook(), outfits: cloneOutfits(getLookOutfits(getSelectedLook())) };
-  const dimensions = getExportDimensions();
+  const layout = getCardLayout(state);
+  const dimensions = layout.dimensions;
   const background = getBackgroundTheme(state);
   const exportTheme = getExportTheme(state);
   let gear = state.characters.map((character, index) => getCharacterItemIds(index, look).map(getItem).filter(Boolean).map(item => ({
@@ -3896,7 +4023,7 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
     const board = elements.board.getBoundingClientRect();
     const layoutBoardWidth = board.width / getCanvasViewScale();
     const placementScale = layoutBoardWidth > 0 ? dimensions.layoutWidth / layoutBoardWidth : 1;
-    const outputBlob = await CardPng.render({ state, dimensions, exportTheme,
+    const outputBlob = await CardPng.render({ state, layout, dimensions, exportTheme,
       background, patternStars, images, backgroundImage, copyLayout, gear,
       placementScale, outlineColor: rgba(state.outline.color, 0.8), infoTextColor: infoTextTheme.foreground,
       infoTextMuted: infoTextTheme.muted, infoTextHalo: infoTextTheme.halo });
@@ -4116,7 +4243,7 @@ async function resetWorkspace() {
     imageSrc: "",
     originalSrc: "",
     fileName: "사진 미선택",
-    fileMeta: "PNG · JPG · WebP · 여러 장 선택 가능",
+    fileMeta: "PNG · JPG · WebP · 여러 장을 한 번에 선택할 수 있어요",
     history: [],
     redo: [],
   });
@@ -4194,6 +4321,8 @@ function openPanel(panelId) {
 
 function initialiseInteractions() {
   window.addEventListener("pagehide", flushScheduledSaveState);
+  window.addEventListener("resize", () => positionTextEditorFontMenu());
+  document.addEventListener("scroll", () => positionTextEditorFontMenu(), true);
   initialiseLookManager();
   elements.lookList.addEventListener("click", (event) => {
     const button = event.target.closest(".look-list-item");
@@ -4265,6 +4394,62 @@ function initialiseInteractions() {
   $("#textEditorUnderlineButton")?.addEventListener("click", () => toggleTextEditorInlineStyle("underline"));
   $("#textEditorUppercaseButton")?.addEventListener("click", () => toggleTextEditorInlineStyle("uppercase"));
   $("#textEditorMoreButton")?.addEventListener("click", toggleTextEditorMoreMenu);
+  $("#textEditorFontTrigger")?.addEventListener("click", () => {
+    const menu = document.getElementById("textEditorFontMenu");
+    if (!menu) return;
+    setTextEditorFontMenuOpen(menu.hidden);
+  });
+  $("#textEditorFontMenu")?.addEventListener("click", (event) => {
+    const option = event.target.closest('[role="option"]');
+    if (option) commitTextEditorFont(option.dataset.fontKey);
+  });
+  $("#textEditorFontTrigger")?.addEventListener("keydown", (event) => {
+    const menu = document.getElementById("textEditorFontMenu");
+    if (!menu) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      setTextEditorFontMenuOpen(menu.hidden);
+      return;
+    }
+    if (event.key === "Escape" && !menu.hidden) {
+      event.preventDefault();
+      closeTextEditorFontMenu({ restoreFocus: true });
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const options = getTextEditorFontMenuOptions();
+    if (!options.length) return;
+    const selectedIndex = options.findIndex((option) => option.getAttribute("aria-selected") === "true");
+    const baseIndex = selectedIndex >= 0 ? selectedIndex : 0;
+    const offset = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+    const targetIndex = event.key === "Home" ? 0 : event.key === "End" ? options.length - 1 : baseIndex + offset;
+    setTextEditorFontMenuOpen(true, { focusIndex: Math.max(0, Math.min(options.length - 1, targetIndex)) });
+  });
+  $("#textEditorFontMenu")?.addEventListener("keydown", (event) => {
+    const option = event.target.closest('[role="option"]');
+    if (!option) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      moveTextEditorFontOption(event.key === "ArrowDown" ? 1 : -1);
+      return;
+    }
+    if (event.key === "Home" || event.key === "End") {
+      event.preventDefault();
+      const options = getTextEditorFontMenuOptions();
+      focusTextEditorFontOption(event.key === "Home" ? 0 : options.length - 1);
+      return;
+    }
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      commitTextEditorFont(option.dataset.fontKey);
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeTextEditorFontMenu({ restoreFocus: true });
+    }
+  });
   $$('[data-floating-align]').forEach((button) => button.addEventListener("click", () => {
     const nextAlignment = normaliseTitleAlign(button.dataset.floatingAlign);
     if (nextAlignment === state.titleAlign) return;
@@ -4531,9 +4716,15 @@ function initialiseInteractions() {
     if (!event.target.closest(".reset-control") && !$("#resetMenu")?.hidden) setResetMenuOpen(false);
     if (!event.target.closest(".look-search-control") && $("#lookSearchField")?.classList.contains("is-mobile-open")) setMobileLookSearchOpen(false);
     if (!event.target.closest(".text-editor-dock, #textEditorMoreMenu") && !$("#textEditorMoreMenu")?.hidden) closeTextEditorMoreMenu();
+    if (!event.target.closest(".text-editor-dock-font-field") && !$("#textEditorFontMenu")?.hidden) closeTextEditorFontMenu();
   });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
+    if (!$("#textEditorFontMenu")?.hidden) {
+      event.preventDefault();
+      closeTextEditorFontMenu({ restoreFocus: true });
+      return;
+    }
     if (!$("#textEditorMoreMenu")?.hidden) {
       event.preventDefault();
       closeTextEditorMoreMenu();
@@ -4872,7 +5063,13 @@ async function bootstrap() {
     look.editor ||= defaultLookEditor();
     await restoreCharacterAssets(look.editor.characters, look.editor.characters);
   }
-  Object.assign(state, selectedLook.editor);
+  // Keep the live workspace separate from the selected look document. The
+  // editor owns runtime Blob URLs, while the look owns the persisted copy;
+  // sharing either object here makes a post-load edit bypass that boundary.
+  Object.assign(state, selectedLook.editor, {
+    characters: LookEditor.captureCharacters(selectedLook.editor.characters),
+    shadow: { ...selectedLook.editor.shadow },
+  });
   syncSelectedCharacter();
   initialiseInteractions();
   if (elements.board instanceof HTMLElement && "ResizeObserver" in window) {

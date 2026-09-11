@@ -59,6 +59,47 @@ function ensureCharacterImageState(character) {
   return character;
 }
 
+function cloneCharacter(value = {}, { includeRuntime = true } = {}) {
+  const source = value && typeof value === "object" ? value : {};
+  const character = {
+    ...createEmptyCharacter(),
+    assetKey: typeof source.assetKey === "string" && source.assetKey.length <= 160 ? source.assetKey : null,
+    fileName: typeof source.fileName === "string" ? source.fileName.slice(0, 160) : "이미지를 추가하세요",
+    fileMeta: typeof source.fileMeta === "string" ? source.fileMeta.slice(0, 240) : "PNG, JPG 또는 WebP · 아직 선택하지 않음",
+    cutout: source.cutout === true,
+    imageFit: source.imageFit,
+    zoom: source.zoom,
+    panX: source.panX,
+    panY: source.panY,
+    focalPoint: source.focalPoint,
+  };
+  if (includeRuntime) {
+    character.src = typeof source.src === "string" ? source.src : "";
+    character.originalSrc = typeof source.originalSrc === "string" ? source.originalSrc : "";
+  }
+  return ensureCharacterImageState(character);
+}
+
+function captureCharacters(values = [], options) {
+  const source = Array.isArray(values) ? values : [];
+  return Array.from({ length: 5 }, (_, index) => cloneCharacter(source[index], options));
+}
+
+function serializeCharacter(value = {}) {
+  const normalized = cloneCharacter(value, { includeRuntime: false });
+  return {
+    assetKey: normalized.assetKey,
+    fileName: normalized.fileName,
+    fileMeta: normalized.fileMeta,
+    cutout: normalized.cutout,
+    imageFit: normalized.imageFit,
+    zoom: normalized.zoom,
+    panX: normalized.panX,
+    panY: normalized.panY,
+    focalPoint: normalized.focalPoint ? { ...normalized.focalPoint } : null,
+  };
+}
+
 function defaultLookEditor() {
   return { characters: createEmptyCharacters(), characterCount: 1, selectedCharacter: 0,
     singleRatio: "portrait", singleLayout: "info-left", multiInfoEnabled: true,
@@ -67,11 +108,7 @@ function defaultLookEditor() {
 
 function captureLookEditor(state) {
   return Object.fromEntries(Object.keys(defaultLookEditor()).map(key => [key,
-    key === "characters" ? state.characters.map(character => {
-      const copy = { ...character };
-      ensureCharacterImageState(copy);
-      return copy;
-    })
+    key === "characters" ? captureCharacters(state.characters)
       : key === "shadow" ? normaliseShadow(state.shadow) : state[key]]));
 }
 
@@ -85,21 +122,13 @@ function normaliseLookEditor(value = {}) {
   }
   if (typeof value.multiInfoEnabled === "boolean") editor.multiInfoEnabled = value.multiInfoEnabled;
   editor.shadow = normaliseShadow(value.shadow);
-  if (Array.isArray(value.characters)) value.characters.slice(0, 5).forEach((item, index) => {
-    if (!item || typeof item !== "object") return;
-    const character = editor.characters[index];
-    character.assetKey = typeof item.assetKey === "string" && item.assetKey.length <= 160 ? item.assetKey : null;
-    if (typeof item.fileName === "string") character.fileName = item.fileName.slice(0, 160);
-    if (typeof item.fileMeta === "string") character.fileMeta = item.fileMeta.slice(0, 240);
-    character.cutout = item.cutout === true;
-    for (const key of ["imageFit", "zoom", "panX", "panY", "focalPoint"]) if (item[key] !== undefined) character[key] = item[key];
-    ensureCharacterImageState(character);
-  });
+  editor.characters = captureCharacters(value.characters, { includeRuntime: false });
   return editor;
 }
 
 
 return { create: defaultLookEditor, capture: captureLookEditor, normalize: normaliseLookEditor,
+ cloneCharacter, captureCharacters, serializeCharacter,
  emptyCharacter: createEmptyCharacter, emptyCharacters: createEmptyCharacters, normalizeCharacter: ensureCharacterImageState,
  normalizeShadow: normaliseShadow };
 })();

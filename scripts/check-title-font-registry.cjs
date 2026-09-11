@@ -5,6 +5,48 @@ const TitleTypography = require("../models/title-typography.js");
 
 const expected = [
   {
+    key: "yoon-chorok-child-daehan",
+    label: "윤초록우산어린이 대한",
+    family: "YoonchoUsanChildrenS",
+    source: "https://noonnu.cc/font_page/1433",
+    url: "https://cdn.jsdelivr.net/gh/projectnoonnu/2408@1.0/YoonChildfundkoreaDaeHan.woff2",
+  },
+  {
+    key: "yoon-chorok-child-minguk",
+    label: "윤초록우산어린이 민국",
+    family: "YunChorokwoosanEoriniMinguk",
+    source: "https://noonnu.cc/font_page/1432",
+    url: "https://cdn.jsdelivr.net/gh/projectnoonnu/2408@1.0/YoonChildfundkoreaMinGuk.woff2",
+  },
+  {
+    key: "yoon-chorok-child-manse",
+    label: "윤초록우산어린이 만세",
+    family: "YoonChoWooSan",
+    source: "https://noonnu.cc/font_page/1431",
+    url: "https://cdn.jsdelivr.net/gh/projectnoonnu/2408@1.0/YoonChildfundkoreaManSeh.woff2",
+  },
+  {
+    key: "nelna-yesam",
+    label: "낼나 예샘체",
+    family: "Nelna_Yesam",
+    source: "https://noonnu.cc/font_page/1522",
+    url: "https://cdn.jsdelivr.net/gh/fontbee/font@main/Nelna/Nelna_Yesam.woff2",
+  },
+  {
+    key: "nelna-lizzy",
+    label: "낼나 리지체",
+    family: "NelnaLizzyChae",
+    source: "https://noonnu.cc/font_page/904",
+    url: "https://cdn.jsdelivr.net/gh/fontbee/font@main/Nelna/NelnaLizzyChae.woff2",
+  },
+  {
+    key: "cafe24-moya-moya-face",
+    label: "카페24 모야모야 Face",
+    family: "Cafe24MoyaMoyaFace",
+    source: "https://noonnu.cc/font_page/1249",
+    url: "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_231029@1.1/Cafe24Moyamoya-Face-v1.0.woff2",
+  },
+  {
     key: "wild-gak",
     label: "와일드각",
     family: "KIMWILDgag-Bold",

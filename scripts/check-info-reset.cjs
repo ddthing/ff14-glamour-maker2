@@ -76,7 +76,7 @@ async function indexedAssetCount(page) {
       await page.waitForFunction((value) => document.querySelector(`.character-figure[data-character-index="${value}"]`)?.dataset.cutout === "true", index);
     }
     assert.equal(await page.locator("button[data-info-mode=silhouette]").isDisabled(), false);
-    assert.match(await page.locator("#infoModeHint").textContent(), /선택할 수/);
+    assert.match(await page.locator("#infoModeHint").textContent(), /고를 수/);
     await page.locator("button[data-info-mode=silhouette]").click();
     assert.equal(await page.locator("#canvasBoard").getAttribute("data-info-mode"), "silhouette");
     assert.ok(await indexedAssetCount(page) >= 3, "fixture uploads should be present before card reset");

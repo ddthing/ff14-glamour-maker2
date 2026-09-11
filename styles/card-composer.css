@@ -1,6 +1,441 @@
 /* Final layout contract: these rules intentionally win over legacy prototype layers. */
 .canvas-board { container-type: inline-size; }
 
+/* The shell owns where the board sits; this seam owns what the board is. A
+   landscape fallback keeps the first paint stable until renderStyles applies
+   the explicit data-ratio contract. */
+.canvas-board {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--board-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 50px rgb(0 0 0 / .14), 0 2px 8px rgb(0 0 0 / .08);
+}
+
+.canvas-board::before {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  content: "";
+  pointer-events: none;
+}
+
+@media (max-width: 920px) {
+  .canvas-board { box-shadow: 0 16px 35px rgb(0 0 0 / .15); }
+}
+
+/* Card copy belongs to the composed image, not the application shell. Keep
+   the base contract here so cast, ratio, theme, and export-specific rules all
+   refine one local layer. */
+.board-title-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.board-title-block > strong {
+  overflow-wrap: anywhere;
+  font-family: var(--display);
+  font-size: clamp(20px, 3vw, 46px);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 0.88;
+}
+
+.caption-description {
+  margin-top: 13px;
+  color: #adb4ac;
+  font-size: clamp(7px, 0.85vw, 11px);
+  line-height: 1.4;
+}
+
+.board-editorial-header {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 8;
+  display: flex;
+  min-height: 19%;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 5% 5% 2%;
+  color: inherit;
+  background: transparent;
+}
+
+.board-editorial-header .board-title-block {
+  min-width: 0;
+  max-width: 64%;
+}
+
+.board-editorial-header .board-title-block > strong {
+  display: block;
+  overflow-wrap: anywhere;
+  color: #fff;
+  font-family: var(--display);
+  font-size: clamp(22px, 3.7vw, 48px);
+  font-weight: 760;
+  letter-spacing: -.055em;
+  line-height: .9;
+}
+
+.board-editorial-header .caption-description {
+  display: block;
+  max-width: 280px;
+  margin-top: 9px;
+  overflow: hidden;
+  color: rgb(255 255 255 / .7);
+  font-family: var(--sans);
+  font-size: clamp(8px, .8vw, 11px);
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-board[data-cast="1"] .board-editorial-header {
+  padding-right: 4%;
+  padding-left: 4%;
+}
+
+.canvas-board[data-cast="1"] .board-editorial-header .board-title-block {
+  max-width: 44%;
+}
+
+.canvas-board[data-cast="1"][data-single-layout="info-right"] .board-editorial-header {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.canvas-board[data-cast="1"][data-single-layout="info-right"] .board-title-block {
+  align-items: flex-end;
+}
+
+@media (max-width: 920px) {
+  .board-editorial-header { padding: 5% 5% 2%; }
+  .board-editorial-header .caption-description { display: none; }
+}
+
+@media (max-width: 560px) {
+  .board-title-block > strong { font-size: clamp(18px, 7vw, 30px); }
+  .board-editorial-header .board-title-block > strong { font-size: clamp(20px, 7vw, 32px); }
+  .caption-description { display: none; }
+  .portrait-wrap { right: 23%; }
+}
+
+/* Character framing is part of the card composition. Cast- and ratio-specific
+   insets below refine this shared frame without leaking into app-shell CSS. */
+.portrait-wrap {
+  position: absolute;
+  top: 4%;
+  right: 18%;
+  bottom: 0;
+  left: 1%;
+  z-index: 4;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+  transform: translate(var(--pan-x, 0px), var(--pan-y, 0px));
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.character-figure {
+  position: relative;
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  flex: 1 1 0;
+  align-items: flex-end;
+  justify-content: center;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.portrait-wrap .character-figure img {
+  width: 118%;
+  max-width: none;
+}
+
+.portrait-wrap:active,
+.portrait-wrap.is-dragging {
+  cursor: grabbing;
+  transition: none;
+}
+
+.portrait-wrap img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  user-select: none;
+  transform: scale(var(--portrait-scale, 1));
+  transform-origin: center bottom;
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.canvas-board[data-cutout="false"] .portrait-wrap img {
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+/* Card-only internals belong to the composition seam. These base rules keep
+   the markup usable before the ratio/cast-specific contracts below apply. */
+.board-gear-list {
+  display: grid;
+  gap: 0;
+  margin-top: 22px;
+  border-top: 1px solid rgba(242, 244, 239, 0.18);
+}
+
+.board-gear-item {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(242, 244, 239, 0.12);
+}
+
+.board-gear-item span {
+  color: var(--signal);
+  font-family: var(--mono);
+  font-size: clamp(5px, 0.55vw, 7px);
+}
+
+.board-gear-item strong {
+  overflow: hidden;
+  font-family: var(--sans);
+  font-size: clamp(6px, 0.65vw, 9px);
+  font-weight: 600;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-gear-list.board-gear-tiles {
+  position: absolute;
+  z-index: 9;
+  display: grid !important;
+  margin: 0 !important;
+  padding: 0;
+  border: 0;
+  pointer-events: none;
+}
+
+.board-gear-tiles .board-gear-item {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / .46);
+  border-radius: 7px;
+  background: rgb(16 21 23 / .7);
+  box-shadow: 0 4px 12px rgb(0 0 0 / .13);
+}
+
+.gear-tile-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  padding: 6px 7px 7px;
+  color: #fff;
+}
+
+.gear-tile-copy span {
+  overflow: hidden;
+  color: rgb(255 255 255 / .62);
+  font-family: var(--sans);
+  font-size: clamp(6px, .6vw, 8px);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gear-tile-copy strong {
+  overflow: hidden;
+  color: #fff;
+  font-family: var(--sans);
+  font-size: clamp(7px, .7vw, 10px);
+  font-weight: 650;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gear-tile-copy small {
+  overflow: hidden;
+  color: rgb(255 255 255 / .46);
+  font-family: var(--mono);
+  font-size: clamp(5px, .52vw, 7px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.multi-info-layer {
+  position: absolute;
+  inset: 29% 2% 8%;
+  z-index: 9;
+  display: grid;
+  grid-template-columns: repeat(var(--info-count, 3), minmax(0, 1fr));
+  align-items: center;
+  pointer-events: none;
+}
+
+.canvas-board[data-cast="3"] .multi-info-layer { --info-count: 3; }
+.canvas-board[data-cast="4"] .multi-info-layer { --info-count: 4; }
+.canvas-board[data-cast="5"] .multi-info-layer { --info-count: 5; }
+.multi-info-layer[hidden] { display: none; }
+
+.scene-background {
+  position: absolute;
+  inset: 0;
+  z-index: -4;
+  background: var(--board-bg);
+  transition: background 260ms ease;
+}
+
+.scene-texture {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  opacity: 0.23;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.32'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
+.multi-info-column {
+  display: grid;
+  min-width: 0;
+  gap: clamp(4px, .7vw, 9px);
+  align-content: center;
+  justify-items: center;
+  padding: 12px 7%;
+  border: 0;
+  color: rgb(19 21 25 / .86);
+  background: transparent;
+  text-align: center;
+  text-shadow: 0 1px 12px rgb(255 255 255 / .9);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.multi-info-items { display: grid; min-width: 0; gap: clamp(3px, .45vw, 6px); font-family: var(--sans); font-size: clamp(7px, .82vw, 12px); font-weight: 650; line-height: 1.18; }
+.multi-info-items > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.multi-info-items small { margin-top: 2px; font-family: var(--mono); font-size: .72em; letter-spacing: .05em; opacity: .58; }
+.multi-info-column.is-selected { background: rgb(255 255 255 / .1); }
+
+/* Decorative card pattern base. Final recipe-specific pattern rules below
+   intentionally override these defaults without leaking into the app shell. */
+.scene-pattern {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  color: rgb(255 255 255 / .42);
+  pointer-events: none;
+}
+
+.scene-pattern {
+  container-type: inline-size;
+  opacity: var(--pattern-opacity, .38);
+  color: var(--pattern-ink, #686879);
+  mix-blend-mode: multiply;
+  transition: opacity 180ms ease;
+}
+
+.canvas-board[data-background="ink"] .scene-pattern,
+.canvas-board[data-background="charcoal"] .scene-pattern {
+  mix-blend-mode: screen;
+}
+
+.scene-pattern::before,
+.scene-pattern::after {
+  position: absolute;
+  display: block;
+  content: "";
+  pointer-events: none;
+}
+
+.scene-pattern[data-pattern="none"] { display: none; }
+
+.scene-pattern[data-pattern="halftone"]::before,
+.scene-pattern[data-pattern="halftone"]::after {
+  width: 48%;
+  aspect-ratio: 1;
+  background-image: radial-gradient(circle, currentColor 0 1.25px, transparent 1.55px);
+  background-size: 9px 9px;
+  mask-image: radial-gradient(circle at center, #000 0 22%, rgb(0 0 0 / .72) 42%, transparent 72%);
+  -webkit-mask-image: radial-gradient(circle at center, #000 0 22%, rgb(0 0 0 / .72) 42%, transparent 72%);
+}
+
+.scene-pattern[data-pattern="halftone"]::before {
+  top: 2%;
+  left: -12%;
+  transform: rotate(-7deg) scaleY(.72);
+}
+
+.scene-pattern[data-pattern="halftone"]::after {
+  right: -10%;
+  bottom: -15%;
+  transform: rotate(11deg) scaleY(.78);
+}
+
+.scene-pattern[data-pattern="dots"]::before {
+  inset: 0;
+  background-image:
+    radial-gradient(circle, currentColor 0 1.15px, transparent 1.55px),
+    radial-gradient(circle, var(--pattern-light, #fff) 0 1px, transparent 1.4px);
+  background-position: 0 0, 9px 9px;
+  background-size: 18px 18px;
+  mask-image: linear-gradient(90deg, #000, rgb(0 0 0 / .38) 34%, rgb(0 0 0 / .12) 50%, rgb(0 0 0 / .38) 66%, #000);
+  -webkit-mask-image: linear-gradient(90deg, #000, rgb(0 0 0 / .38) 34%, rgb(0 0 0 / .12) 50%, rgb(0 0 0 / .38) 66%, #000);
+}
+
+.scene-pattern[data-pattern="dots"]::after {
+  display: none;
+}
+
+.pattern-motif {
+  position: absolute;
+  top: var(--y);
+  left: var(--x);
+  width: clamp(10px, var(--size), 76px);
+  aspect-ratio: 1;
+  color: currentColor;
+  opacity: var(--motif-opacity, .8);
+  transform: translate(-50%, -50%) rotate(var(--rotate));
+}
+
+.pattern-motif > span {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background: currentColor;
+}
+
+.pattern-motif--light { color: var(--pattern-light, #fff); }
+
+.pattern-motif--star > span {
+  clip-path: polygon(50% 0, 61.8% 34.5%, 97.5% 34.5%, 68.5% 55.5%, 79.5% 90.5%, 50% 69%, 20.5% 90.5%, 31.5% 55.5%, 2.5% 34.5%, 38.2% 34.5%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-pattern { transition: none; }
+}
+
 .canvas-board[data-cast="3"] .board-editorial-header,
 .canvas-board[data-cast="4"] .board-editorial-header,
 .canvas-board[data-cast="5"] .board-editorial-header {
@@ -24,6 +459,7 @@
   font-family: var(--card-title-font, var(--sans));
   font-size: clamp(22px, var(--card-title-font-size-scale-lineup, 4.5cqw), 54px);
   font-weight: 800;
+  letter-spacing: -.045em;
   line-height: .95;
 }
 
@@ -434,6 +870,48 @@
 /* Title typefaces: the selector is intentionally limited to the user-selected
    Noonnu/source families. UI copy stays Pretendard; these faces are only for the
    editable card title and its exported counterpart. */
+@font-face {
+  font-family: "YoonchoUsanChildrenS";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2408@1.0/YoonChildfundkoreaDaeHan.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "YunChorokwoosanEoriniMinguk";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2408@1.0/YoonChildfundkoreaMinGuk.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "YoonChoWooSan";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2408@1.0/YoonChildfundkoreaManSeh.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Nelna_Yesam";
+  src: url("https://cdn.jsdelivr.net/gh/fontbee/font@main/Nelna/Nelna_Yesam.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "NelnaLizzyChae";
+  src: url("https://cdn.jsdelivr.net/gh/fontbee/font@main/Nelna/NelnaLizzyChae.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Cafe24MoyaMoyaFace";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_231029@1.1/Cafe24Moyamoya-Face-v1.0.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 @font-face {
   font-family: "GMarketSans";
   src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansLight.woff") format("woff");
@@ -1008,6 +1486,67 @@
   opacity: .17;
 }
 
+/* Material overlays stay on the texture axis so they can be combined with
+   any solid, pattern, or image background. The recipes are deliberately
+   restrained: each one adds a printing artifact without turning the card
+   into a full-frame filter. */
+.canvas-board[data-background-texture="risograph"] .scene-texture {
+  opacity: .15;
+  background-image:
+    radial-gradient(circle, color-mix(in srgb, var(--pattern-ink, #686879) 66%, transparent) 0 .9px, transparent 1.45px),
+    radial-gradient(circle, color-mix(in srgb, var(--pattern-light, #f5f1ea) 38%, transparent) 0 .8px, transparent 1.35px);
+  background-position: 0 0, 2px 1px;
+  background-size: 7px 7px, 8px 8px;
+  mix-blend-mode: multiply;
+}
+
+.canvas-board[data-background-texture="dust"] .scene-texture {
+  opacity: .19;
+  background-image:
+    radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--pattern-ink, #686879) 62%, transparent) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 76% 27%, color-mix(in srgb, var(--pattern-ink, #686879) 46%, transparent) 0 .75px, transparent 1.55px),
+    radial-gradient(circle at 34% 71%, color-mix(in srgb, var(--pattern-light, #f5f1ea) 72%, transparent) 0 1.1px, transparent 1.9px),
+    radial-gradient(circle at 91% 84%, color-mix(in srgb, var(--pattern-ink, #686879) 42%, transparent) 0 .7px, transparent 1.45px),
+    radial-gradient(circle at 58% 48%, color-mix(in srgb, var(--pattern-ink, #686879) 38%, transparent) 0 .65px, transparent 1.35px),
+    radial-gradient(circle at 22% 91%, color-mix(in srgb, var(--pattern-ink, #686879) 32%, transparent) 0 .7px, transparent 1.4px),
+    radial-gradient(circle, color-mix(in srgb, var(--pattern-ink, #686879) 58%, transparent) 0 .55px, transparent 1.15px),
+    radial-gradient(circle, color-mix(in srgb, var(--pattern-light, #f5f1ea) 54%, transparent) 0 .45px, transparent 1px),
+    repeating-linear-gradient(14deg, transparent 0 64px, color-mix(in srgb, var(--pattern-ink, #686879) 42%, transparent) 64px 65px, transparent 65px 137px),
+    repeating-linear-gradient(102deg, transparent 0 118px, color-mix(in srgb, var(--pattern-light, #f5f1ea) 48%, transparent) 118px 119px, transparent 119px 208px);
+  background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 9px 13px, 0 0, 0 0;
+  background-size: auto, auto, auto, auto, auto, auto, 31px 43px, 47px 29px, auto, auto;
+  mix-blend-mode: multiply;
+}
+
+.canvas-board[data-background-texture="fiber"] .scene-texture {
+  opacity: .16;
+  background-image:
+    repeating-linear-gradient(92deg, color-mix(in srgb, var(--pattern-ink, #686879) 52%, transparent) 0 .65px, transparent .65px 9px),
+    repeating-linear-gradient(4deg, color-mix(in srgb, var(--pattern-light, #f5f1ea) 60%, transparent) 0 .55px, transparent .55px 12px),
+    repeating-linear-gradient(17deg, transparent 0 21px, color-mix(in srgb, var(--pattern-ink, #686879) 26%, transparent) 21px 21.5px, transparent 21.5px 46px),
+    radial-gradient(circle at 24% 38%, color-mix(in srgb, var(--pattern-ink, #686879) 40%, transparent) 0 .55px, transparent 1.2px);
+  background-position: 0 0, 2px 1px, 0 0, 0 0;
+  background-size: 11px 17px, 17px 11px, 41px 47px, 37px 41px;
+  mix-blend-mode: multiply;
+}
+
+.canvas-board[data-background-texture="halftone"] .scene-texture {
+  opacity: .15;
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--pattern-ink, #686879) 78%, transparent) 0 1.1px, transparent 1.7px);
+  background-position: 1px 1px;
+  background-size: 7px 7px;
+  mask-image: linear-gradient(180deg, transparent 0%, rgb(0 0 0 / .2) 16%, #000 58%, rgb(0 0 0 / .78) 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgb(0 0 0 / .2) 16%, #000 58%, rgb(0 0 0 / .78) 100%);
+  mix-blend-mode: multiply;
+}
+
+.canvas-board[data-background-tone="dark"][data-background-texture="risograph"] .scene-texture,
+.canvas-board[data-background-tone="dark"][data-background-texture="dust"] .scene-texture,
+.canvas-board[data-background-tone="dark"][data-background-texture="fiber"] .scene-texture,
+.canvas-board[data-background-tone="dark"][data-background-texture="halftone"] .scene-texture {
+  mix-blend-mode: screen;
+}
+
 .canvas-board[data-style] .scene-pattern {
   opacity: var(--pattern-opacity, 0) !important;
 }
@@ -1027,13 +1566,81 @@
   display: none;
 }
 
+/* Star fields borrow the reference mix of large solids, fine outlines,
+   four-point sparkles, rings, and tiny dots. Keep the field dense at the
+   edges while leaving each motif quiet beneath the subject and copy. */
+.canvas-board .pattern-motif {
+  width: clamp(8px, var(--size), 140px);
+}
+
+.canvas-board .pattern-motif--star > span:first-child,
+.canvas-board .pattern-motif--outline > span:first-child {
+  clip-path: polygon(50% 0, 61.8% 34.5%, 97.5% 34.5%, 68.5% 55.5%, 79.5% 90.5%, 50% 69%, 20.5% 90.5%, 31.5% 55.5%, 2.5% 34.5%, 38.2% 34.5%);
+}
+
+.canvas-board .pattern-motif--outline > .pattern-motif__inner {
+  inset: 24%;
+  background: var(--board-bg, #fff);
+  clip-path: polygon(50% 0, 61.8% 34.5%, 97.5% 34.5%, 68.5% 55.5%, 79.5% 90.5%, 50% 69%, 20.5% 90.5%, 31.5% 55.5%, 2.5% 34.5%, 38.2% 34.5%);
+}
+
+.canvas-board .pattern-motif--sparkle > span {
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+}
+
+.canvas-board .pattern-motif--ring > span {
+  inset: 15%;
+  border: max(1px, .12em) solid currentColor;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.canvas-board .pattern-motif--dot > span {
+  inset: 28%;
+  border-radius: 50%;
+}
+
+/* The halftone control now uses the third reference's soft gingham check:
+   two translucent woven bands overlap so their crossings read slightly
+   darker, while the rest of the card keeps the selected solid surface. */
+.canvas-board .scene-pattern[data-pattern="halftone"] {
+  display: block;
+  --gingham-cell: clamp(24px, 6.666cqw, 80px);
+  --gingham-band: calc(var(--gingham-cell) * .38);
+}
+
+.canvas-board .scene-pattern[data-pattern="halftone"]::before,
+.canvas-board .scene-pattern[data-pattern="halftone"]::after {
+  inset: 0;
+  width: auto;
+  height: auto;
+  aspect-ratio: auto;
+  background-image: repeating-linear-gradient(
+    90deg,
+    color-mix(in srgb, currentColor 52%, transparent) 0 var(--gingham-band),
+    transparent var(--gingham-band) var(--gingham-cell)
+  );
+  background-size: var(--gingham-cell) var(--gingham-cell);
+  mask-image: none;
+  -webkit-mask-image: none;
+  transform: none;
+}
+
+.canvas-board .scene-pattern[data-pattern="halftone"]::after {
+  display: block;
+  background-image: repeating-linear-gradient(
+    0deg,
+    color-mix(in srgb, currentColor 52%, transparent) 0 var(--gingham-band),
+    transparent var(--gingham-band) var(--gingham-cell)
+  );
+}
+
 /* The persisted `bitmap` key is intentionally presented as a visible
-   checkerboard. The old preview had no bitmap pseudo-element at all, so the
-   option changed state without painting anything; PNG and preview now share
-   the same full-card tile geometry. */
+   checkerboard. Use roughly ten large squares across the card so the
+   pattern has the open, poster-like rhythm of the supplied references. */
 .canvas-board .scene-pattern[data-pattern="bitmap"] {
   display: block;
-  --checker-tile: clamp(12px, 3.333cqw, 40px);
+  --checker-square: clamp(32px, 10cqw, 132px);
 }
 
 .canvas-board .scene-pattern[data-pattern="bitmap"]::before {
@@ -1042,8 +1649,8 @@
   background-image:
     linear-gradient(45deg, currentColor 25%, transparent 25%, transparent 75%, currentColor 75%),
     linear-gradient(45deg, currentColor 25%, transparent 25%, transparent 75%, currentColor 75%);
-  background-position: 0 0, calc(var(--checker-tile) / 2) calc(var(--checker-tile) / 2);
-  background-size: var(--checker-tile) var(--checker-tile);
+  background-position: 0 0, var(--checker-square) var(--checker-square);
+  background-size: calc(var(--checker-square) * 2) calc(var(--checker-square) * 2);
 }
 
 .canvas-board .scene-pattern[data-pattern="bitmap"]::after { display: none; }

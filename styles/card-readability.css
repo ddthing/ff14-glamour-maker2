@@ -191,8 +191,8 @@ body.canvas-focus-mode .canvas-board[data-ratio="portrait"] {
 }
 
 .canvas-board[data-cast="2"] .board-gear-rail--right .gear-tile-copy {
-  align-items: flex-end;
-  text-align: right;
+  align-items: flex-start;
+  text-align: left;
 }
 
 .canvas-board[data-cast="2"] .board-gear-rail .gear-slot-label {
@@ -1062,10 +1062,6 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
   z-index: 0;
 }
 
-.canvas-board[data-background-pattern="collage"] .prism {
-  display: none !important;
-}
-
 /* Vintage scrapbook is an editorial material skin: the source image remains
    the subject while cool paper, archive scraps, tape, and fine ink marks sit
    behind it. Notes are intentionally paper-like rather than rounded UI cards.
@@ -1201,10 +1197,6 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
 
 .canvas-board[data-background-pattern="scrapbook"] .board-gear-list {
   z-index: 9;
-}
-
-.canvas-board[data-background-pattern="scrapbook"] .prism {
-  display: none !important;
 }
 
 /* Generated material kit -------------------------------------------------

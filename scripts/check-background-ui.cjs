@@ -63,6 +63,24 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     }));
     assert.deepEqual(selected, { background: "charcoal", pattern: "dots", texture: "grain", groups: [1, 1, 1] }, "background axis selection did not stay independent");
 
+    const textureRecipes = [];
+    for (const texture of ["risograph", "dust", "fiber", "halftone"]) {
+      await page.locator(`[data-texture="${texture}"]`).click();
+      await page.waitForFunction((expected) => document.querySelector("#canvasBoard")?.dataset.backgroundTexture === expected, texture);
+      textureRecipes.push(await page.evaluate(() => {
+        const board = document.querySelector("#canvasBoard");
+        const textureLayer = document.querySelector("#canvasBoard .scene-texture");
+        const style = getComputedStyle(textureLayer);
+        return {
+          texture: board.dataset.backgroundTexture,
+          opacity: style.opacity,
+          backgroundImage: style.backgroundImage,
+        };
+      }));
+    }
+    assert.deepEqual(textureRecipes.map(({ texture }) => texture), ["risograph", "dust", "fiber", "halftone"], "new texture choices did not reach the live card");
+    assert.ok(textureRecipes.every(({ opacity, backgroundImage }) => Number.parseFloat(opacity) > 0 && backgroundImage !== "none"), `texture overlay recipes are not painted: ${JSON.stringify(textureRecipes)}`);
+
     await page.locator('[data-background="custom"]').click();
     const customControl = await page.evaluate(() => ({
       background: document.querySelector("#canvasBoard").dataset.background,

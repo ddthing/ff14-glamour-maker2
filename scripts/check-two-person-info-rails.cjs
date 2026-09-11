@@ -53,8 +53,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.ok(snapshot.rails[1].marginRight >= 0.055, `right information rail is still too close to the card edge: ${JSON.stringify(snapshot)}`);
     assert.equal(snapshot.rails[0].textAlign, "left", "left rail copy should align to its left start edge");
     assert.equal(snapshot.rails[0].alignItems, "flex-start", "left rail copy should use its left start edge");
-    assert.equal(snapshot.rails[1].textAlign, "right", "right rail copy should align to its right end edge");
-    assert.equal(snapshot.rails[1].alignItems, "flex-end", "right rail copy should use its right end edge");
+    assert.equal(snapshot.rails[1].textAlign, "left", "right rail copy should remain left-aligned inside its note");
+    assert.equal(snapshot.rails[1].alignItems, "flex-start", "right rail copy should use the same internal start edge as the left rail");
     assert.ok(snapshot.rails.every((rail) => rail.itemPosition === "relative"), `collage rail items must own their slot tab positioning context: ${JSON.stringify(snapshot)}`);
     assert.ok(snapshot.expectedRails, "CardLayout must own the two-person information rail geometry");
 
@@ -125,7 +125,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     const rightExportText = exportSnapshot.calls.filter(({ text }) => ["몸", "오른쪽 정보"].includes(text));
     const exportPadding = Math.max(10, Math.round(exportSnapshot.rails[0].width * 0.045));
     assert.ok(leftExportText.length >= 2 && leftExportText.every(({ textAlign, x }) => textAlign === "left" && x === exportSnapshot.rails[0].x + exportPadding), `PNG left rail copy is not left-anchored: ${JSON.stringify(exportSnapshot)}`);
-    assert.ok(rightExportText.length >= 2 && rightExportText.every(({ textAlign, x }) => textAlign === "right" && x === exportSnapshot.rails[1].x + exportSnapshot.rails[1].width - exportPadding), `PNG right rail copy is not right-anchored: ${JSON.stringify(exportSnapshot)}`);
+    assert.ok(rightExportText.length >= 2 && rightExportText.every(({ textAlign, x }) => textAlign === "left" && x === exportSnapshot.rails[1].x + exportPadding), `PNG right rail copy is not left-anchored inside its note: ${JSON.stringify(exportSnapshot)}`);
     console.log(JSON.stringify({ status: "PASS", rails: snapshot.rails, expectedRails: snapshot.expectedRails }));
   } finally {
     await browser.close();

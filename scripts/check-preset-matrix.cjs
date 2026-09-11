@@ -85,6 +85,12 @@ function maxDrift(actual, expected) {
           layoutHeight: args.dimensions.layoutHeight,
           exportWidth: args.dimensions.exportWidth,
           exportHeight: args.dimensions.exportHeight,
+          layout: args.layout ? {
+            characterCount: args.layout.characterCount,
+            ratio: args.layout.ratio,
+            dimensions: { ...args.layout.dimensions },
+            frames: args.layout.frames.map(({ x, y, width, height }) => ({ x, y, width, height })),
+          } : null,
           hasBackgroundImage: Boolean(args.backgroundImage),
         });
         return originalRender(args);
@@ -265,6 +271,12 @@ function maxDrift(actual, expected) {
         assert.ok(outputPath, `${label}: export did not produce a file`);
         const outputDimensions = readPngDimensions(outputPath);
         const expectedExport = await page.evaluate((value) => CardLayout.dimensionsFor(value.characterCount, value.singleRatio), combination);
+        const expectedLayout = await page.evaluate((value) => CardLayout.layoutFor({
+          characterCount: value.characterCount,
+          singleRatio: value.singleRatio,
+          singleLayout: value.singleLayout,
+          characters: state.characters.slice(0, value.characterCount),
+        }), combination);
         assert.deepEqual(outputDimensions, { width: expectedExport.exportWidth, height: expectedExport.exportHeight }, `${label}: PNG dimensions drifted from the effective ratio`);
         await page.waitForFunction(() => !document.querySelector("#exportButton").hasAttribute("aria-busy"));
         const renderTrace = await page.evaluate(() => window.__backgroundMatrixRenders.at(-1));
@@ -276,6 +288,7 @@ function maxDrift(actual, expected) {
           layoutHeight: expectedExport.layoutHeight,
           exportWidth: expectedExport.exportWidth,
           exportHeight: expectedExport.exportHeight,
+          layout: expectedLayout,
           hasBackgroundImage: backgroundCase.expected.hasBackgroundImage,
         }, `${label}: PNG renderer did not receive the selected background axes and effective ratio`);
         exportCount += 1;

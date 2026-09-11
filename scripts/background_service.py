@@ -42,7 +42,7 @@ def create_gpu_session():
     if "CUDAExecutionProvider" not in providers:
         raise RuntimeError(
             "CUDAExecutionProvider를 사용할 수 없습니다. "
-            "onnxruntime-gpu와 CUDA/cuDNN 호환성을 확인해주세요."
+            "onnxruntime-gpu와 CUDA/cuDNN 호환성을 확인해 주세요."
         )
     session = new_session(MODEL_NAME, providers=["CUDAExecutionProvider"])
     active = getattr(getattr(session, "inner_session", None), "get_providers", lambda: [])()
@@ -84,10 +84,10 @@ class CutoutHandler(BaseHTTPRequestHandler):
         except ValueError:
             declared_size = None
         if declared_size is not None and declared_size > MAX_UPLOAD_BYTES:
-            self.send_json(413, {"error": "16MB 이하 이미지를 사용해주세요."})
+            self.send_json(413, {"error": "16MB 이하 이미지를 사용해 주세요."})
             return
         if not GPU_SLOT.acquire(blocking=False):
-            self.send_json(429, {"error": "배경 제거 서버가 처리 중입니다. 잠시 후 다시 시도해주세요."}, {"Retry-After": "5"})
+            self.send_json(429, {"error": "배경 제거 서버가 처리 중입니다. 잠시 후 다시 시도해 주세요."}, {"Retry-After": "5"})
             return
         try:
             body = self.read_body(declared_size)
@@ -145,7 +145,7 @@ class CutoutHandler(BaseHTTPRequestHandler):
         else:
             body = self.rfile.read(MAX_UPLOAD_BYTES + 1)
         if len(body) > MAX_UPLOAD_BYTES:
-            self.send_json(413, {"error": "16MB 이하 이미지를 사용해주세요."})
+            self.send_json(413, {"error": "16MB 이하 이미지를 사용해 주세요."})
             return None
         return body
 

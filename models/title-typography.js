@@ -6,6 +6,42 @@ const TitleTypography = (() => {
       family: '"Pretendard Variable", Pretendard, sans-serif',
       weights: [400, 500, 700],
     },
+    "yoon-chorok-child-daehan": {
+      label: "윤초록우산어린이 대한",
+      family: '"YoonchoUsanChildrenS", sans-serif',
+      weights: [400],
+      source: "https://noonnu.cc/font_page/1433",
+    },
+    "yoon-chorok-child-minguk": {
+      label: "윤초록우산어린이 민국",
+      family: '"YunChorokwoosanEoriniMinguk", sans-serif',
+      weights: [400],
+      source: "https://noonnu.cc/font_page/1432",
+    },
+    "yoon-chorok-child-manse": {
+      label: "윤초록우산어린이 만세",
+      family: '"YoonChoWooSan", sans-serif',
+      weights: [400],
+      source: "https://noonnu.cc/font_page/1431",
+    },
+    "nelna-yesam": {
+      label: "낼나 예샘체",
+      family: '"Nelna_Yesam", sans-serif',
+      weights: [400],
+      source: "https://noonnu.cc/font_page/1522",
+    },
+    "nelna-lizzy": {
+      label: "낼나 리지체",
+      family: '"NelnaLizzyChae", sans-serif',
+      weights: [400],
+      source: "https://noonnu.cc/font_page/904",
+    },
+    "cafe24-moya-moya-face": {
+      label: "카페24 모야모야 Face",
+      family: '"Cafe24MoyaMoyaFace", sans-serif',
+      weights: [400],
+      source: "https://noonnu.cc/font_page/1249",
+    },
     "gunhamimalmunteuyeot": {
       label: "군함이말문트였체",
       family: '"Gunhamimalmunteuyeot", sans-serif',

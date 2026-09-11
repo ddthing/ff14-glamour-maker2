@@ -11,7 +11,7 @@ export async function onRequestPost(context) {
 
   const contentLength = Number(context.request.headers.get("content-length"));
   if (Number.isFinite(contentLength) && contentLength > maxUploadBytes) {
-    return json({ error: "16MB 이하 이미지를 사용해주세요." }, 413);
+    return json({ error: "16MB 이하 이미지를 사용해 주세요." }, 413);
   }
 
   const serviceUrl = resolveServiceUrl(context.env.CUTOUT_SERVICE_URL);
@@ -26,7 +26,7 @@ export async function onRequestPost(context) {
   try {
     imageBytes = await readLimitedRequestBody(context.request, maxUploadBytes);
   } catch (error) {
-    if (error.code === "UPLOAD_TOO_LARGE") return json({ error: "16MB 이하 이미지를 사용해주세요." }, 413);
+    if (error.code === "UPLOAD_TOO_LARGE") return json({ error: "16MB 이하 이미지를 사용해 주세요." }, 413);
     return json({ error: "이미지를 읽지 못했습니다." }, 400);
   }
 
@@ -50,7 +50,7 @@ export async function onRequestPost(context) {
     console.error(`[background-removal] ${isTimeout ? "upstream timeout" : "upstream unavailable"}`);
     return json({
       error: isTimeout
-        ? "배경 제거 시간이 초과되었습니다. 잠시 후 다시 시도해주세요."
+        ? "배경 제거 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요."
         : "배경 제거 서버에 연결할 수 없습니다.",
       code: isTimeout ? "cutout_service_timeout" : "cutout_service_unavailable",
     }, 504);
@@ -60,7 +60,7 @@ export async function onRequestPost(context) {
     console.error(`[background-removal] upstream status ${upstream.status}`);
     return json({
       error: upstream.status >= 500
-        ? "배경 제거 서버가 잠시 바쁩니다. 다시 시도해주세요."
+        ? "배경 제거 서버가 잠시 바쁩니다. 다시 시도해 주세요."
         : "이미지를 처리하지 못했습니다.",
       code: "cutout_service_error",
     }, 502);
@@ -82,7 +82,7 @@ export async function onRequestPost(context) {
     return json({
       error: error.code === "RESULT_TOO_LARGE"
         ? "배경 제거 결과가 너무 큽니다."
-        : timedOut ? "배경 제거 시간이 초과되었습니다. 잠시 후 다시 시도해주세요." : "배경 제거 결과를 읽지 못했습니다.",
+        : timedOut ? "배경 제거 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요." : "배경 제거 결과를 읽지 못했습니다.",
       code: error.code === "RESULT_TOO_LARGE"
         ? "cutout_result_too_large"
         : timedOut ? "cutout_service_timeout" : "cutout_invalid_response",
@@ -141,7 +141,7 @@ function createResultTooLargeError() {
 }
 
 function createUploadTooLargeError() {
-  const error = new Error("16MB 이하 이미지를 사용해주세요.");
+  const error = new Error("16MB 이하 이미지를 사용해 주세요.");
   error.code = "UPLOAD_TOO_LARGE";
   return error;
 }

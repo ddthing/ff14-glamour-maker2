@@ -3,6 +3,27 @@ const CardLayout = require("../models/card-layout.js");
 
 const frame = { x: 95, y: 150, width: 890, height: 1180 };
 
+const portraitLayout = CardLayout.layoutFor({
+  characterCount: 1,
+  singleRatio: "portrait",
+  singleLayout: "info-left",
+  characters: [{ cutout: true }],
+});
+assert.equal(portraitLayout.characterCount, 1);
+assert.equal(portraitLayout.ratio, "portrait");
+assert.deepEqual(portraitLayout.dimensions, CardLayout.dimensionsFor(1, "portrait"));
+assert.deepEqual(portraitLayout.frames, CardLayout.characterFrames({
+  characterCount: 1,
+  singleRatio: "portrait",
+  singleLayout: "info-left",
+  characters: [{ cutout: true }],
+}));
+assert.equal(
+  CardLayout.cssInsetForLayout(portraitLayout),
+  CardLayout.cssInsetFor(portraitLayout.frames, 1, "portrait"),
+  "CSS inset should be derived from the resolved layout contract",
+);
+
 const contain = CardLayout.imageRectFor({
   frame,
   naturalWidth: 120,

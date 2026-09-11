@@ -8,17 +8,17 @@
     <link rel="icon" type="image/svg+xml" href="assets/icons/favicon-02.svg" />
     <link rel="manifest" href="site.webmanifest" />
     <meta name="robots" content="index,follow" />
-    <meta name="description" data-i18n-content="meta.description" content="파이널판타지 XIV 캐릭터 스크린샷에 장비와 문구를 더해 코디 카드를 만들어 보세요. 여러 캐릭터를 한 장에 배치하고 완성한 룩을 PNG로 저장할 수 있습니다." />
+    <meta name="description" data-i18n-content="meta.description" content="파이널판타지 XIV 캐릭터 스크린샷에 장비와 문구를 더해 코디 카드를 만들어 보세요. 여러 캐릭터를 한 장에 담고, 완성한 룩은 PNG로 저장할 수 있습니다." />
     <link rel="canonical" href="https://ff14-glamour-maker2.pages.dev/" />
     <meta property="og:locale" data-i18n-content="meta.locale" content="ko_KR" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" data-i18n-content="project.name" content="투영세트메이커" />
     <meta property="og:title" data-i18n-content="meta.title" content="투영세트메이커 02 · 룩북 | FFXIV 코디 카드 만들기" />
-    <meta property="og:description" data-i18n-content="meta.description" content="파이널판타지 XIV 캐릭터 스크린샷에 장비와 문구를 더해 코디 카드를 만들어 보세요. 여러 캐릭터를 한 장에 배치하고 완성한 룩을 PNG로 저장할 수 있습니다." />
+    <meta property="og:description" data-i18n-content="meta.description" content="파이널판타지 XIV 캐릭터 스크린샷에 장비와 문구를 더해 코디 카드를 만들어 보세요. 여러 캐릭터를 한 장에 담고, 완성한 룩은 PNG로 저장할 수 있습니다." />
     <meta property="og:url" content="https://ff14-glamour-maker2.pages.dev/" />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" data-i18n-content="meta.title" content="투영세트메이커 02 · 룩북 | FFXIV 코디 카드 만들기" />
-    <meta name="twitter:description" data-i18n-content="meta.description" content="파이널판타지 XIV 캐릭터 스크린샷에 장비와 문구를 더해 코디 카드를 만들어 보세요. 여러 캐릭터를 한 장에 배치하고 완성한 룩을 PNG로 저장할 수 있습니다." />
+    <meta name="twitter:description" data-i18n-content="meta.description" content="파이널판타지 XIV 캐릭터 스크린샷에 장비와 문구를 더해 코디 카드를 만들어 보세요. 여러 캐릭터를 한 장에 담고, 완성한 룩은 PNG로 저장할 수 있습니다." />
     <title data-i18n="meta.title">투영세트메이커 02 · 룩북 | FFXIV 코디 카드 만들기</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <!-- Optional enhancement: the local fallback stack keeps the editor usable while the font downloads. -->
@@ -65,7 +65,7 @@
               </select>
             </span>
           </label>
-          <button class="primary-button" id="exportButton" type="button" data-i18n-aria-label="export.label" data-i18n-title="export.titleMissing" aria-label="PNG 내보내기" title="이미지를 모두 추가하면 PNG로 저장할 수 있습니다"><span data-i18n="export.label">PNG 내보내기</span> <span aria-hidden="true">↗</span></button>
+          <button class="primary-button" id="exportButton" type="button" data-i18n-aria-label="export.label" data-i18n-title="export.titleMissing" aria-label="PNG 내보내기" title="이미지를 모두 넣으면 PNG로 저장할 수 있습니다"><span data-i18n="export.label">PNG 내보내기</span> <span aria-hidden="true">↗</span></button>
         </div>
       </header>
 
@@ -140,10 +140,15 @@
                 </div>
                 <span class="text-editor-dock-divider" aria-hidden="true"></span>
                 <div class="text-editor-dock-tools" role="toolbar" data-i18n-aria-label="copy.dockToolbar" aria-label="텍스트 서식 도구">
-                  <label class="text-editor-dock-font-field" for="textEditorFontSelect">
-                    <span class="sr-only" data-i18n="copy.dockFont">서체 설정</span>
-                    <select id="textEditorFontSelect" data-i18n-aria-label="copy.dockFont" aria-label="서체 설정"></select>
-                  </label>
+                  <div class="text-editor-dock-font-field">
+                    <span class="sr-only" id="textEditorFontLabel" data-i18n="copy.dockFont">서체 설정</span>
+                    <select id="textEditorFontSelect" data-i18n-aria-label="copy.dockFont" aria-label="서체 설정" aria-hidden="true" tabindex="-1"></select>
+                    <button class="text-editor-dock-font-trigger" id="textEditorFontTrigger" type="button" data-i18n-aria-label="copy.dockFont" aria-label="서체 설정" aria-haspopup="listbox" aria-expanded="false" aria-controls="textEditorFontMenu" aria-labelledby="textEditorFontLabel">
+                      <span class="text-editor-dock-font-trigger-label" id="textEditorFontTriggerLabel"></span>
+                      <span class="text-editor-dock-font-trigger-chevron" aria-hidden="true"></span>
+                    </button>
+                    <div class="text-editor-dock-font-menu" id="textEditorFontMenu" role="listbox" data-i18n-aria-label="copy.dockFont" aria-label="서체 설정" hidden></div>
+                  </div>
                   <button class="text-editor-dock-format" id="textEditorBoldButton" type="button" data-i18n-aria-label="copy.dockBold" data-i18n-title="copy.dockBold" aria-label="굵게" title="굵게" aria-pressed="false"><span aria-hidden="true">B</span></button>
                   <button class="text-editor-dock-format" id="textEditorItalicButton" type="button" data-i18n-aria-label="copy.dockItalic" data-i18n-title="copy.dockItalic" aria-label="이탤릭" title="이탤릭" aria-pressed="false"><span aria-hidden="true">I</span></button>
                   <button class="text-editor-dock-format" id="textEditorUnderlineButton" type="button" data-i18n-aria-label="copy.dockUnderline" data-i18n-title="copy.dockUnderline" aria-label="밑줄" title="밑줄" aria-pressed="false"><span aria-hidden="true">U</span></button>
@@ -194,16 +199,13 @@
                   <div class="scene-background" id="sceneBackground"></div>
                   <div class="scene-texture"></div>
                   <div class="scene-pattern" id="scenePattern" aria-hidden="true"></div>
-                  <span class="prism prism--one" aria-hidden="true"></span>
-                  <span class="prism prism--two" aria-hidden="true"></span>
-                  <span class="prism prism--three" aria-hidden="true"></span>
                   <div class="portrait-wrap" id="portraitWrap" role="group" data-i18n-aria-label="canvas.characters" aria-label="캐릭터 배치 영역"></div>
                   <div class="multi-info-layer" id="multiInfoLayer" role="group" data-i18n-aria-label="canvas.charactersInfo" aria-label="캐릭터별 아이템 정보"></div>
                   <canvas id="boardCopyCanvas" class="board-copy-canvas" aria-hidden="true"></canvas>
                   <div class="board-editorial-header">
                     <div class="board-title-block">
-                      <strong id="boardTitle" contenteditable="true" role="textbox" data-i18n="look.defaultTitle" data-i18n-aria-label="copy.cardTitle" data-i18n-title="copy.editTitle" aria-label="카드 제목" aria-describedby="copyEditorHint" title="클릭해서 카드 제목 편집 · Enter 저장 · Esc 취소" spellcheck="false">새로운 룩</strong>
-                      <span class="caption-description" id="boardSubtitle" contenteditable="true" role="textbox" data-i18n-aria-label="copy.cardDescription" data-i18n-title="copy.editDescription" aria-label="룩 설명" aria-describedby="copyEditorHint" title="클릭해서 룩 설명 편집 · Esc 취소" spellcheck="true"></span>
+                      <strong id="boardTitle" contenteditable="true" role="textbox" data-i18n="look.defaultTitle" data-i18n-aria-label="copy.cardTitle" data-i18n-title="copy.editTitle" aria-label="카드 제목" aria-describedby="copyEditorHint" title="클릭해 카드 제목 편집 · Enter 저장 · Esc 취소" spellcheck="false">새로운 룩</strong>
+                      <span class="caption-description" id="boardSubtitle" contenteditable="true" role="textbox" data-i18n-aria-label="copy.cardDescription" data-i18n-title="copy.editDescription" aria-label="룩 설명" aria-describedby="copyEditorHint" title="클릭해 룩 설명 편집 · Esc 취소" spellcheck="true"></span>
                     </div>
                   </div>
                   <div class="board-gear-list board-gear-tiles" id="boardGearList" role="group" data-i18n-aria-label="canvas.gearInfo" aria-label="룩 장비 정보"></div>
@@ -289,11 +291,11 @@
                   <div class="image-workflow-head"><div class="image-workflow-title"><span class="image-workflow-index" aria-hidden="true">01</span><span id="imageImportGroupTitle" data-i18n="image.import">사진 가져오기</span></div><details class="control-help"><summary data-i18n-aria-label="help.open" aria-label="도움말"><span class="control-help-icon" aria-hidden="true">?</span></summary><div class="control-help-popover"><p data-i18n="image.importHint">원본은 브라우저에 안전하게 보관합니다</p></div></details></div>
                   <div class="portrait-source-card is-empty" id="portraitSourceCard">
                     <div class="source-thumb is-empty" id="sourceThumbFrame"><img id="sourceThumb" data-i18n-alt="image.notSelected" alt="사진 미선택" /></div>
-                    <div class="source-copy"><strong id="sourceFileName" data-i18n="image.notSelected" aria-live="polite">사진 미선택</strong><span id="sourceFileMeta" data-i18n="image.fileTypes" aria-live="polite">PNG · JPG · WebP · 여러 장 선택 가능</span></div>
+                    <div class="source-copy"><strong id="sourceFileName" data-i18n="image.notSelected" aria-live="polite">사진 미선택</strong><span id="sourceFileMeta" data-i18n="image.fileTypes" aria-live="polite">PNG · JPG · WebP · 여러 장을 한 번에 선택할 수 있어요</span></div>
                   </div>
                 </div>
                 <div class="image-workflow-group image-placement-group" aria-labelledby="imagePlacementGroupTitle">
-                  <div class="image-workflow-head"><div class="image-workflow-title"><span class="image-workflow-index" aria-hidden="true">02</span><span id="imagePlacementGroupTitle" data-i18n="image.placement">프레임과 배치</span></div><details class="control-help"><summary data-i18n-aria-label="help.open" aria-label="도움말"><span class="control-help-icon" aria-hidden="true">?</span></summary><div class="control-help-popover"><p data-i18n="image.placementHint">카드에서 보이는 이미지 영역을 조정합니다</p><p data-i18n="image.directHint">편집을 열면 카드 위에서 드래그해 위치를 맞춥니다.</p></div></details></div>
+                  <div class="image-workflow-head"><div class="image-workflow-title"><span class="image-workflow-index" aria-hidden="true">02</span><span id="imagePlacementGroupTitle" data-i18n="image.placement">프레임과 배치</span></div><details class="control-help"><summary data-i18n-aria-label="help.open" aria-label="도움말"><span class="control-help-icon" aria-hidden="true">?</span></summary><div class="control-help-popover"><p data-i18n="image.placementHint">카드에 보일 이미지 영역을 조절해 보세요</p><p data-i18n="image.directHint">편집을 열고 카드 위에서 드래그해 위치를 맞추세요.</p></div></details></div>
                   <div class="image-placement-card">
                     <div class="compact-option-row image-fit-row"><span data-i18n="image.frame">프레임</span><div class="compact-segments" role="group" data-i18n-aria-label="image.frameAria" aria-label="이미지 프레임 표시"><button class="is-selected" data-image-fit="contain" data-i18n="image.contain" type="button">전체 보기</button><button data-image-fit="cover" data-i18n="image.cover" type="button">채우기</button></div></div>
                     <div class="image-transform-row image-placement-launch-row"><span data-i18n="image.position">배치</span><div class="image-placement-summary"><output id="imagePlacementSummary" aria-live="polite">100% · 기본 위치</output><button class="image-placement-launch" id="openImageEditorButton" type="button" data-i18n="image.editPlacement" data-i18n-aria-label="image.editPlacement" data-i18n-title="image.editPlacementReady" aria-controls="canvasBoard" aria-expanded="false">크기·위치 편집</button></div></div>
@@ -404,7 +406,7 @@
               <section class="inspector-section card-compose-section card-style-section editor-category-section" id="cardStyleSection">
                 <div class="panel-section-head"><h2 data-i18n="background.title">배경</h2><span class="style-current-label" id="backgroundCurrentLabel" aria-live="polite">종이 · 패턴 없음 · 질감 없음</span></div>
                 <div class="card-display-control" id="cardDisplaySetting">
-                  <div class="card-display-copy"><span data-i18n="background.info">장비 정보</span></div><details class="control-help"><summary data-i18n-aria-label="help.open" aria-label="도움말"><span class="control-help-icon" aria-hidden="true">?</span></summary><div class="control-help-popover"><p data-i18n="background.infoHint">3인 이상 카드에 아이템 이름을 모두 표시합니다.</p></div></details>
+                  <div class="card-display-copy"><span data-i18n="background.info">장비 정보</span></div><details class="control-help"><summary data-i18n-aria-label="help.open" aria-label="도움말"><span class="control-help-icon" aria-hidden="true">?</span></summary><div class="control-help-popover"><p data-i18n="background.infoHint">3인 이상 카드에서 아이템 이름을 모두 보여줍니다.</p></div></details>
                   <label class="compact-switch card-display-switch"><input id="multiInfoToggle" type="checkbox" checked data-i18n-aria-label="background.displayAria" aria-label="카드에 장비 정보 표시" /><span></span><b data-i18n="background.display">표시</b></label>
                 </div>
                 <div class="compact-option-row" id="singleRatioRow"><span data-i18n="background.ratio">1인 비율</span><div class="compact-segments" role="group" data-i18n-aria-label="background.ratioAria" aria-label="1인 카드 비율"><button class="is-selected" data-single-ratio="portrait" data-i18n="background.portrait" type="button">세로 4:5</button><button data-single-ratio="landscape" data-i18n="background.landscape" type="button">가로 16:9</button></div></div>
@@ -464,6 +466,18 @@
                       </button>
                       <button class="background-art-choice background-texture-choice" data-texture="grain" type="button" role="radio" aria-checked="false">
                         <span class="background-art-preview background-art-preview--texture-grain" aria-hidden="true"></span><span data-i18n="texture.grain">그레인</span>
+                      </button>
+                      <button class="background-art-choice background-texture-choice" data-texture="risograph" type="button" role="radio" aria-checked="false">
+                        <span class="background-art-preview background-art-preview--texture-risograph" aria-hidden="true"></span><span data-i18n="texture.risograph">리소그래프 잉크</span>
+                      </button>
+                      <button class="background-art-choice background-texture-choice" data-texture="dust" type="button" role="radio" aria-checked="false">
+                        <span class="background-art-preview background-art-preview--texture-dust" aria-hidden="true"></span><span data-i18n="texture.dust">먼지·스크래치</span>
+                      </button>
+                      <button class="background-art-choice background-texture-choice" data-texture="fiber" type="button" role="radio" aria-checked="false">
+                        <span class="background-art-preview background-art-preview--texture-fiber" aria-hidden="true"></span><span data-i18n="texture.fiber">종이 섬유</span>
+                      </button>
+                      <button class="background-art-choice background-texture-choice" data-texture="halftone" type="button" role="radio" aria-checked="false">
+                        <span class="background-art-preview background-art-preview--texture-halftone" aria-hidden="true"></span><span data-i18n="texture.halftone">하프톤</span>
                       </button>
                     </div>
                   </div>
@@ -534,7 +548,7 @@
         <div class="look-rename-row"><input id="lookNameInput" type="text" maxlength="64" required aria-describedby="lookNameHelp" autocomplete="off" /><button data-i18n="manager.nameSave" type="submit">이름 저장</button></div>
       </form>
       <div class="look-manager-action"><div><strong data-i18n="manager.duplicateTitle">이 룩 복제</strong><p data-i18n="manager.duplicateDescription">사진·장비·꾸미기를 복사해 새 룩을 만듭니다.</p></div><button id="duplicateLookButton" data-i18n="manager.duplicate" type="button">복제</button></div>
-      <div class="look-manager-action"><div><strong data-i18n="manager.deleteTitle">이 룩 삭제</strong><p data-i18n="manager.deleteDescription">새로고침 전까지 아래에서 삭제를 취소할 수 있습니다.</p></div><button id="deleteLookButton" data-i18n="manager.delete" type="button">삭제</button></div>
+      <div class="look-manager-action"><div><strong data-i18n="manager.deleteTitle">이 룩 삭제</strong><p data-i18n="manager.deleteDescription">새로고침하기 전에는 아래에서 삭제를 취소할 수 있어요.</p></div><button id="deleteLookButton" data-i18n="manager.delete" type="button">삭제</button></div>
       <footer><button id="restoreDeletedLookButton" data-i18n="manager.restore" type="button" disabled>삭제 취소</button><span id="lookManagerStatus" role="status" aria-live="polite"></span></footer>
     </dialog>
     <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden />
@@ -544,6 +558,7 @@
     <script src="models/image-assets.js?v=20260907-project-name-1"></script>
     <script src="models/image-validation.js?v=20260908-source-preserving-1"></script>
     <script src="models/draft-storage.js?v=20260908-draft-storage-3"></script>
+    <script src="models/draft-schema.js?v=20260910-draft-canonical-1"></script>
     <script src="models/i18n.js?v=20260909-remove-font-size-dock-1"></script>
     <script src="models/item-records.js?v=20260908-item-records-1"></script>
     <script src="models/item-search.js?v=20260908-language-aware-search-1"></script>
@@ -555,8 +570,9 @@
     <script src="models/card-gear-copy.js?v=20260910-full-item-names-1"></script>
     <script src="models/card-png.js?v=20260910-full-item-names-1"></script>
     <script src="models/editor-navigation.js?v=20260906-navigation-1"></script>
+    <script src="models/editor-history.js?v=20260911-editor-history-1"></script>
     <script src="models/title-typography.js?v=20260908-title-fonts-1"></script>
     <script src="models/background-removal.js?v=20260907-browser-birefnet-3"></script>
-    <script src="app.js?v=20260910-full-item-names-1"></script>
+    <script src="app.js?v=20260911-editor-history-1"></script>
   </body>
 </html>

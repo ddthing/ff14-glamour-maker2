@@ -24,7 +24,8 @@ async function setColor(page, selector, value) {
     const dock = page.locator("#textEditorDock");
     assert.equal(await dock.isVisible(), true, "floating text toolbar should be visible in the style panel");
     assert.equal(await dock.locator("[role=toolbar]").count(), 1, "floating text toolbar is missing toolbar semantics");
-    assert.equal(await page.locator("#textEditorFontSelect").isVisible(), true, "font select is not in the floating toolbar");
+    assert.equal(await page.locator("#textEditorFontTrigger").isVisible(), true, "font picker trigger is not in the floating toolbar");
+    assert.equal(await page.locator("#textEditorFontMenu").isHidden(), true, "font picker list should start closed");
     assert.equal(await page.locator(".text-editor-dock-size").count(), 0, "title font size controls should be removed from the floating toolbar");
     assert.equal(await page.locator("#textEditorFontSizeUp").count(), 0, "floating toolbar should not expose a font size increase button");
     assert.equal(await page.locator("#textEditorFontSizeDown").count(), 0, "floating toolbar should not expose a font size decrease button");

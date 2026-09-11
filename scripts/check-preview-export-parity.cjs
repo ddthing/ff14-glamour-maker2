@@ -217,13 +217,14 @@ function maxRectDelta(previewRect, exportRect) {
       const board = document.querySelector("#canvasBoard").getBoundingClientRect();
       const image = document.querySelector("#portraitWrap img");
       const character = state.characters[0];
-      const frame = CardLayout.characterFrames({
+      const layout = CardLayout.layoutFor({
         characterCount: 1,
         singleRatio: state.singleRatio,
         singleLayout: state.singleLayout,
         characters: [character],
-      })[0];
-      const dimensions = CardLayout.dimensionsFor(1, state.singleRatio);
+      });
+      const frame = layout.frames[0];
+      const dimensions = layout.dimensions;
       const panScale = dimensions.layoutWidth / board.width;
       return {
         expected: CardLayout.imageRectFor({
@@ -276,14 +277,15 @@ function maxRectDelta(previewRect, exportRect) {
       await page.waitForFunction((expectedCount) => document.querySelectorAll("#portraitWrap img").length === expectedCount, scenario.count);
       const expected = await page.evaluate((next) => {
         const board = document.querySelector("#canvasBoard").getBoundingClientRect();
-        const dimensions = CardLayout.dimensionsFor(next.count, next.singleRatio);
         const characters = state.characters.slice(0, next.count);
-        const frames = CardLayout.characterFrames({
+        const layout = CardLayout.layoutFor({
           characterCount: next.count,
           singleRatio: next.singleRatio,
           singleLayout: state.singleLayout,
           characters,
         });
+        const dimensions = layout.dimensions;
+        const frames = layout.frames;
         const images = [...document.querySelectorAll("#portraitWrap img")];
         const panScale = dimensions.layoutWidth / board.width;
         return {

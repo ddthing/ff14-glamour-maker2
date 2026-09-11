@@ -22,6 +22,12 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
   assert.equal(await page.locator('#sourceFileName').textContent(),'A.png');
   await page.reload();await loaded();
   assert.equal(await page.locator('#sourceFileName').textContent(),'A.png');
+  const ownership = await page.evaluate(() => ({
+    stateCharactersShareLook: state.characters === getSelectedLook().editor.characters,
+    stateShadowShareLook: state.shadow === getSelectedLook().editor.shadow,
+  }));
+  assert.equal(ownership.stateCharactersShareLook, false, 'bootstrapped editor state must own its character array');
+  assert.equal(ownership.stateShadowShareLook, false, 'bootstrapped editor state must own its shadow object');
   await page.locator('.look-list-item').last().click();await loaded();
   assert.equal(await page.locator('#sourceFileName').textContent(),'B.png');
   await page.setViewportSize({width:390,height:844});

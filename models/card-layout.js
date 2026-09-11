@@ -28,12 +28,32 @@ const CardLayout = (() => {
     Object.freeze({ slot: "feet", x: 24, y: 562, width: 360, height: 82 }),
   ]);
 
+  function normaliseCharacterCount(value) {
+    return Math.min(5, Math.max(1, Number(value) || 1));
+  }
+
   function ratioFor(characterCount, singleRatio) {
     return Number(characterCount) === 1 && singleRatio === "portrait" ? "portrait" : "landscape";
   }
 
   function dimensionsFor(characterCount, singleRatio) {
     return { ...dimensions[ratioFor(characterCount, singleRatio)] };
+  }
+
+  function layoutFor({ characterCount = 1, singleRatio = "portrait", singleLayout = "info-left", characters = [] } = {}) {
+    const count = normaliseCharacterCount(characterCount);
+    const ratio = ratioFor(count, singleRatio);
+    return {
+      characterCount: count,
+      ratio,
+      dimensions: { ...dimensions[ratio] },
+      frames: characterFrames({
+        characterCount: count,
+        singleRatio,
+        singleLayout,
+        characters,
+      }),
+    };
   }
 
   function portraitGearPositions({ singleLayout = "info-left" } = {}) {
@@ -55,7 +75,7 @@ const CardLayout = (() => {
   }
 
   function characterFrames({ characterCount, singleRatio = "portrait", singleLayout = "info-left", characters = [] }) {
-    const count = Math.min(5, Math.max(1, Number(characterCount) || 1));
+    const count = normaliseCharacterCount(characterCount);
     const ratio = ratioFor(count, singleRatio);
     const { layoutWidth, layoutHeight } = dimensions[ratio];
 
@@ -72,7 +92,7 @@ const CardLayout = (() => {
       ];
     }
 
-    const activeCharacters = characters.slice(0, count);
+    const activeCharacters = Array.isArray(characters) ? characters.slice(0, count) : [];
     const hasFullFrameSource = activeCharacters.some((character) => !character?.cutout);
     const figureTop = hasFullFrameSource ? 0 : 142;
     const figureBottom = hasFullFrameSource ? layoutHeight : layoutHeight - 14;
@@ -103,7 +123,7 @@ const CardLayout = (() => {
     const height = itemHeight * 5 + gap * 4;
     return [
       { x: inset, y, width, height, itemHeight, gap, textAlign: "left" },
-      { x: layoutWidth - inset - width, y, width, height, itemHeight, gap, textAlign: "right" },
+      { x: layoutWidth - inset - width, y, width, height, itemHeight, gap, textAlign: "left" },
     ];
   }
 
@@ -118,8 +138,14 @@ const CardLayout = (() => {
   }
 
   function cssInsetFor(frames, characterCount, singleRatio) {
-    const ratio = ratioFor(characterCount, singleRatio);
-    const { layoutWidth, layoutHeight } = dimensions[ratio];
+    return cssInsetForLayout({
+      frames,
+      dimensions: dimensionsFor(characterCount, singleRatio),
+    });
+  }
+
+  function cssInsetForLayout({ frames, dimensions: layoutDimensions }) {
+    const { layoutWidth, layoutHeight } = layoutDimensions;
     const bounds = boundsFor(frames);
     return [
       (bounds.top / layoutHeight) * 100,
@@ -129,7 +155,7 @@ const CardLayout = (() => {
     ].map((value) => `${value}%`).join(" ");
   }
 
-  return { ratioFor, dimensionsFor, characterFrames, imageRectFor, portraitGearPositions, landscapeSoloGearPositions, infoRails, boundsFor, cssInsetFor, gearSlotOrder };
+  return { ratioFor, dimensionsFor, layoutFor, characterFrames, imageRectFor, portraitGearPositions, landscapeSoloGearPositions, infoRails, boundsFor, cssInsetFor, cssInsetForLayout, gearSlotOrder };
 })();
 
 if (typeof module !== "undefined") module.exports = CardLayout;

@@ -2,6 +2,12 @@ const assert = require("node:assert/strict");
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
 
 const requestedFonts = [
+  { value: "yoon-chorok-child-daehan", family: "YoonchoUsanChildrenS" },
+  { value: "yoon-chorok-child-minguk", family: "YunChorokwoosanEoriniMinguk" },
+  { value: "yoon-chorok-child-manse", family: "YoonChoWooSan" },
+  { value: "nelna-yesam", family: "Nelna_Yesam" },
+  { value: "nelna-lizzy", family: "NelnaLizzyChae" },
+  { value: "cafe24-moya-moya-face", family: "Cafe24MoyaMoyaFace" },
   { value: "wild-gak", family: "KIMWILDgag-Bold" },
   { value: "cafe24-classic-type", family: "Cafe24ClassicType" },
   { value: "sinchon-rhapsody", family: "SinchonRhapsody" },
@@ -86,7 +92,7 @@ const requestedFonts = [
       assert.equal(result.copyRendered, "true", `${requested.value} did not redraw the shared copy preview`);
     }
 
-    console.log(`PASS: ${requestedFonts.length} new title fonts reach both the card preview and the shared PNG copy measurement.`);
+    console.log(`PASS: ${requestedFonts.length} configured title fonts reach both the card preview and the shared PNG copy measurement.`);
   } finally {
     await browser.close();
   }

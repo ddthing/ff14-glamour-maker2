@@ -8,9 +8,9 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     await page.addInitScript(() => localStorage.clear());
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto(process.env.TEST_BASE_URL || "http://localhost:4173");
-    await page.waitForSelector("#textEditorFontSelect");
+    await page.waitForSelector("#textEditorFontTrigger");
 
-    assert.equal(await page.locator("#textEditorFontSelect").isVisible(), true, "title typography is not available in the floating toolbar");
+    assert.equal(await page.locator("#textEditorFontTrigger").isVisible(), true, "title typography is not available in the floating toolbar");
     assert.equal(await page.locator("#copyEditorSection #titleFontSelect").isVisible(), false, "duplicate font control remains visible in the inspector");
     assert.equal(await page.locator("#multiCardControls #titleFontSelect, .card-style-section #titleFontSelect").count(), 0, "title typography remains buried in card settings");
     assert.equal(await page.locator("#copyEditorContextbar").count(), 1, "card-first copy toolbar is missing");
@@ -51,15 +51,15 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.equal(directEditStyle.boxShadow, "none", `direct card editing should not create a shadowed text box: ${JSON.stringify(directEditStyle)}`);
 
     const initial = await page.evaluate(() => {
-      const select = document.querySelector("#textEditorFontSelect");
+      const trigger = document.querySelector("#textEditorFontTrigger");
       const controls = [...document.querySelectorAll("#textEditorBoldButton, #textEditorItalicButton, #textEditorUnderlineButton, #textEditorUppercaseButton, #textEditorColorAutoButton, [data-floating-align]")];
       const box = (element) => {
         const rect = element.getBoundingClientRect();
         return { width: Math.round(rect.width), height: Math.round(rect.height) };
       };
       return {
-        select: box(select),
-        selectRadius: getComputedStyle(select).borderRadius,
+        trigger: box(trigger),
+        triggerRadius: getComputedStyle(trigger).borderRadius,
         controls: controls.map((control) => ({
           id: control.id || control.dataset.floatingAlign,
           box: box(control),
@@ -68,7 +68,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
         })),
       };
     });
-    assert.ok(initial.select.height >= 36, `font select target is too short: ${JSON.stringify(initial.select)}`);
+    assert.ok(initial.trigger.height >= 36, `font picker trigger target is too short: ${JSON.stringify(initial.trigger)}`);
     assert.equal(initial.controls.length, 8, `floating formatting controls are incomplete: ${JSON.stringify(initial)}`);
     assert.ok(initial.controls.every(({ box }) => box.height >= 34), `floating controls are too short: ${JSON.stringify(initial)}`);
     assert.equal(new Set(initial.controls.map(({ radius }) => radius)).size > 0, true, "floating controls lost their shape");

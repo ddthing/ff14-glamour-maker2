@@ -18,6 +18,126 @@ function traceFivePointStar(context, radius) {
   context.closePath();
 }
 
+function drawExportTexture(context, width, height, background, texture) {
+  const textureStrength = {
+    grain: 0.1,
+    risograph: 0.12,
+    dust: 0.14,
+    fiber: 0.12,
+    halftone: 0.12,
+  }[texture] ?? 0;
+  if (!textureStrength) return;
+
+  const ink = background.pattern[0];
+  const light = background.pattern[1];
+  const seededUnit = (index, salt) => {
+    const seed = Math.sin(index * 12.9898 + salt) * 43758.5453;
+    return seed - Math.floor(seed);
+  };
+
+  context.save();
+  if (texture === "grain") {
+    const grainCount = Math.round((width * height) / 250);
+    for (let index = 0; index < grainCount; index += 1) {
+      const random = seededUnit(index, 78.233);
+      const secondRandom = seededUnit(index, 19.19);
+      context.globalAlpha = textureStrength * (0.25 + random * 0.75);
+      context.fillStyle = index % 5 === 0 ? light : ink;
+      context.fillRect(
+        Math.floor(secondRandom * width),
+        Math.floor(random * height),
+        random > 0.72 ? 1.4 : 0.8,
+        random > 0.72 ? 1.4 : 0.8,
+      );
+    }
+  } else if (texture === "risograph") {
+    const step = Math.max(6, Math.min(10, width / 140));
+    const drawScreen = (color, offsetX, offsetY, angle, alpha) => {
+      context.save();
+      context.translate(width / 2, height / 2);
+      context.rotate(angle);
+      context.translate(-width / 2 + offsetX, -height / 2 + offsetY);
+      context.fillStyle = color;
+      context.globalAlpha = textureStrength * alpha;
+      for (let y = -step; y < height + step; y += step) {
+        for (let x = -step; x < width + step; x += step) {
+          context.beginPath();
+          context.arc(x, y, Math.max(0.42, step * 0.14), 0, Math.PI * 2);
+          context.fill();
+        }
+      }
+      context.restore();
+    };
+    drawScreen(ink, 0, 0, -0.012, 0.84);
+    drawScreen(light, step * 0.24, step * 0.12, 0.012, 0.55);
+  } else if (texture === "dust") {
+    const dustCount = Math.round((width * height) / 5000);
+    for (let index = 0; index < dustCount; index += 1) {
+      const random = seededUnit(index, 41.7);
+      const secondRandom = seededUnit(index, 93.13);
+      const x = secondRandom * width;
+      const y = random * height;
+      const color = index % 4 === 0 ? light : ink;
+      context.globalAlpha = textureStrength * (0.22 + random * 0.78);
+      context.fillStyle = color;
+      if (index % 7 === 0) {
+        const scratchLength = 4 + secondRandom * 18;
+        context.strokeStyle = color;
+        context.lineWidth = Math.max(0.35, random * 1.1);
+        context.beginPath();
+        context.moveTo(x, y);
+        context.lineTo(
+          x + (secondRandom - 0.5) * scratchLength * 2,
+          y + (random - 0.5) * 3,
+        );
+        context.stroke();
+      } else {
+        const radius = random > 0.92 ? 2.2 : random > 0.7 ? 1.1 : 0.55;
+        context.beginPath();
+        context.arc(x, y, radius, 0, Math.PI * 2);
+        context.fill();
+      }
+    }
+  } else if (texture === "fiber") {
+    const fiberCount = Math.round((width * height) / 2400);
+    context.lineCap = "round";
+    for (let index = 0; index < fiberCount; index += 1) {
+      const random = seededUnit(index, 17.11);
+      const secondRandom = seededUnit(index, 63.47);
+      const x = random * width;
+      const y = secondRandom * height;
+      const length = 3 + seededUnit(index, 81.29) * 16;
+      const vertical = index % 3 === 0;
+      const angle = vertical
+        ? Math.PI / 2 + (random - 0.5) * 0.13
+        : (secondRandom - 0.5) * 0.13;
+      const color = index % 5 === 0 ? light : ink;
+      context.globalAlpha = textureStrength * (0.18 + seededUnit(index, 119.3) * 0.62);
+      context.strokeStyle = color;
+      context.lineWidth = 0.28 + seededUnit(index, 149.2) * 0.72;
+      context.beginPath();
+      context.moveTo(x, y);
+      context.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+      context.stroke();
+    }
+  } else if (texture === "halftone") {
+    const step = Math.max(6, Math.min(10, width / 160));
+    context.fillStyle = ink;
+    for (let y = step / 2; y < height; y += step) {
+      const verticalFade = 0.08 + Math.pow(y / height, 1.35) * 0.92;
+      const offset = (Math.round(y / step) % 2) * step * 0.5;
+      for (let x = step / 2 + offset; x < width; x += step) {
+        const variation = 0.76 + seededUnit(Math.round(x + y), 207.4) * 0.24;
+        context.globalAlpha = textureStrength * verticalFade * variation;
+        context.beginPath();
+        context.arc(x, y, Math.max(0.35, step * (0.06 + verticalFade * 0.12)), 0, Math.PI * 2);
+        context.fill();
+      }
+    }
+  }
+  context.restore();
+}
+
 function drawExportPattern(context, width, height, background, snapshot, patternStars) {
   const state = snapshot;
   if (state.backgroundPattern === "none" && state.backgroundTexture === "none") return;
@@ -33,25 +153,14 @@ function drawExportPattern(context, width, height, background, snapshot, pattern
   context.save();
 
   if (state.backgroundPattern === "halftone") {
-    const clusters = [
-      [width * 0.08, height * 0.22, Math.min(width, height) * 0.34],
-      [width * 0.92, height * 0.78, Math.min(width, height) * 0.3],
-    ];
-    clusters.forEach(([centerX, centerY, radius]) => {
-      const step = Math.max(8, Math.min(width, height) / 78);
-      for (let y = centerY - radius; y <= centerY + radius; y += step) {
-        for (let x = centerX - radius; x <= centerX + radius; x += step) {
-          const distance = Math.hypot(x - centerX, y - centerY) / radius;
-          if (distance > 1) continue;
-          const dotRadius = Math.max(0.35, step * 0.2 * (1 - distance));
-          context.globalAlpha = strength * Math.max(0.08, 1 - distance);
-          context.fillStyle = ink;
-          context.beginPath();
-          context.arc(x, y, dotRadius, 0, Math.PI * 2);
-          context.fill();
-        }
-      }
-    });
+    // The halftone control is a soft gingham check: translucent vertical and
+    // horizontal bands overlap into darker squares like reference image 3.
+    const cell = Math.max(24, Math.min(80, width / 15));
+    const band = cell * 0.38;
+    context.fillStyle = ink;
+    context.globalAlpha = strength * 0.52;
+    for (let x = 0; x < width; x += cell) context.fillRect(x, 0, band, height);
+    for (let y = 0; y < height; y += cell) context.fillRect(0, y, width, band);
   } else if (state.backgroundPattern === "dots") {
     const step = Math.max(13, width / 68);
     for (let y = step / 2; y < height; y += step) {
@@ -65,9 +174,9 @@ function drawExportPattern(context, width, height, background, snapshot, pattern
       }
     }
   } else if (state.backgroundPattern === "bitmap") {
-    // The legacy bitmap key now renders as a deliberate checkerboard. Keep
-    // the tile size in the same card-coordinate scale as the CSS preview.
-    const square = Math.max(18, width / 60);
+    // The legacy bitmap key now renders as a deliberate large checkerboard.
+    // Keep roughly ten squares across so export follows the CSS preview.
+    const square = Math.max(32, Math.min(132, width / 10));
     for (let row = 0, y = 0; y < height; row += 1, y += square) {
       for (let column = 0, x = 0; x < width; column += 1, x += square) {
         context.globalAlpha = strength;
@@ -77,33 +186,38 @@ function drawExportPattern(context, width, height, background, snapshot, pattern
     }
   }
 
-  if (state.backgroundTexture === "grain") {
-    const grainCount = Math.round((width * height) / 250);
-    for (let index = 0; index < grainCount; index += 1) {
-      const seed = Math.sin(index * 12.9898 + 78.233) * 43758.5453;
-      const random = seed - Math.floor(seed);
-      const secondSeed = Math.sin(index * 4.1414 + 19.19) * 15731.743;
-      const secondRandom = secondSeed - Math.floor(secondSeed);
-      context.globalAlpha = 0.1 * (0.25 + random * 0.75);
-      context.fillStyle = index % 5 === 0 ? light : ink;
-      context.fillRect(
-        Math.floor(secondRandom * width),
-        Math.floor(random * height),
-        random > 0.72 ? 1.4 : 0.8,
-        random > 0.72 ? 1.4 : 0.8,
-      );
-    }
-  }
+  drawExportTexture(context, width, height, background, state.backgroundTexture);
 
   if (state.backgroundPattern === "stars") {
-    patternStars.forEach(({ x, y, size, rotate, tone, opacity }) => {
+    patternStars.forEach(({ x, y, size, rotate, tone, shape = "star", opacity }) => {
       context.save();
       context.translate((x / 100) * width, (y / 100) * height);
       context.rotate((rotate * Math.PI) / 180);
       context.globalAlpha = strength * opacity;
       context.fillStyle = tone === "light" ? light : ink;
-      traceFivePointStar(context, ((size / 100) * width) / 2);
-      context.fill();
+      const radius = ((size / 100) * width) / 2;
+      if (shape === "outline") {
+        context.strokeStyle = context.fillStyle;
+        context.lineWidth = Math.max(1, radius * 0.15);
+        traceFivePointStar(context, radius);
+        context.stroke();
+      } else if (shape === "sparkle") {
+        traceEightPointSparkle(context, radius);
+        context.fill();
+      } else if (shape === "ring") {
+        context.beginPath();
+        context.arc(0, 0, radius * 0.68, 0, Math.PI * 2);
+        context.lineWidth = Math.max(1, radius * 0.16);
+        context.strokeStyle = context.fillStyle;
+        context.stroke();
+      } else if (shape === "dot") {
+        context.beginPath();
+        context.arc(0, 0, radius * 0.36, 0, Math.PI * 2);
+        context.fill();
+      } else {
+        traceFivePointStar(context, radius);
+        context.fill();
+      }
       context.restore();
     });
   }
@@ -163,6 +277,20 @@ function traceScrapbookNote(context, x, y, width, height) {
     if (index === 0) context.moveTo(resolvedX, resolvedY);
     else context.lineTo(resolvedX, resolvedY);
   });
+  context.closePath();
+}
+
+function traceEightPointSparkle(context, radius) {
+  const innerRadius = radius * 0.2;
+  context.beginPath();
+  for (let index = 0; index < 8; index += 1) {
+    const pointRadius = index % 2 === 0 ? radius : innerRadius;
+    const angle = -Math.PI / 2 + (index * Math.PI) / 4;
+    const x = Math.cos(angle) * pointRadius;
+    const y = Math.sin(angle) * pointRadius;
+    if (index === 0) context.moveTo(x, y);
+    else context.lineTo(x, y);
+  }
   context.closePath();
 }
 
@@ -318,16 +446,17 @@ function drawExportBackground(context, width, height, background, backgroundImag
   context.restore();
 }
 
-async function render({ state, dimensions, exportTheme, background, patternStars, images, backgroundImage = null, copyLayout, gear, outlineColor, placementScale = 1, infoTextColor = exportTheme.text, infoTextMuted = exportTheme.muted, infoTextHalo = exportTheme.infoShadow }) {
+async function render({ state, dimensions, layout = null, exportTheme, background, patternStars, images, backgroundImage = null, copyLayout, gear, outlineColor, placementScale = 1, infoTextColor = exportTheme.text, infoTextMuted = exportTheme.muted, infoTextHalo = exportTheme.infoShadow }) {
   const activeCharacters = state.characters.slice(0, state.characterCount);
-  const isPortrait = dimensions.layoutHeight > dimensions.layoutWidth;
-    const characterFrames = CardLayout.characterFrames({
-      characterCount: state.characterCount,
-      singleRatio: isPortrait ? "portrait" : "landscape",
-      singleLayout: state.singleLayout,
-      characters: activeCharacters,
-    });
-    const { layoutWidth, layoutHeight, exportWidth, exportHeight } = dimensions;
+  const resolvedLayout = layout || CardLayout.layoutFor({
+    characterCount: state.characterCount,
+    singleRatio: dimensions.layoutHeight > dimensions.layoutWidth ? "portrait" : "landscape",
+    singleLayout: state.singleLayout,
+    characters: activeCharacters,
+  });
+  const isPortrait = resolvedLayout.ratio === "portrait";
+  const characterFrames = resolvedLayout.frames;
+  const { layoutWidth, layoutHeight, exportWidth, exportHeight } = dimensions;
     const outputScale = CardCopy.outputScale;
     const resolvedPlacementScale = Number.isFinite(placementScale) && placementScale > 0 ? placementScale : 1;
     const canvas = document.createElement("canvas");

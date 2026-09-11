@@ -221,7 +221,7 @@ function failPendingJobs(message, targetWorker = null) {
 function ensureWorker() {
   if (worker && workerReady) return workerReady;
   if (!fs.existsSync(pythonPath)) {
-    return Promise.reject(new Error("배경 제거 환경이 없습니다. README의 설치 안내를 확인해주세요."));
+    return Promise.reject(new Error("배경 제거 환경이 없습니다. README의 설치 안내를 확인해 주세요."));
   }
   fs.mkdirSync(runtimeDir, { recursive: true });
   const child = spawn(pythonPath, [workerPath], {
@@ -360,7 +360,7 @@ async function handleBackgroundRemoval(request, response) {
   }
   const contentLength = Number(request.headers["content-length"]);
   if (Number.isFinite(contentLength) && contentLength > maxUploadBytes) {
-    sendJson(response, 413, { error: "16MB 이하 이미지를 사용해주세요." });
+    sendJson(response, 413, { error: "16MB 이하 이미지를 사용해 주세요." });
     request.resume();
     return;
   }
@@ -409,13 +409,13 @@ async function handleRemoteBackgroundRemoval(request, response) {
   }
   const contentLength = Number(request.headers["content-length"]);
   if (Number.isFinite(contentLength) && contentLength > maxUploadBytes) {
-    sendJson(response, 413, { error: "16MB 이하 이미지를 사용해주세요." });
+    sendJson(response, 413, { error: "16MB 이하 이미지를 사용해 주세요." });
     request.resume();
     return;
   }
   const serviceUrl = resolveRemoteCutoutUrl(process.env.CUTOUT_SERVICE_URL);
   if (!serviceUrl) {
-    sendJson(response, 503, { error: "배경 제거 서버 설정을 확인해주세요." });
+    sendJson(response, 503, { error: "배경 제거 서버 설정을 확인해 주세요." });
     request.resume();
     return;
   }
@@ -442,7 +442,7 @@ async function handleRemoteBackgroundRemoval(request, response) {
     }, remoteCutoutTimeoutMs);
   } catch (error) {
     const message = error?.name === "AbortError"
-      ? "배경 제거 시간이 초과되었습니다. 잠시 후 다시 시도해주세요."
+      ? "배경 제거 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요."
       : "배경 제거 서버에 연결할 수 없습니다.";
     sendJson(response, 504, { error: message });
     return;
@@ -450,7 +450,7 @@ async function handleRemoteBackgroundRemoval(request, response) {
   if (!upstream.ok) {
     sendJson(response, 502, {
       error: upstream.status >= 500
-        ? "배경 제거 서버가 잠시 바쁩니다. 다시 시도해주세요."
+        ? "배경 제거 서버가 잠시 바쁩니다. 다시 시도해 주세요."
         : "이미지를 처리하지 못했습니다.",
     });
     return;
@@ -472,7 +472,7 @@ async function handleRemoteBackgroundRemoval(request, response) {
     sendJson(response, timedOut ? 504 : 502, {
       error: error.code === "RESULT_TOO_LARGE"
         ? error.message
-        : timedOut ? "배경 제거 시간이 초과되었습니다. 잠시 후 다시 시도해주세요." : "배경 제거 결과를 읽지 못했습니다.",
+        : timedOut ? "배경 제거 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요." : "배경 제거 결과를 읽지 못했습니다.",
     });
     return;
   }
@@ -496,7 +496,7 @@ function createResultTooLargeError() {
 }
 
 function createUploadTooLargeError() {
-  const error = new Error("16MB 이하 이미지를 사용해주세요.");
+  const error = new Error("16MB 이하 이미지를 사용해 주세요.");
   error.code = "UPLOAD_TOO_LARGE";
   return error;
 }
@@ -590,7 +590,7 @@ const server = http.createServer(async (request, response) => {
     "/support/": "support/index.html",
   };
   const relativePath = requestPath === "/" ? "index.html" : cleanPagePaths[requestPath] || requestPath.replace(/^\/+/, "");
-  const publicFile = ["index.html", "app.js", "styles.css", "robots.txt", "sitemap.xml", "site.webmanifest", "google96c42eb007c2a9a8.html", "models/look-editor.js", "models/look-book.js", "models/image-assets.js", "models/image-validation.js", "models/draft-storage.js", "models/i18n.js", "models/public-pages.js", "models/item-records.js", "models/item-search.js", "models/crop-plan.js", "models/card-layout.js", "models/card-copy.js", "models/color-contrast.js", "models/card-materials.js", "models/card-gear-copy.js", "models/card-png.js", "models/editor-navigation.js", "models/title-typography.js", "models/background-removal.js", "terms/index.html", "privacy/index.html", "guide/index.html", "contact/index.html", "support/index.html"].includes(relativePath)
+  const publicFile = ["index.html", "app.js", "styles.css", "robots.txt", "sitemap.xml", "site.webmanifest", "google96c42eb007c2a9a8.html", "models/look-editor.js", "models/look-book.js", "models/image-assets.js", "models/image-validation.js", "models/draft-storage.js", "models/draft-schema.js", "models/i18n.js", "models/public-pages.js", "models/item-records.js", "models/item-search.js", "models/crop-plan.js", "models/card-layout.js", "models/card-copy.js", "models/color-contrast.js", "models/card-materials.js", "models/card-gear-copy.js", "models/card-png.js", "models/editor-navigation.js", "models/editor-history.js", "models/title-typography.js", "models/background-removal.js", "terms/index.html", "privacy/index.html", "guide/index.html", "contact/index.html", "support/index.html"].includes(relativePath)
     || /^(styles\/[^/]+\.css|assets\/(data|fonts|icons|themes)\/(?:[^/]+\/)*[^/]+\.(json|ttf|woff2?|svg|png|jpe?g|webp))$/.test(relativePath);
   const filePath = path.resolve(root, relativePath);
   const isInsideRoot = filePath === root || filePath.startsWith(`${root}${path.sep}`);

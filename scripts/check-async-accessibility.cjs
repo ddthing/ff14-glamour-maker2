@@ -42,7 +42,7 @@ const cutoutPng = Buffer.from(
 
     const search = page.locator("#itemSearch");
     await search.fill("alpha");
-    await page.waitForFunction(() => window.fetch && document.querySelector("#catalogStatus")?.textContent.includes("검색"));
+    await page.waitForFunction(() => document.querySelector("#catalogResults")?.getAttribute("aria-busy") === "true");
     await page.waitForFunction(() => document.querySelector("#itemSearch").value === "alpha");
     await waitForSearchRoute("alpha");
 
