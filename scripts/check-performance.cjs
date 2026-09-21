@@ -52,7 +52,13 @@ const remoteFontPattern = "**/pretendardvariable-dynamic-subset.min.css";
       }
     });
     await page.waitForFunction(() => window.__liveStyleRenderCalls >= 1, null, { timeout: 2000 });
-    await page.waitForTimeout(100);
+    await page.waitForFunction(() => {
+      try {
+        return JSON.parse(localStorage.getItem("tuyeong-set-maker2-draft-v3"))?.shadow?.strength === 60;
+      } catch {
+        return false;
+      }
+    }, null, { timeout: 2000 });
     const draftWrites = await page.evaluate(() => ({
       count: window.__draftWriteCount,
       shadowStrength: JSON.parse(localStorage.getItem("tuyeong-set-maker2-draft-v3"))?.shadow?.strength,
