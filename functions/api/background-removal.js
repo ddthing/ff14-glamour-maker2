@@ -4,6 +4,10 @@ const allowedImageTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
 const upstreamTimeoutMs = 120_000;
 
 export async function onRequestPost(context) {
+  const origin = context.request.headers.get("origin");
+  if (context.request.headers.get("sec-fetch-site") === "cross-site" || (origin && origin !== new URL(context.request.url).origin)) {
+    return json({ error: "이 사이트에서 다시 요청해 주세요." }, 403);
+  }
   const contentType = normaliseContentType(context.request.headers.get("content-type"));
   if (!allowedImageTypes.has(contentType)) {
     return json({ error: "PNG, JPEG, WEBP 이미지만 처리할 수 있습니다." }, 415);
@@ -42,6 +46,7 @@ export async function onRequestPost(context) {
   try {
     upstream = await fetchWithTimeout(serviceUrl, {
       method: "POST",
+      redirect: "error",
       headers,
       body: imageBytes,
     });

@@ -42,7 +42,7 @@ const documentRef = {
 
 const adapter = create({
   transformersLoader: async () => transformers,
-  navigatorRef: { gpu: { requestAdapter: async () => ({ limits: { maxStorageBuffersPerShaderStage: 65 } }) } },
+  navigatorRef: { gpu: { requestAdapter: async () => ({ limits: { maxStorageBuffersPerShaderStage: 16 } }) } },
   documentRef,
   BlobCtor: FakeBlob,
   ImageDataCtor: FakeImageData,

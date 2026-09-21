@@ -411,6 +411,9 @@ input[type="range"]:focus-visible {
 }
 
 .source-copy span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
   font-family: var(--sans);
   font-size: 10px;
 }
@@ -2214,7 +2217,7 @@ input[type="range"]:focus-visible {
 }
 
 /* Editing typography and navigation use one readable rhythm. */
-.inspector .panel-section-head h2 { font-size: 16px; line-height: 1.5; }
+.inspector .panel-section-head h2 { font-size: 16px; line-height: 1.5; font-weight: 750; letter-spacing: -.035em; }
 .inspector .inspector-section { padding-block: 24px; scroll-margin-block-start: 64px; }
 .inspector :is(.panel-eyebrow, .panel-state, .panel-selection-summary,
   .source-copy span, .image-state, .copy-editor-hint,
@@ -2543,7 +2546,7 @@ input[type="range"]:focus-visible {
 }
 
 .image-workflow-index {
-  display: grid;
+  display: none;
   width: 24px;
   height: 24px;
   flex: 0 0 24px;
@@ -2567,19 +2570,19 @@ input[type="range"]:focus-visible {
 
 .portrait-section .portrait-source-card {
   margin-top: 0;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--card);
+  padding: 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-3);
 }
 
 .image-placement-card {
   display: grid;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--card);
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--surface-3);
 }
 
 .image-placement-card .image-fit-row {
@@ -2615,10 +2618,11 @@ input[type="range"]:focus-visible {
   min-height: 30px;
   align-items: center;
   padding: 0 9px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--muted);
-  font-size: 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 .image-placement-launch {
@@ -3586,7 +3590,7 @@ input[type="range"]:focus-visible {
   border-radius: var(--radius);
   color: var(--foreground);
   background: color-mix(in srgb, var(--card) 96%, var(--muted));
-  box-shadow: 0 10px 24px rgb(38 50 56 / .12), 0 1px 0 rgb(255 255 255 / .72) inset;
+  box-shadow: 0 3px 10px color-mix(in oklch, var(--primary) 6%, transparent);
   scrollbar-width: none;
 }
 
@@ -3606,6 +3610,7 @@ input[type="range"]:focus-visible {
 }
 
 .text-editor-dock-target {
+  flex: 0 0 auto;
   min-width: 0;
   gap: 7px;
   padding: 0 6px 0 3px;
@@ -3633,14 +3638,14 @@ input[type="range"]:focus-visible {
   max-width: 84px;
   overflow: hidden;
   color: var(--foreground);
-  font: 700 11px/1.15 var(--sans);
+  font: 650 12px/1.25 var(--sans);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .text-editor-dock-eyebrow {
   color: var(--muted-foreground);
-  font: 650 8px/1.1 var(--sans);
+  font: 550 10px/1.2 var(--sans);
   white-space: nowrap;
 }
 

@@ -2,44 +2,12 @@ const { create: defaultLookEditor, capture: captureEditorState, normalize: norma
   emptyCharacter: createEmptyCharacter, emptyCharacters: createEmptyCharacters,
   normalizeCharacter: ensureCharacterImageState } = LookEditor;
 
-const customBackgroundDefault = "#f7f5f0";
-
-const backgrounds = {
-  dusk: {
-    solid: "#eee5d7",
-    pattern: ["#686879", "#f8f6ff"],
-    label: "황혼",
-  },
-  linen: {
-    solid: "#f4eee4",
-    pattern: ["#8e7883", "#fffaf3"],
-    label: "리넨",
-  },
-  tide: {
-    solid: "#b2ccd0",
-    pattern: ["#385d68", "#e8f6f7"],
-    label: "물빛",
-  },
-  ink: {
-    solid: "#343543",
-    pattern: ["#d8d7ef", "#777c9c"],
-    label: "먹빛",
-  },
-  rose: {
-    solid: "#e5cbc7",
-    pattern: ["#835869", "#ffe9eb"],
-    label: "장미",
-  },
-  pearl: {
-    solid: "#f8f3ef",
-    pattern: ["#71819c", "#ffffff"],
-    label: "진주빛",
-  },
-  paper: { solid: "#f7f5f0", pattern: ["#858594", "#ffffff"], label: "종이" },
-  mist: { solid: "#e7eff2", pattern: ["#648091", "#f8fdff"], label: "미스트" },
-  charcoal: { solid: "#25262b", pattern: ["#dddbea", "#747481"], label: "차콜" },
-  custom: { solid: customBackgroundDefault, pattern: ["#858594", "#ffffff"], label: "직접 지정" },
-};
+const backgroundStyle = BackgroundStyle.create({
+  colorContrast: ColorContrast,
+  cardMaterials: CardMaterials,
+  normaliseColor: normaliseHexColor,
+});
+const customBackgroundDefault = backgroundStyle.customDefaultColor;
 
 const titleTypography = TitleTypography.create();
 const titleFonts = titleTypography.fonts;
@@ -539,99 +507,20 @@ function resetTextEditorColorToAuto() {
   resetCopyEditorColorToAuto(getCopyEditorTarget());
 }
 
-// Kept only to migrate legacy style recipes stored inside old drafts.
-// These values never appear as a second theme gallery in the editor.
-const legacyStyleRecipes = {
-  "quiet-paper": {
-    background: "paper",
-    backgroundPattern: "none",
-    backgroundTexture: "none",
-  },
-  "blue-bitmap": {
-    background: "tide",
-    backgroundPattern: "bitmap",
-    backgroundTexture: "none",
-  },
-  "soft-pixel": {
-    background: "pearl",
-    backgroundPattern: "stars",
-    backgroundTexture: "grain",
-  },
-  "scrapbook-pop": {
-    background: "rose",
-    backgroundPattern: "halftone",
-    backgroundTexture: "grain",
-  },
-};
-
 function getBackgroundTheme(source = state) {
-  const backgroundKey = backgrounds[source?.background] ? source.background : "paper";
-  const base = backgrounds[backgroundKey];
-  if (backgroundKey !== "custom") {
-    const contrast = ColorContrast.themeFor(base.solid);
-    return {
-      ...base,
-      tone: contrast.foreground === "#ffffff" ? "dark" : "light",
-      pattern: getPatternPalette(base.solid, base.pattern),
-    };
-  }
-  const solid = normaliseHexColor(source?.customBackgroundColor, customBackgroundDefault);
-  const contrast = ColorContrast.themeFor(solid);
-  return {
-    ...base,
-    solid,
-    tone: contrast.foreground === "#ffffff" ? "dark" : "light",
-    pattern: getPatternPalette(solid, [contrast.foreground, contrast.muted]),
-  };
-}
-
-function mixHexColors(baseHex, tintHex, tintWeight = 0.5) {
-  const base = normaliseHexColor(baseHex, "#25262b").slice(1);
-  const tint = normaliseHexColor(tintHex, "#f7f3ed").slice(1);
-  const weight = Math.min(1, Math.max(0, Number(tintWeight) || 0));
-  const channels = [0, 2, 4].map((offset) => {
-    const baseChannel = Number.parseInt(base.slice(offset, offset + 2), 16);
-    const tintChannel = Number.parseInt(tint.slice(offset, offset + 2), 16);
-    return Math.round(baseChannel + (tintChannel - baseChannel) * weight).toString(16).padStart(2, "0");
-  });
-  return `#${channels.join("")}`;
-}
-
-function getPatternPalette(solid, pattern = []) {
-  const contrast = ColorContrast.themeFor(solid);
-  if (contrast.foreground !== "#ffffff") return pattern;
-  const ink = normaliseHexColor(pattern?.[0], "#f7f3ed");
-  const light = normaliseHexColor(pattern?.[1], "#f7f3ed");
-  return [
-    mixHexColors(solid, ink, 0.44),
-    mixHexColors(solid, light, 0.36),
-  ];
+  return backgroundStyle.themeFor(source);
 }
 
 function getTextureInk(background) {
-  return ColorContrast.themeFor(background?.solid).foreground;
+  return backgroundStyle.textureInkFor(background);
 }
 
 function getExportTheme(source = state) {
-  const background = getBackgroundTheme(source);
-  const isDark = ColorContrast.themeFor(background.solid).foreground === "#ffffff";
-  const ink = isDark ? "#f7f3ed" : "#263238";
-  const panelBase = isDark ? "#1d2228" : "#fffaf4";
-  const panelBorder = isDark ? rgba("#f7f3ed", 0.24) : rgba("#263238", 0.18);
-  return {
-    header: rgba(panelBase, 0.92),
-    headerBorder: panelBorder,
-    panel: rgba(panelBase, 0.96),
-    panelBorder,
-    text: ink,
-    muted: isDark ? rgba("#f7f3ed", 0.62) : rgba("#263238", 0.6),
-    infoShadow: rgba(panelBase, 0.9),
-    radius: 10,
-  };
+  return backgroundStyle.exportThemeFor(source);
 }
 
 function getSilhouetteInfoTheme(background) {
-  return ColorContrast.themeFor(background?.solid);
+  return backgroundStyle.silhouetteInfoThemeFor(background);
 }
 
 // A varied star field is shared by the live preview and PNG export. Keeping
@@ -718,16 +607,10 @@ const patternStars = [
   { x: 98, y: 97, size: 1.8, rotate: 0, tone: "light", shape: "ring", opacity: 0.48 },
 ];
 
-const backgroundPatternOptions = new Set(["none", "dots", "stars", "halftone", "bitmap", "collage", "scrapbook"]);
-const legacyBackgroundPatternAliases = Object.freeze({ index: "collage" });
-const backgroundSurfaceAssets = Object.freeze({
-  collage: CardMaterials.get("collage").asset,
-  scrapbook: CardMaterials.get("scrapbook").asset,
-});
-const backgroundTextureOptions = new Set(["none", "grain", "risograph", "dust", "fiber", "halftone"]);
 const storageNamespace = "tuyeong-set-maker2";
 const languagePreferenceStorageKey = `${storageNamespace}-language-v1`;
 const draftStorageKey = `${storageNamespace}-draft-v3`;
+const draftIndexedDbLookThreshold = 100;
 const uiPreferencesStorageKey = `${storageNamespace}-ui-v2`;
 const legacyStorageMigrations = [
   { source: "glamour-atelier-draft-v3", target: draftStorageKey },
@@ -745,19 +628,7 @@ const legacyStorageKeys = [
 ];
 
 function describeBackgroundSelection(source = state) {
-  const patternLabel = source.backgroundPattern === "none"
-    ? t("background.patternNone")
-    : t(`pattern.${source.backgroundPattern}`);
-  const textureLabel = source.backgroundTexture === "none"
-    ? t("background.textureNone")
-    : t(`texture.${source.backgroundTexture}`);
-  return [
-    source.background === "custom"
-      ? t("background.customWithColor", { color: source.customBackgroundColor.toUpperCase() })
-      : t(`background.${source.background}`),
-    patternLabel,
-    textureLabel,
-  ].join(" · ");
+  return backgroundStyle.describeSelection(source, (key, variables) => t(key, variables));
 }
 
 // The editor receives item records from the server search adapter. Keeping a
@@ -916,6 +787,33 @@ function captureDefaultLookSnapshots() {
 }
 
 captureDefaultLookSnapshots();
+
+const lookRecord = LookRecord.create({
+  createBlankLook,
+  editor: LookEditor,
+  title: {
+    fonts: titleFonts,
+    defaultFont: defaultTitleFont,
+    defaultWeight: defaultTitleWeight,
+    defaultSubtitleWeight,
+    normalizeTitleFontSize: normaliseTitleFontSize,
+    normalizeSubtitleFontSize: normaliseSubtitleFontSize,
+    normalizeBoolean: normaliseTitleBoolean,
+    normalizeWeight: normaliseTitleWeight,
+    normalizeAlign: normaliseTitleAlign,
+  },
+  backgroundStyle,
+  colors: {
+    normalizeOptionalHex: normaliseOptionalHexColor,
+    normalizeOutline: normaliseOutline,
+  },
+  outfits: {
+    create: createOutfits,
+    clone: cloneOutfits,
+    ensure: ensureLookOutfits,
+    get: getLookOutfits,
+  },
+});
 
 function t(key, variables = {}, language = state?.language) {
   return I18n.t(key, variables, language || I18n.fallbackLanguage);
@@ -1281,10 +1179,10 @@ function syncStateIntoLook(look = getSelectedLook()) {
   if (!look) return;
   serializedLookCache.delete(look);
   look.editor = captureEditorState(state);
-  look.background = backgrounds[state.background] ? state.background : "paper";
+  look.background = backgroundStyle.hasBackground(state.background) ? state.background : backgroundStyle.defaultBackground;
   look.customBackgroundColor = normaliseHexColor(state.customBackgroundColor, customBackgroundDefault);
   look.backgroundPattern = normaliseBackgroundPattern(state.backgroundPattern);
-  look.backgroundTexture = backgroundTextureOptions.has(state.backgroundTexture) ? state.backgroundTexture : "none";
+  look.backgroundTexture = backgroundStyle.hasTexture(state.backgroundTexture) ? state.backgroundTexture : "none";
   look.titleFont = titleFonts[state.titleFont] ? state.titleFont : defaultTitleFont;
   look.titleWeight = normaliseTitleWeight(look.titleFont, state.titleWeight ?? defaultTitleWeight);
   look.titleFontSize = normaliseTitleFontSize(state.titleFontSize);
@@ -1491,27 +1389,11 @@ function getBackgroundSurfaceCss(background) {
 }
 
 function normaliseBackgroundPattern(value) {
-  const restoredPattern = legacyBackgroundPatternAliases[value] || value;
-  return backgroundPatternOptions.has(restoredPattern) ? restoredPattern : "none";
+  return backgroundStyle.normalisePattern(value);
 }
 
 function restoreBackgroundStyle(pattern, legacyMotif = "none", texture = "none") {
-  const legacyPatterns = {
-    ascii: "dots",
-    y2k: "stars",
-    geometry: "halftone",
-    gradient: "none",
-    grain: "none",
-  };
-  let restoredPattern = legacyPatterns[pattern] || pattern;
-  let restoredTexture = texture;
-
-  // Older drafts stored grain as a pattern and stars as a separate motif.
-  if (pattern === "grain") restoredTexture = "grain";
-  if (legacyMotif === "stars" && (!restoredPattern || restoredPattern === "none")) restoredPattern = "stars";
-
-  state.backgroundPattern = normaliseBackgroundPattern(restoredPattern);
-  state.backgroundTexture = backgroundTextureOptions.has(restoredTexture) ? restoredTexture : "none";
+  Object.assign(state, backgroundStyle.restoreStyle(pattern, legacyMotif, texture));
 }
 
 function getExportDimensions(source = state) {
@@ -1542,6 +1424,22 @@ const draftStorage = DraftStorage.create({
   localStorage: window.localStorage,
   indexedDB: window.indexedDB,
   databaseName: `${storageNamespace}-drafts-v1`,
+});
+const draftAutosave = DraftAutosave.create({
+  createSnapshot: () => createDraftSnapshot(),
+  write: (snapshot) => typeof draftStorage.writeValue === "function"
+    ? draftStorage.writeValue(draftStorageKey, snapshot, { preferIndexedDb: looks.length >= draftIndexedDbLookThreshold })
+    : draftStorage.write(draftStorageKey, JSON.stringify(snapshot)),
+  onSaving: () => setSaveStatus(t("status.saving")),
+  onSaved: () => {
+    setSaveStatus(t("status.saved"));
+    scheduleAssetCleanup();
+  },
+  onFailed: () => setSaveStatus(t("status.saveFailed"), true),
+  debounceMs: 180,
+  setTimeoutRef: window.setTimeout.bind(window),
+  clearTimeoutRef: window.clearTimeout.bind(window),
+  queueMicrotaskRef: window.queueMicrotask?.bind(window),
 });
 
 let assetCleanupTimer;
@@ -1728,10 +1626,10 @@ function openImageEditor() {
   elements.openImageEditorButton?.setAttribute("aria-expanded", "true");
   elements.portraitWrap?.setAttribute("aria-label", t("canvas.editingPlacement"));
   syncImagePlacementSummary();
+  elements.closeImageEditorButton?.focus({ preventScroll: true });
   window.requestAnimationFrame(() => {
     const selectedFigure = elements.portraitWrap?.querySelector(`.character-figure[data-character-index="${state.selectedCharacter}"]`);
     selectedFigure?.setAttribute("aria-describedby", "imageEditorDescription");
-    selectedFigure?.focus({ preventScroll: true });
   });
 }
 
@@ -1798,59 +1696,17 @@ async function restoreCharacterAssets(savedCharacters = [], characters = state.c
 function serializeLook(look) {
   const cached = serializedLookCache.get(look);
   if (cached) return cached;
-  const editor = normaliseLookEditor(look.editor || defaultLookEditor());
-  const serialized = {
-    id: String(look.id),
-    title: typeof look.title === "string" ? look.title : "새로운 룩",
-    subtitle: typeof look.subtitle === "string" ? look.subtitle : "",
-    outfits: cloneOutfits(getLookOutfits(look)),
-    background: backgrounds[look.background] ? look.background : "paper",
-    customBackgroundColor: normaliseHexColor(look.customBackgroundColor, customBackgroundDefault),
-    backgroundPattern: normaliseBackgroundPattern(look.backgroundPattern),
-    backgroundTexture: backgroundTextureOptions.has(look.backgroundTexture) ? look.backgroundTexture : "none",
-    titleFont: titleFonts[look.titleFont] ? look.titleFont : defaultTitleFont,
-    titleWeight: normaliseTitleWeight(look.titleFont || defaultTitleFont, look.titleWeight ?? defaultTitleWeight),
-    titleFontSize: normaliseTitleFontSize(look.titleFontSize),
-    titleItalic: normaliseTitleBoolean(look.titleItalic),
-    titleUnderline: normaliseTitleBoolean(look.titleUnderline),
-    titleUppercase: normaliseTitleBoolean(look.titleUppercase),
-    titleAlign: normaliseTitleAlign(look.titleAlign),
-    titleColor: normaliseOptionalHexColor(look.titleColor ?? look.subtitleColor),
-    subtitleFont: titleFonts[look.subtitleFont] ? look.subtitleFont : defaultTitleFont,
-    subtitleWeight: normaliseTitleWeight(look.subtitleFont || defaultTitleFont, look.subtitleWeight ?? defaultSubtitleWeight),
-    subtitleFontSize: normaliseSubtitleFontSize(look.subtitleFontSize),
-    subtitleItalic: normaliseTitleBoolean(look.subtitleItalic),
-    subtitleUnderline: normaliseTitleBoolean(look.subtitleUnderline),
-    subtitleUppercase: normaliseTitleBoolean(look.subtitleUppercase),
-    subtitleColor: normaliseOptionalHexColor(look.subtitleColor),
-    outline: normaliseOutline(look.outline, "#f1dfbb", 8),
-    titleOutline: normaliseOutline(look.titleOutline, "#ffffff", 6),
-    editor: { ...editor, characters: editor.characters.map(serializeCharacter) },
-  };
+  const serialized = lookRecord.serialize(look);
   serializedLookCache.set(look, serialized);
   return serialized;
 }
 
-const draftSaveDebounceMs = 180;
-const draftIndexedDbLookThreshold = 100;
-let scheduledSaveTimer = 0;
-let draftSaveSequence = 0;
-
 function scheduleSaveState() {
-  window.clearTimeout(scheduledSaveTimer);
-  scheduledSaveTimer = window.setTimeout(() => {
-    scheduledSaveTimer = 0;
-    saveState();
-  }, draftSaveDebounceMs);
+  draftAutosave.schedule();
 }
 
 function flushScheduledSaveState() {
-  if (!scheduledSaveTimer && !draftSaveRun) return;
-  if (scheduledSaveTimer) {
-    window.clearTimeout(scheduledSaveTimer);
-    scheduledSaveTimer = 0;
-  }
-  saveState({ immediate: true });
+  draftAutosave.flush();
 }
 
 function createDraftSnapshot() {
@@ -1866,73 +1722,8 @@ function createDraftSnapshot() {
   });
 }
 
-function finishDraftSave(run, saveSequence, failed = false) {
-  if (run.needsRun) {
-    runDraftSave(run);
-    return;
-  }
-  if (draftSaveRun === run) draftSaveRun = null;
-  if (failed) {
-    if (saveSequence === draftSaveSequence) setSaveStatus(t("status.saveFailed"), true);
-  } else if (saveSequence === draftSaveSequence) {
-    setSaveStatus(t("status.saved"));
-    scheduleAssetCleanup();
-  }
-  run.resolve();
-}
-
-function runDraftSave(run) {
-  run.needsRun = false;
-  run.started = true;
-  const saveSequence = run.latestSequence;
-  let writePromise;
-  setSaveStatus(t("status.saving"));
-  try {
-    const snapshot = createDraftSnapshot();
-    writePromise = typeof draftStorage.writeValue === "function"
-      ? draftStorage.writeValue(draftStorageKey, snapshot, { preferIndexedDb: looks.length >= draftIndexedDbLookThreshold })
-      : draftStorage.write(draftStorageKey, JSON.stringify(snapshot));
-  } catch {
-    finishDraftSave(run, saveSequence, true);
-    return;
-  }
-  return Promise.resolve(writePromise)
-    .then(() => finishDraftSave(run, saveSequence))
-    .catch(() => finishDraftSave(run, saveSequence, true));
-}
-
-let draftSaveRun = null;
-
 function saveState({ immediate = false } = {}) {
-  if (scheduledSaveTimer) {
-    window.clearTimeout(scheduledSaveTimer);
-    scheduledSaveTimer = 0;
-  }
-  const saveSequence = ++draftSaveSequence;
-  if (draftSaveRun) {
-    draftSaveRun.latestSequence = saveSequence;
-    draftSaveRun.needsRun = true;
-    if (immediate && !draftSaveRun.started) runDraftSave(draftSaveRun);
-    return draftSaveRun.promise;
-  }
-
-  const run = {
-    latestSequence: saveSequence,
-    needsRun: false,
-    started: false,
-    promise: null,
-    resolve: null,
-  };
-  run.promise = new Promise((resolve) => { run.resolve = resolve; });
-  draftSaveRun = run;
-  if (immediate) {
-    runDraftSave(run);
-  } else {
-    queueMicrotask(() => {
-      if (draftSaveRun === run && !run.started) runDraftSave(run);
-    });
-  }
-  return run.promise;
+  return draftAutosave.save({ immediate });
 }
 
 function setSaveStatus(message, failed = false) {
@@ -2031,7 +1822,7 @@ function restoreSnapshot(snapshot) {
   invalidatePendingImageImports({ look });
   if (typeof snapshot.title === "string") look.title = snapshot.title;
   if (typeof snapshot.subtitle === "string") look.subtitle = snapshot.subtitle;
-  state.background = backgrounds[snapshot.background] ? snapshot.background : "paper";
+  state.background = backgroundStyle.hasBackground(snapshot.background) ? snapshot.background : backgroundStyle.defaultBackground;
   state.customBackgroundColor = normaliseHexColor(snapshot.customBackgroundColor, customBackgroundDefault);
   state.cutout = snapshot.cutout === true;
   state.outline = normaliseOutline(snapshot.outline, "#f1dfbb", 8);
@@ -2668,7 +2459,7 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
   elements.board.dataset.backgroundPattern = state.backgroundPattern;
   elements.board.dataset.backgroundTexture = state.backgroundTexture;
   elements.board.removeAttribute("data-background-motif");
-  const backgroundSurfaceAsset = backgroundSurfaceAssets[state.backgroundPattern];
+  const backgroundSurfaceAsset = backgroundStyle.surfaceAssetFor(state.backgroundPattern);
   const material = CardMaterials.get(state.backgroundPattern);
   elements.board.style.setProperty("--material-surface", material ? `url(\"${material.asset}\")` : "none");
   elements.board.style.setProperty("--material-ink", material?.ink || "var(--recipe-ink, #263238)");
@@ -3099,35 +2890,7 @@ function removeItem(slot) {
 }
 
 function normaliseSavedLook(value, index) {
-  const id = typeof value?.id === "string" && value.id.trim() ? value.id.trim().slice(0, 80) : `look-${index + 1}`;
-  const look = createBlankLook(index + 1, id);
-  look.title = typeof value?.title === "string" ? value.title.trim().slice(0, 64) || "새로운 룩" : "새로운 룩";
-  look.subtitle = typeof value?.subtitle === "string" ? value.subtitle.trim().slice(0, 160) : "";
-  look.background = backgrounds[value?.background] ? value.background : "paper";
-  look.customBackgroundColor = normaliseHexColor(value?.customBackgroundColor, customBackgroundDefault);
-  look.backgroundPattern = normaliseBackgroundPattern(value?.backgroundPattern);
-  look.backgroundTexture = backgroundTextureOptions.has(value?.backgroundTexture) ? value.backgroundTexture : "none";
-  look.titleFont = titleFonts[value?.titleFont] ? value.titleFont : defaultTitleFont;
-  look.titleWeight = normaliseTitleWeight(look.titleFont, value?.titleWeight ?? defaultTitleWeight);
-  look.titleFontSize = normaliseTitleFontSize(value?.titleFontSize);
-  look.titleItalic = normaliseTitleBoolean(value?.titleItalic);
-  look.titleUnderline = normaliseTitleBoolean(value?.titleUnderline);
-  look.titleUppercase = normaliseTitleBoolean(value?.titleUppercase);
-  look.titleAlign = normaliseTitleAlign(value?.titleAlign);
-  look.titleColor = normaliseOptionalHexColor(value?.titleColor ?? value?.subtitleColor);
-  look.subtitleFont = titleFonts[value?.subtitleFont] ? value.subtitleFont : defaultTitleFont;
-  look.subtitleWeight = normaliseTitleWeight(look.subtitleFont, value?.subtitleWeight ?? defaultSubtitleWeight);
-  look.subtitleFontSize = normaliseSubtitleFontSize(value?.subtitleFontSize);
-  look.subtitleItalic = normaliseTitleBoolean(value?.subtitleItalic);
-  look.subtitleUnderline = normaliseTitleBoolean(value?.subtitleUnderline);
-  look.subtitleUppercase = normaliseTitleBoolean(value?.subtitleUppercase);
-  look.subtitleColor = normaliseOptionalHexColor(value?.subtitleColor);
-  look.outline = normaliseOutline(value?.outline, "#f1dfbb", 8);
-  look.titleOutline = normaliseOutline(value?.titleOutline, "#ffffff", 6);
-  look.outfits = Array.isArray(value?.outfits) ? cloneOutfits(value.outfits) : createOutfits([]);
-  look.editor = value?.editor ? normaliseLookEditor(value.editor) : null;
-  ensureLookOutfits(look);
-  return look;
+  return lookRecord.normalizeSaved(value, index);
 }
 
 async function loadDraft() {
@@ -3155,11 +2918,11 @@ async function loadDraft() {
     captureDefaultLookSnapshots();
     state.selectedLookId = looks.some((look) => look.id === saved.selectedLookId) ? saved.selectedLookId : looks[0].id;
     const look = getSelectedLook();
-    const legacyStyle = legacyStyleRecipes[saved.stylePreset] || legacyStyleRecipes[saved.styleTheme];
+    const legacyStyle = backgroundStyle.legacyStyleRecipeFor(saved.stylePreset, saved.styleTheme);
     look.title = typeof saved.title === "string" && looks.length === 1 ? saved.title.trim().slice(0, 64) || look.title : look.title;
     look.subtitle = typeof saved.subtitle === "string" && looks.length === 1 ? saved.subtitle.trim().slice(0, 160) : look.subtitle;
-    if (saved.background && backgrounds[saved.background]) state.background = saved.background;
-    else state.background = look.background || legacyStyle?.background || "paper";
+    if (saved.background && backgroundStyle.hasBackground(saved.background)) state.background = saved.background;
+    else state.background = look.background || legacyStyle?.background || backgroundStyle.defaultBackground;
     state.customBackgroundColor = normaliseHexColor(
       saved.customBackgroundColor ?? look.customBackgroundColor,
       customBackgroundDefault,
@@ -3273,7 +3036,7 @@ function selectLook(id) {
   state.selectedLookId = nextLook.id;
   const editor = nextLook.editor || defaultLookEditor();
   Object.assign(state, editor, { characters: LookEditor.captureCharacters(editor.characters), shadow: { ...editor.shadow } });
-  state.background = backgrounds[nextLook.background] ? nextLook.background : "paper";
+  state.background = backgroundStyle.hasBackground(nextLook.background) ? nextLook.background : backgroundStyle.defaultBackground;
   state.customBackgroundColor = normaliseHexColor(nextLook.customBackgroundColor, customBackgroundDefault);
   restoreBackgroundStyle(nextLook.backgroundPattern, nextLook.backgroundMotif, nextLook.backgroundTexture);
   state.titleFont = titleFonts[nextLook.titleFont] ? nextLook.titleFont : defaultTitleFont;
@@ -4048,7 +3811,7 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
     renderCardCopyPreview(copyLayout);
     gear = captureExportGearInfo(gear, state, dimensions);
     const images = await Promise.all(activeCharacters.map((character) => loadCanvasImage(resolveCharacterAsset(character, "hero"))));
-    const backgroundSurfaceAsset = backgroundSurfaceAssets[state.backgroundPattern];
+    const backgroundSurfaceAsset = backgroundStyle.surfaceAssetFor(state.backgroundPattern);
     const backgroundImage = backgroundSurfaceAsset
       ? await loadCanvasImage(backgroundSurfaceAsset)
       : null;
@@ -4196,11 +3959,7 @@ function resetCardData() {
 async function resetWorkspace() {
   workspaceEpoch += 1;
   invalidatePendingImageImports();
-  draftSaveSequence += 1;
-  if (scheduledSaveTimer) {
-    window.clearTimeout(scheduledSaveTimer);
-    scheduledSaveTimer = 0;
-  }
+  draftAutosave.cancel();
   clearTimeout(assetCleanupTimer);
   const activePanel = state.activePanel;
   if (imageEditorOpen) finishImageEditor(false);
@@ -4586,6 +4345,17 @@ function initialiseInteractions() {
       resetSelectedImagePlacement();
     }
   });
+  elements.imageEditorDialog.addEventListener("keydown", (event) => {
+    if (!imageEditorOpen || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement || event.target instanceof HTMLTextAreaElement) return;
+    const directions = { ArrowUp: "up", ArrowLeft: "left", ArrowRight: "right", ArrowDown: "down" };
+    if (!directions[event.key] && !["+", "=", "-", "_", "0"].includes(event.key)) return;
+    event.preventDefault();
+    if (directions[event.key]) nudgeSelectedImage(directions[event.key]);
+    else if (["+", "="].includes(event.key)) changeSelectedImageZoom(10);
+    else if (["-", "_"].includes(event.key)) changeSelectedImageZoom(-10);
+    else resetSelectedImagePlacement();
+  });
   $("#cutoutButton").addEventListener("click", quickCutout);
   $("#fitImageButton").addEventListener("click", () => resetSelectedImagePlacement());
   $$('button[data-image-fit]').forEach((button) => button.addEventListener("click", () => {
@@ -4688,7 +4458,9 @@ function initialiseInteractions() {
     saveState();
   }));
   $$(".backdrop-swatch").forEach((swatch) => swatch.addEventListener("click", () => {
-    const nextBackground = backgrounds[swatch.dataset.background] ? swatch.dataset.background : "paper";
+    const nextBackground = backgroundStyle.hasBackground(swatch.dataset.background)
+      ? swatch.dataset.background
+      : backgroundStyle.defaultBackground;
     if (nextBackground === state.background) return;
     recordHistory();
     state.background = nextBackground;

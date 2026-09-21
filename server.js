@@ -2,6 +2,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { pipeline } = require("node:stream");
 const { spawn } = require("child_process");
 
 // Keep local development and the Pages Function on the same search contract.
@@ -437,6 +438,7 @@ async function handleRemoteBackgroundRemoval(request, response) {
   try {
     upstream = await fetchWithTimeout(serviceUrl, {
       method: "POST",
+      redirect: "error",
       headers,
       body,
     }, remoteCutoutTimeoutMs);
@@ -566,6 +568,18 @@ function resolveRemoteCutoutUrl(value) {
 }
 
 const server = http.createServer(async (request, response) => {
+  response.setHeader("X-Content-Type-Options", "nosniff");
+  response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.setHeader("X-Frame-Options", "SAMEORIGIN");
+  response.setHeader("Content-Security-Policy", "base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'");
+  response.setHeader("Permissions-Policy", "camera=(), geolocation=(), microphone=()");
+  if (request.method === "POST") {
+    const origin = request.headers.origin;
+    if (request.headers["sec-fetch-site"] === "cross-site" || (origin && origin !== `http://${request.headers.host}`)) {
+      sendJson(response, 403, { error: "이 사이트에서 다시 요청해 주세요." });
+      return;
+    }
+  }
   if (request.method === "GET" && (request.url || "").split("?")[0] === "/api/items/search") {
     await handleItemSearch(request, response);
     return;
@@ -577,6 +591,14 @@ const server = http.createServer(async (request, response) => {
   let requestPath;
   try { requestPath = decodeURIComponent((request.url || "/").split("?")[0]); }
   catch { sendJson(response, 400, { error: "올바르지 않은 요청 주소입니다." }); return; }
+  if (requestPath.includes("\\") || requestPath.includes("\0") || requestPath.split("/").some(part => part === "." || part === "..")) {
+    sendJson(response, 404, { error: "Not found" });
+    return;
+  }
+  if (!["GET", "HEAD"].includes(request.method)) {
+    sendJson(response, 405, { error: "Method not allowed" }, { Allow: "GET, HEAD" });
+    return;
+  }
   const cleanPagePaths = {
     "/terms": "terms/index.html",
     "/terms/": "terms/index.html",
@@ -589,24 +611,36 @@ const server = http.createServer(async (request, response) => {
     "/support": "support/index.html",
     "/support/": "support/index.html",
   };
-  const relativePath = requestPath === "/" ? "index.html" : cleanPagePaths[requestPath] || requestPath.replace(/^\/+/, "");
+  const relativePath = requestPath === "/" ? "index.html" : (Object.hasOwn(cleanPagePaths, requestPath) ? cleanPagePaths[requestPath] : requestPath.replace(/^\/+/, ""));
   const publicFile = ["index.html", "app.js", "styles.css", "robots.txt", "sitemap.xml", "site.webmanifest", "google96c42eb007c2a9a8.html", "models/look-editor.js", "models/look-book.js", "models/image-assets.js", "models/image-validation.js", "models/draft-storage.js", "models/draft-schema.js", "models/i18n.js", "models/public-pages.js", "models/item-records.js", "models/item-search.js", "models/crop-plan.js", "models/card-layout.js", "models/card-copy.js", "models/color-contrast.js", "models/card-materials.js", "models/card-gear-copy.js", "models/card-png.js", "models/editor-navigation.js", "models/editor-history.js", "models/title-typography.js", "models/background-removal.js", "terms/index.html", "privacy/index.html", "guide/index.html", "contact/index.html", "support/index.html"].includes(relativePath)
     || /^(styles\/[^/]+\.css|assets\/(data|fonts|icons|themes)\/(?:[^/]+\/)*[^/]+\.(json|ttf|woff2?|svg|png|jpe?g|webp))$/.test(relativePath);
+  const isAdditionalPublicModel = ["models/background-style.js", "models/draft-autosave.js", "models/look-record.js"].includes(relativePath);
   const filePath = path.resolve(root, relativePath);
   const isInsideRoot = filePath === root || filePath.startsWith(`${root}${path.sep}`);
 
-  if (!publicFile || !isInsideRoot || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+  const stat = (publicFile || isAdditionalPublicModel) && isInsideRoot
+    ? await fs.promises.stat(filePath).catch(() => null) : null;
+  if (!stat?.isFile()) {
     response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
     response.end("Not found");
     return;
   }
 
   const extension = path.extname(filePath).toLowerCase();
+  const etag = `W/"${stat.size.toString(16)}-${stat.mtimeMs.toString(16)}"`;
+  response.setHeader("ETag", etag);
+  response.setHeader("Cache-Control", relativePath.startsWith("assets/") ? "public, max-age=3600" : "no-cache");
+  if ((request.headers["if-none-match"] || "").split(",").some(value => value.trim() === etag || value.trim() === "*")) {
+    response.writeHead(304);
+    response.end();
+    return;
+  }
   response.writeHead(200, {
     "Content-Type": contentTypes[extension] || "application/octet-stream",
-    "Cache-Control": relativePath.startsWith("assets/") ? "public, max-age=3600" : "no-cache",
+    "Content-Length": stat.size,
   });
-  response.end(fs.readFileSync(filePath));
+  if (request.method === "HEAD") { response.end(); return; }
+  pipeline(fs.createReadStream(filePath), response, () => {});
 });
 
 server.listen(port, process.env.HOST || "127.0.0.1", () => {

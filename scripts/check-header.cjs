@@ -26,6 +26,13 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.equal(await page.locator("#languageSelect").inputValue(), "en", "language choice should persist");
     await page.screenshot({ path: "artifacts/ui-header-after.png", fullPage: false });
 
+    await page.setViewportSize({ width: 390, height: 844 });
+    const overlap = await page.evaluate(() => {
+      const brand = document.querySelector('.wordmark').getBoundingClientRect();
+      const actions = document.querySelector('.topbar-actions').getBoundingClientRect();
+      return brand.right > actions.left && brand.left < actions.right && brand.bottom > actions.top && brand.top < actions.bottom;
+    });
+    assert.equal(overlap, false, 'brand and history controls must not overlap on phones');
     await page.setViewportSize({ width: 320, height: 800 });
     const mobile = await page.evaluate(() => {
       const header = document.querySelector(".topbar").getBoundingClientRect();

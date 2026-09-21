@@ -13,7 +13,7 @@
   background: var(--board-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 20px 50px rgb(0 0 0 / .14), 0 2px 8px rgb(0 0 0 / .08);
+  box-shadow: 0 12px 32px rgb(0 0 0 / .08), 0 2px 5px rgb(0 0 0 / .04);
 }
 
 .canvas-board::before {
@@ -26,7 +26,7 @@
 }
 
 @media (max-width: 920px) {
-  .canvas-board { box-shadow: 0 16px 35px rgb(0 0 0 / .15); }
+  .canvas-board { box-shadow: 0 8px 24px rgb(0 0 0 / .08); }
 }
 
 /* Card copy belongs to the composed image, not the application shell. Keep

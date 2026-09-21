@@ -68,7 +68,7 @@
 .canvas-board .board-editorial-header .board-title-block:has(> [contenteditable="true"]:focus) {
   grid-template-rows: auto auto;
   height: auto;
-  min-height: 0 !important;
+  min-height: 50px !important;
 }
 
 .canvas-board .board-editorial-header .board-title-block > strong[contenteditable="true"]:focus,
@@ -109,8 +109,7 @@
   text-align: start;
 }
 
-/* A larger working canvas improves direct manipulation without changing the
-   2160 x 2700 export contract. */
+/* Card dimensions remain independent of export resolution. */
 .canvas-board[data-ratio="portrait"] {
   width: min(100%, 760px);
   max-width: 760px;
@@ -119,6 +118,20 @@
 body.canvas-focus-mode .canvas-board[data-ratio="portrait"] {
   width: min(100%, 840px);
   max-width: 840px;
+}
+
+/* Keep the complete composition and view tools inside a desktop window at
+   the default view scale. User zoom remains an intentional closer view. */
+@media (min-width: 921px) and (min-height: 650px) {
+  .canvas-board[data-ratio="portrait"] {
+    max-width: min(760px, calc((100dvh - 260px) * .8));
+  }
+  .canvas-board[data-ratio="square"] {
+    max-width: min(760px, calc(100dvh - 260px));
+  }
+  .canvas-board[data-ratio="landscape"] {
+    max-width: min(900px, calc((100dvh - 260px) * 1.77778));
+  }
 }
 
 .canvas-board[data-ratio="portrait"][data-cast="1"] .board-gear-item {

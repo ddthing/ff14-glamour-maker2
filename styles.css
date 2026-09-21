@@ -42,6 +42,8 @@ button {
 
 button:focus-visible,
 input:focus-visible,
+select:focus-visible,
+summary:focus-visible,
 a:focus-visible {
   outline: 2px solid var(--signal);
   outline-offset: 3px;
@@ -99,8 +101,8 @@ button:active {
 }
 
 .wordmark-mark {
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   flex: 0 0 auto;
   border: 0;
   border-radius: 4px;
@@ -160,7 +162,7 @@ button:active {
   justify-content: center;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 50%;
+  border-radius: var(--radius-sm);
   color: var(--muted-foreground);
   background: var(--background);
   font-size: 16px;
@@ -698,6 +700,9 @@ button:active {
 .inspector {
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
+  scroll-padding-top: 100px;
+  scrollbar-gutter: stable;
   border-left: 1px solid var(--line);
   background: var(--surface);
   scrollbar-color: var(--line-strong) transparent;
@@ -1667,9 +1672,8 @@ button:active {
 .topbar {
   grid-template-columns: 302px minmax(280px, 1fr) auto;
   border-bottom-color: var(--border);
-  background: color-mix(in oklch, var(--background) 94%, transparent);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.025);
-  backdrop-filter: blur(16px);
+  background: var(--background);
+  box-shadow: 0 1px 0 color-mix(in oklch, var(--primary) 3%, transparent);
 }
 
 .topbar::before { display: none; }
@@ -1690,8 +1694,8 @@ button:active {
   letter-spacing: -0.02em;
 }
 
-.wordmark-copy strong { font-size: 14px; font-weight: 700; }
-.wordmark-copy small { color: var(--muted-foreground); font-size: 8px; letter-spacing: .08em; }
+.wordmark-copy strong { font-size: 14px; font-weight: 750; letter-spacing: -.035em; }
+.wordmark-copy small { color: var(--muted-foreground); font-size: 10px; letter-spacing: .035em; }
 
 .topbar-actions { gap: 10px; padding: 0 16px; border-left-color: var(--border); }
 .ghost-button,
@@ -1780,15 +1784,15 @@ button:active {
   border-bottom: 1px solid var(--sidebar-border);
 }
 .collection-lockup span { color: var(--muted-foreground); font-family: var(--sans); font-size: 10px; text-transform: none; }
-.collection-lockup strong { font-size: 16px; font-weight: 700; }
+.collection-lockup strong { font-size: 13px; font-weight: 750; letter-spacing: .055em; }
 .collection-lockup b { color: var(--foreground); font-weight: 700; }
 
 .look-list {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 5px;
-  padding: 10px;
+  gap: 6px;
+  padding: 12px;
   overflow-x: hidden;
   overflow-y: auto;
 }
@@ -1913,7 +1917,7 @@ button:active {
 .workspace-grid { grid-template-columns: minmax(520px, 1fr) 350px; }
 .canvas-column {
   padding: 28px clamp(20px, 3vw, 44px) 26px;
-  background: oklch(.97 0 0);
+  background: color-mix(in oklch, var(--muted) 76%, var(--background));
   scrollbar-color: var(--line-strong) transparent;
 }
 .canvas-heading {
@@ -1951,10 +1955,11 @@ button:active {
 .inspector-header {
   padding: 20px 20px 16px;
   border-bottom-color: var(--border);
-  background: color-mix(in oklch, var(--background) 95%, transparent);
+  background: var(--background);
+  backdrop-filter: none;
 }
 .inspector-title-row span { color: var(--muted-foreground); font-family: var(--sans); font-size: 10px; text-transform: none; }
-.inspector-title-row h1 { margin: 0; font-size: 18px; font-weight: 700; }
+.inspector-title-row h1 { margin: 0; font-size: 20px; font-weight: 750; letter-spacing: -.04em; }
 .reset-button {
   min-height: 32px;
   padding: 0 10px;
@@ -2964,7 +2969,7 @@ body.image-placement-mode .canvas-board[data-ratio="portrait"] {
   }
 }
 
-@media (max-width: 380px) {
+@media (max-width: 480px) {
   .topbar {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto;
@@ -2992,17 +2997,20 @@ body,
    the inspector. Keep it quiet enough to sit below the card, but give the
    slider and focus action a clear, persistent home like a canvas editor. */
 .canvas-view-bar {
-  --canvas-view-foreground: oklch(.25 0 0);
-  --canvas-view-surface: oklch(1 0 0);
-  --canvas-view-border: oklch(.82 0 0);
+  --canvas-view-foreground: var(--foreground);
+  --canvas-view-surface: var(--card);
+  --canvas-view-border: var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   max-width: 860px;
-  margin: 13px auto 0;
-  padding-top: 10px;
-  border-top: 1px solid var(--canvas-view-border);
+  margin: 18px auto 0;
+  padding: 10px 12px;
+  border: 1px solid var(--canvas-view-border);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: 0 2px 6px color-mix(in oklch, var(--primary) 3%, transparent);
   color: var(--canvas-view-foreground);
   font-size: 11px;
 }

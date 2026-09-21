@@ -105,7 +105,7 @@ const fixturePng = Buffer.from(
 
     await page.locator("#openImageEditorButton").click();
     await page.waitForFunction(() => document.body.classList.contains("image-placement-mode"));
-    await page.waitForFunction(() => document.activeElement?.classList.contains("character-figure"));
+    await page.waitForFunction(() => document.activeElement?.id === "closeImageEditorButton");
     assert.equal(await page.locator("#imageEditorDialog").getAttribute("hidden"), null);
     assert.equal(await page.locator("#imageEditorDialog").getAttribute("role"), "region");
     assert.equal(await page.locator("#imageEditorPreview").count(), 0, "placement mode should not render a duplicate preview");
@@ -115,7 +115,7 @@ const fixturePng = Buffer.from(
     assert.equal(await page.locator("#exportButton").isVisible(), false, "export action should leave the focused placement mode");
     assert.equal(await page.locator("#saveStatus").isVisible(), true, "save status should remain visible during placement");
     assert.equal(await page.locator(".character-figure.is-selected").count(), 1);
-    assert.equal(await page.evaluate(() => document.activeElement?.classList.contains("character-figure")), true, "opening should focus the selected card figure");
+    assert.equal(await page.evaluate(() => document.activeElement?.id), "closeImageEditorButton", "opening should focus the placement dock");
 
     assert.equal(await page.locator("#zoomRange").inputValue(), "100");
     await page.locator("#zoomRange").fill("140");

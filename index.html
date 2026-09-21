@@ -291,11 +291,11 @@
                   <div class="image-workflow-head"><div class="image-workflow-title"><span class="image-workflow-index" aria-hidden="true">01</span><span id="imageImportGroupTitle" data-i18n="image.import">사진 가져오기</span></div><details class="control-help"><summary data-i18n-aria-label="help.open" aria-label="도움말"><span class="control-help-icon" aria-hidden="true">?</span></summary><div class="control-help-popover"><p data-i18n="image.importHint">원본은 브라우저에 안전하게 보관합니다</p></div></details></div>
                   <div class="portrait-source-card is-empty" id="portraitSourceCard">
                     <div class="source-thumb is-empty" id="sourceThumbFrame"><img id="sourceThumb" data-i18n-alt="image.notSelected" alt="사진 미선택" /></div>
-                    <div class="source-copy"><strong id="sourceFileName" data-i18n="image.notSelected" aria-live="polite">사진 미선택</strong><span id="sourceFileMeta" data-i18n="image.fileTypes" aria-live="polite">PNG · JPG · WebP · 여러 장을 한 번에 선택할 수 있어요</span></div>
+                    <div class="source-copy"><strong id="sourceFileName" data-i18n="image.notSelected" aria-live="polite">사진 미선택</strong><span id="sourceFileMeta" data-i18n="image.fileTypes" aria-live="polite">PNG · JPG · WebP · 여러 장 선택 가능</span></div>
                   </div>
                 </div>
                 <div class="image-workflow-group image-placement-group" aria-labelledby="imagePlacementGroupTitle">
-                  <div class="image-workflow-head"><div class="image-workflow-title"><span class="image-workflow-index" aria-hidden="true">02</span><span id="imagePlacementGroupTitle" data-i18n="image.placement">프레임과 배치</span></div><details class="control-help"><summary data-i18n-aria-label="help.open" aria-label="도움말"><span class="control-help-icon" aria-hidden="true">?</span></summary><div class="control-help-popover"><p data-i18n="image.placementHint">카드에 보일 이미지 영역을 조절해 보세요</p><p data-i18n="image.directHint">편집을 열고 카드 위에서 드래그해 위치를 맞추세요.</p></div></details></div>
+                  <div class="image-workflow-head"><div class="image-workflow-title"><span class="image-workflow-index" aria-hidden="true">02</span><span id="imagePlacementGroupTitle" data-i18n="image.placement">프레임과 배치</span></div><details class="control-help"><summary data-i18n-aria-label="help.open" aria-label="도움말"><span class="control-help-icon" aria-hidden="true">?</span></summary><div class="control-help-popover"><p data-i18n="image.placementHint">카드에 보일 범위를 조절하세요</p><p data-i18n="image.directHint">편집을 열고 카드 위에서 드래그해 위치를 맞추세요.</p></div></details></div>
                   <div class="image-placement-card">
                     <div class="compact-option-row image-fit-row"><span data-i18n="image.frame">프레임</span><div class="compact-segments" role="group" data-i18n-aria-label="image.frameAria" aria-label="이미지 프레임 표시"><button class="is-selected" data-image-fit="contain" data-i18n="image.contain" type="button">전체 보기</button><button data-image-fit="cover" data-i18n="image.cover" type="button">채우기</button></div></div>
                     <div class="image-transform-row image-placement-launch-row"><span data-i18n="image.position">배치</span><div class="image-placement-summary"><output id="imagePlacementSummary" aria-live="polite">100% · 기본 위치</output><button class="image-placement-launch" id="openImageEditorButton" type="button" data-i18n="image.editPlacement" data-i18n-aria-label="image.editPlacement" data-i18n-title="image.editPlacementReady" aria-controls="canvasBoard" aria-expanded="false">크기·위치 편집</button></div></div>
@@ -553,26 +553,29 @@
     </dialog>
     <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden />
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="models/look-editor.js?v=20260906-redesign-1"></script>
-    <script src="models/look-book.js?v=20260906-management-1"></script>
-    <script src="models/image-assets.js?v=20260907-project-name-1"></script>
-    <script src="models/image-validation.js?v=20260908-source-preserving-1"></script>
-    <script src="models/draft-storage.js?v=20260908-draft-storage-3"></script>
-    <script src="models/draft-schema.js?v=20260910-draft-canonical-1"></script>
-    <script src="models/i18n.js?v=20260909-remove-font-size-dock-1"></script>
-    <script src="models/item-records.js?v=20260908-item-records-1"></script>
-    <script src="models/item-search.js?v=20260908-language-aware-search-1"></script>
-    <script src="models/crop-plan.js?v=20260908-crop-plan-1"></script>
-    <script src="models/card-layout.js?v=20260908-gear-layout-2"></script>
-    <script src="models/card-copy.js?v=20260909-floating-text-toolbar-1"></script>
-    <script src="models/color-contrast.js?v=20260907-silhouette-contrast-1"></script>
-    <script src="models/card-materials.js?v=20260908-material-kit-1"></script>
-    <script src="models/card-gear-copy.js?v=20260910-full-item-names-1"></script>
-    <script src="models/card-png.js?v=20260910-full-item-names-1"></script>
-    <script src="models/editor-navigation.js?v=20260906-navigation-1"></script>
-    <script src="models/editor-history.js?v=20260911-editor-history-1"></script>
-    <script src="models/title-typography.js?v=20260908-title-fonts-1"></script>
-    <script src="models/background-removal.js?v=20260907-browser-birefnet-3"></script>
-    <script src="app.js?v=20260911-editor-history-1"></script>
+    <script defer src="models/look-editor.js?v=20260906-redesign-1"></script>
+    <script defer src="models/look-book.js?v=20260906-management-1"></script>
+    <script defer src="models/look-record.js?v=20260911-look-record-1"></script>
+    <script defer src="models/image-assets.js?v=20260907-project-name-1"></script>
+    <script defer src="models/image-validation.js?v=20260908-source-preserving-1"></script>
+    <script defer src="models/draft-storage.js?v=20260908-draft-storage-3"></script>
+    <script defer src="models/draft-autosave.js?v=20260911-draft-autosave-1"></script>
+    <script defer src="models/draft-schema.js?v=20260910-draft-canonical-1"></script>
+    <script defer src="models/i18n.js?v=20260909-remove-font-size-dock-1"></script>
+    <script defer src="models/item-records.js?v=20260908-item-records-1"></script>
+    <script defer src="models/item-search.js?v=20260908-language-aware-search-1"></script>
+    <script defer src="models/crop-plan.js?v=20260908-crop-plan-1"></script>
+    <script defer src="models/card-layout.js?v=20260908-gear-layout-2"></script>
+    <script defer src="models/card-copy.js?v=20260909-floating-text-toolbar-1"></script>
+    <script defer src="models/color-contrast.js?v=20260907-silhouette-contrast-1"></script>
+    <script defer src="models/card-materials.js?v=20260908-material-kit-1"></script>
+    <script defer src="models/card-gear-copy.js?v=20260910-full-item-names-1"></script>
+    <script defer src="models/card-png.js?v=20260910-full-item-names-1"></script>
+    <script defer src="models/editor-navigation.js?v=20260906-navigation-1"></script>
+    <script defer src="models/editor-history.js?v=20260911-editor-history-1"></script>
+    <script defer src="models/title-typography.js?v=20260908-title-fonts-1"></script>
+    <script defer src="models/background-style.js?v=20260911-background-style-1"></script>
+    <script defer src="models/background-removal.js?v=20260907-browser-birefnet-3"></script>
+    <script defer src="app.js?v=20260911-editor-history-1"></script>
   </body>
 </html>

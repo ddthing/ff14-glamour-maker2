@@ -11,8 +11,12 @@
   const TRANSFORMERS_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/+esm";
   const HIGH_MODEL = "jiabins0303/birefnet-lite-1024-webgpu";
   const FALLBACK_MODEL = "studioludens/birefnet-lite-512";
-  const HIGH_WEBGPU_MIN_STORAGE_BUFFERS = 65;
-  const FALLBACK_WEBGPU_MIN_STORAGE_BUFFERS = 65;
+  // The patched 1024px graph is designed for adapters that expose at least
+  // eight storage buffers per shader stage. Keep the gate aligned with the
+  // model contract; a higher local threshold would silently force supported
+  // GPUs onto the much slower WASM path.
+  const HIGH_WEBGPU_MIN_STORAGE_BUFFERS = 8;
+  const FALLBACK_WEBGPU_MIN_STORAGE_BUFFERS = 8;
   const HIGH_TIER = "BiRefNet 1024 WebGPU";
   const FALLBACK_WEBGPU_TIER = "BiRefNet 512 WebGPU";
   const FALLBACK_WASM_TIER = "BiRefNet 512 WASM";
@@ -121,9 +125,9 @@
 
     async function loadBestPipeline(onProgress) {
       if (pipelinePromise) return pipelinePromise;
-      // The 1024px graph contains a large Concat op. Devices with the default
-      // eight storage-buffer limit can create a pipeline that returns an empty
-      // image, so skip that tier before invoking ONNX Runtime.
+      // The patched 1024px graph is eligible on adapters that meet its
+      // eight-buffer contract. A device can still reject the graph at runtime,
+      // so runWithRecovery below owns the fallback after pipeline creation.
       if (await getWebGPUAdapter(HIGH_WEBGPU_MIN_STORAGE_BUFFERS)) {
         try {
           return await loadPipelineTier("high-webgpu", onProgress);

@@ -17,6 +17,15 @@ const fixturePng = Buffer.from(
     await page.waitForFunction(() => document.querySelector("#imageState")?.dataset.state === "original");
     await page.locator("#openImageEditorButton").click();
     await page.waitForFunction(() => document.body.classList.contains("image-placement-mode"));
+    const placementFocus = await page.evaluate(() => ({
+      activeId: document.activeElement?.id || "",
+      dialogContainsFocus: Boolean(document.querySelector("#imageEditorDialog")?.contains(document.activeElement)),
+    }));
+    assert.equal(placementFocus.activeId, "closeImageEditorButton", `image editor should focus its close control on open: ${JSON.stringify(placementFocus)}`);
+    assert.equal(placementFocus.dialogContainsFocus, true, "image editor focus should remain inside the placement dialog");
+    const beforeKeyboardNudge = Number(await page.locator("#panXRange").inputValue());
+    await page.locator("#closeImageEditorButton").press("ArrowLeft");
+    assert.ok(Number(await page.locator("#panXRange").inputValue()) < beforeKeyboardNudge, "image editor arrow keys should still nudge from the initial focus");
     assert.equal(await page.locator("#fitImageButton").textContent(), "맞춤");
     assert.equal(await page.locator("#fitImageButton").getAttribute("aria-label"), "이미지를 프레임에 맞춤");
     assert.equal(await page.locator("#centerImageButton").textContent(), "중앙");
