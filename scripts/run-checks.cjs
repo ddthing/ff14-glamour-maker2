@@ -91,7 +91,11 @@ async function runWorker(env) {
 (async () => {
   const baseUrl = process.env.TEST_BASE_URL || defaultBaseUrl;
   await ensureServer(baseUrl);
-  const env = { ...process.env, TEST_BASE_URL: baseUrl };
+  const env = {
+    ...process.env,
+    TEST_BASE_URL: baseUrl,
+    PLAYWRIGHT_MODULE: path.join(checksDir, "playwright-ci.cjs"),
+  };
   await Promise.all(Array.from({ length: 4 }, () => runWorker(env)));
   fs.mkdirSync(path.join(path.dirname(checksDir), "artifacts"), { recursive: true });
   fs.writeFileSync(

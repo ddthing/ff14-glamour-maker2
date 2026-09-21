@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { chromium } = require("playwright");
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
 const CardGearCopy = require("../models/card-gear-copy.js");
 
 const slots = ["head", "body", "hands", "legs", "feet"];

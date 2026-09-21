@@ -30,6 +30,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.equal(result.sameNode, true, "title input should update the existing list row");
     assert.equal(result.text, "목록 제목 갱신");
 
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const fitCount = await page.evaluate(async () => {
       let count = 0;
       const original = window.fitBoardTitle;

@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { chromium } = require("playwright");
+  const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
 
 // A deterministic abstract source lets the visual artifact exercise the
 // photo mount without shipping or rewriting a real user's photograph.

@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
-const { chromium } = require("playwright");
+  const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
 
 const fixtureImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=";
 const slots = ["head", "body", "hands", "legs", "feet"];
