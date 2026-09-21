@@ -62,6 +62,28 @@ try {
     "search indexing must not mutate the source records",
   );
 
+  let xivApiCalls = 0;
+  globalThis.fetch = async () => {
+    xivApiCalls += 1;
+    if (xivApiCalls === 1) return new Response("temporary upstream failure", { status: 503 });
+    return new Response(JSON.stringify({
+      row_id: 32799,
+      fields: {
+        Name: "カーフスキン・ライダースジャケット",
+        Icon: { id: 42718 },
+        LevelItem: { value: 1 },
+        EquipSlotCategory: { fields: { Body: 1 } },
+      },
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  const retriedJapaneseResponse = await onRequestGet({
+    request: new Request("https://tuyeong-set-maker2.example/api/items/search?q=32799&slot=body&language=ja"),
+    env: {},
+  });
+  assert.equal(retriedJapaneseResponse.status, 200, "Japanese XIVAPI search should recover from a transient upstream failure");
+  assert.equal(xivApiCalls, 2, "XIVAPI search should retry a transient upstream failure once");
+  assert.equal((await retriedJapaneseResponse.json()).results[0].names.ja, "カーフスキン・ライダースジャケット");
+
   let indexFetches = 0;
   const assetUrls = [];
   const itemSearchResponse = await onRequestGet({

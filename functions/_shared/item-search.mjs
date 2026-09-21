@@ -218,16 +218,34 @@ export async function searchXivItems(query, language, slot, { fetchImpl = fetch,
 }
 
 async function fetchJson(url, fetchImpl) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-  try {
-    const response = await fetchImpl(url, {
-      signal: controller.signal,
-      headers: { "User-Agent": "tuyeong-set-maker2-item-search" },
-    });
-    if (!response.ok) throw new Error(`아이템 데이터 응답 오류 (${response.status})`);
-    return await response.json();
-  } finally {
-    clearTimeout(timeout);
+  const retryDelays = [250, 750];
+  const retryableStatuses = new Set([502, 503, 504]);
+  for (let attempt = 0; ; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    try {
+      const response = await fetchImpl(url, {
+        signal: controller.signal,
+        headers: { "User-Agent": "tuyeong-set-maker2-item-search" },
+      });
+      if (!response.ok) {
+        if (retryableStatuses.has(response.status) && attempt < retryDelays.length) {
+          await response.body?.cancel();
+          await new Promise((resolve) => setTimeout(resolve, retryDelays[attempt]));
+          continue;
+        }
+        throw new Error(`아이템 데이터 응답 오류 (${response.status})`);
+      }
+      return await response.json();
+    } catch (error) {
+      const transientNetworkError = error?.name === "AbortError" || error?.name === "TypeError";
+      if (transientNetworkError && attempt < retryDelays.length) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelays[attempt]));
+        continue;
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 }
