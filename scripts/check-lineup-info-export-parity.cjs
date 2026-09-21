@@ -7,9 +7,9 @@ const fixturePng = Buffer.from(
   "base64",
 );
 const fixtureItems = [
-  { id: "990001", slot: "head", names: { ko: "미리보기 머리", en: "Preview Head" }, meta: { ko: "머리" } },
-  { id: "990002", slot: "body", names: { ko: "미리보기 몸", en: "Preview Body" }, meta: { ko: "몸" } },
-  { id: "990003", slot: "hands", names: { ko: "미리보기 손", en: "Preview Hands" }, meta: { ko: "손" } },
+  { id: "990001", slot: "head", names: { ko: "미리보기 머리", en: "Preview Head", ja: "プレビュー頭" }, meta: { ko: "머리" } },
+  { id: "990002", slot: "body", names: { ko: "미리보기 몸", en: "Preview Body", ja: "プレビュー胴" }, meta: { ko: "몸" } },
+  { id: "990003", slot: "hands", names: { ko: "미리보기 손", en: "Preview Hands", ja: "プレビュー手" }, meta: { ko: "손" } },
 ];
 
 (async () => {

@@ -2,6 +2,17 @@
    item name instead of replacing it with an ellipsis. The measure callback is
    supplied by the caller so DOM and Canvas can use their active font metrics. */
 const CardGearCopy = (() => {
+  function localizedNames(item, language = "ko") {
+    const order = [...new Set([language, "ko", "en", "ja"])];
+    const seen = new Set();
+    return order.flatMap((locale) => {
+      const text = normalise(item?.names?.[locale]);
+      if (!text || seen.has(text)) return [];
+      seen.add(text);
+      return [{ language: locale, text }];
+    });
+  }
+
   function normalise(value) {
     return String(value ?? "").replace(/\s+/gu, " ").trim();
   }
@@ -29,6 +40,9 @@ const CardGearCopy = (() => {
   }
 
   function wrapText(value, measureText, maxWidth) {
+    if (String(value ?? "").includes("\n")) {
+      return String(value).split(/\r?\n/u).flatMap((line) => wrapText(line, measureText, maxWidth));
+    }
     const text = normalise(value);
     if (!text) return [];
     const width = Math.max(1, Number(maxWidth) || 1);
@@ -53,7 +67,7 @@ const CardGearCopy = (() => {
     return lines;
   }
 
-  return { normalise, wrapText };
+  return { normalise, wrapText, localizedNames };
 })();
 
 if (typeof module !== "undefined") module.exports = CardGearCopy;

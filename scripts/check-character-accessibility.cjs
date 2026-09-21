@@ -59,7 +59,7 @@ const fixturePng = Buffer.from(
     await page.locator('.catalog-result').focus();
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => document.activeElement?.id === 'itemSearch');
-    for (const selector of ['.equipment-row[data-slot="head"] strong', '.equipment-row[data-slot="head"] .equipment-copy span']) {
+    for (const selector of ['.equipment-row[data-slot="head"] strong', '.equipment-row[data-slot="head"] .equipment-copy > span']) {
       assert.equal(await page.locator(selector).evaluate(el => el.scrollWidth <= el.clientWidth + 1), true);
       assert.equal(await page.locator(selector).evaluate(el => getComputedStyle(el).whiteSpace), 'normal');
     }

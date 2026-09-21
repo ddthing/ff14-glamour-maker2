@@ -912,6 +912,7 @@ const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
 const elements = {
   board: $("#canvasBoard"),
+  boardGearList: $("#boardGearList"),
   sceneBackground: $("#sceneBackground"),
   portraitWrap: $("#portraitWrap"),
   scenePattern: $("#scenePattern"),
@@ -1221,29 +1222,57 @@ function registerItemRecords(items = []) {
 }
 
 const localizedItemNameRequests = new Map();
+const localizedItemNameFailures = new Map();
+const localizedItemNameQueue = [];
+let localizedItemNameActive = 0;
+
+function drainItemNameQueue() {
+  while (localizedItemNameActive < 4 && localizedItemNameQueue.length) {
+    const { run, resolve } = localizedItemNameQueue.shift();
+    localizedItemNameActive += 1;
+    run().then(resolve, () => resolve(false)).finally(() => {
+      localizedItemNameActive -= 1;
+      drainItemNameQueue();
+    });
+  }
+}
 
 function ensureItemLanguageName(item, language) {
   const itemId = String(item?.id || "");
-  const requestKey = `${language}:${itemId}`;
+  const requestKey = `${workspaceEpoch}:${language}:${itemId}`;
   if (!itemId || item?.names?.[language] || !/^\d+$/.test(itemId)) return Promise.resolve(false);
   if (localizedItemNameRequests.has(requestKey)) return localizedItemNameRequests.get(requestKey);
-  const request = (async () => {
+  const operationEpoch = workspaceEpoch;
+  const failureKey = `${operationEpoch}:${requestKey}`;
+  if ((localizedItemNameFailures.get(failureKey) || 0) > Date.now()) return Promise.resolve(false);
+  const run = async () => {
+    if (operationEpoch !== workspaceEpoch) return false;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8000);
     try {
       const params = new URLSearchParams({ q: itemId, slot: item.slot, language });
-      const response = await fetch(`/api/items/search?${params.toString()}`);
+      const response = await fetch(`/api/items/search?${params.toString()}`, { signal: controller.signal });
       const payload = await response.json();
-      if (!response.ok) return false;
+      if (!response.ok) throw new Error("Item name unavailable");
       const localizedItem = (payload.results || []).find((result) => String(result.id) === itemId);
-      if (!localizedItem?.names?.[language]) return false;
+      if (!localizedItem?.names?.[language]) throw new Error("Item name missing");
+      if (operationEpoch !== workspaceEpoch) return false;
       registerItemRecords([localizedItem]);
       return true;
     } catch {
+      localizedItemNameFailures.set(failureKey, Date.now() + 30000);
+      if (localizedItemNameFailures.size > 200) localizedItemNameFailures.delete(localizedItemNameFailures.keys().next().value);
       return false;
     } finally {
-      localizedItemNameRequests.delete(requestKey);
+      window.clearTimeout(timeout);
     }
-  })();
+  };
+  const request = new Promise((resolve) => localizedItemNameQueue.push({ run, resolve }))
+    .finally(() => {
+      if (localizedItemNameRequests.get(requestKey) === request) localizedItemNameRequests.delete(requestKey);
+    });
   localizedItemNameRequests.set(requestKey, request);
+  drainItemNameQueue();
   return request;
 }
 
@@ -1251,7 +1280,7 @@ async function hydrateEnglishItemNames(items = []) {
   const operationEpoch = workspaceEpoch;
   const lookId = state.selectedLookId;
   const uniqueItems = Array.from(new Map(items.filter(Boolean).map((item) => [String(item.id), item])).values());
-  const languages = state.language === "en" ? ["en"] : [state.language, "en"];
+  const languages = ["ko", "en", "ja"];
   const results = await Promise.all(
     uniqueItems.flatMap((item) => languages.map((language) => ensureItemLanguageName(item, language))),
   );
@@ -1276,10 +1305,12 @@ function getItemName(item, language = state.language) {
 }
 
 function getSecondaryItemName(item, language = state.language) {
-  if (!item || !["ko", "ja"].includes(language)) return "";
-  const primaryName = getItemName(item, language);
-  const englishName = String(item.names?.en || "").trim();
-  return englishName && englishName !== primaryName ? englishName : "";
+  return CardGearCopy.localizedNames(item, language).slice(1).map(({ text }) => text).join("\n");
+}
+
+function renderSecondaryItemNames(item, language = state.language) {
+  return CardGearCopy.localizedNames(item, language).slice(1)
+    .map(({ language: locale, text }) => `<span class="gear-name-translation" lang="${locale}">${escapeHtml(text)}</span>`).join("");
 }
 
 function getItemMeta(item, language = state.language) {
@@ -2331,7 +2362,7 @@ function renderBoardGear() {
     const characterLabel = showCharacter ? `${t("item.summary", { number: characterNumber })} · ` : "";
     return `<button class="board-gear-item gear-slot-${item.slot}" data-character-index="${characterIndex}" data-gear-index="${index}" data-card-slot="${item.slot}" type="button" aria-label="${escapeHtml(t("item.gearEdit", { number: characterNumber, slot: slotName, name: primaryName }))}">
       <span class="gear-note-surface" aria-hidden="true"></span><span class="gear-tile-tape" aria-hidden="true"></span><span class="gear-note-stamp" aria-hidden="true"></span>
-      <div class="gear-tile-copy"><span class="gear-slot-label">${characterLabel}${escapeHtml(slotName)}</span><strong data-full-name="${escapeHtml(primaryName)}" title="${escapeHtml(primaryName)}">${escapeHtml(primaryName)}</strong>${secondaryName ? `<small class="gear-item-secondary" data-full-name="${escapeHtml(secondaryName)}" title="${escapeHtml(secondaryName)}">${escapeHtml(secondaryName)}</small>` : ""}</div>
+      <div class="gear-tile-copy"><span class="gear-slot-label">${characterLabel}${escapeHtml(slotName)}</span><strong data-full-name="${escapeHtml(primaryName)}" title="${escapeHtml(primaryName)}">${escapeHtml(primaryName)}</strong>${secondaryName ? `<small class="gear-item-secondary" data-full-name="${escapeHtml(secondaryName)}" title="${escapeHtml(secondaryName)}">${renderSecondaryItemNames(item)}</small>` : ""}</div>
     </button>`;
   };
   const boardGearList = $("#boardGearList");
@@ -2374,7 +2405,7 @@ function renderMultiInfo() {
       <span class="multi-info-items">${items.map((item) => {
         const secondaryName = getSecondaryItemName(item);
         const primaryName = getItemName(item);
-        return `<span class="multi-info-item"><span data-full-name="${escapeHtml(primaryName)}" title="${escapeHtml(primaryName)}">${escapeHtml(primaryName)}</span>${secondaryName ? `<small data-full-name="${escapeHtml(secondaryName)}" title="${escapeHtml(secondaryName)}">${escapeHtml(secondaryName)}</small>` : ""}</span>`;
+        return `<span class="multi-info-item"><span data-full-name="${escapeHtml(primaryName)}" title="${escapeHtml(primaryName)}">${escapeHtml(primaryName)}</span>${secondaryName ? `<small data-full-name="${escapeHtml(secondaryName)}" title="${escapeHtml(secondaryName)}">${renderSecondaryItemNames(item)}</small>` : ""}</span>`;
       }).join("")}</span>
     </button>`;
   }).join("") : "";
@@ -2746,7 +2777,7 @@ function renderEquipment() {
     return `<div class="equipment-row-shell">
       <button class="equipment-row${selected ? " is-selected" : ""}${item ? "" : " is-empty"}" data-slot="${slot}" type="button" aria-pressed="${selected}" aria-label="${escapeHtml(rowLabel)}">
         <span class="equipment-icon${hasItemImage ? " has-item-image" : ""}" aria-hidden="true">${renderItemImage(item, slot)}</span>
-        <span class="equipment-copy"><strong>${escapeHtml(itemName)}</strong><span>${escapeHtml(itemMeta)}</span></span>
+        <span class="equipment-copy"><strong>${escapeHtml(itemName)}</strong><span>${secondaryName ? renderSecondaryItemNames(item) : escapeHtml(itemMeta)}</span></span>
         <span class="equipment-check">${item ? t("item.change") : t("item.connect")}</span>
       </button>
       ${item ? `<button class="equipment-remove" data-remove-slot="${slot}" type="button" aria-label="${escapeHtml(t("item.remove", { slot: getOutfitSlotName(slot), name: itemName }))}">${escapeHtml(t("item.removeAction"))}</button>` : ""}
@@ -3803,7 +3834,15 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
     exportInProgress = true;
     exportButton.setAttribute("aria-busy", "true");
     setExportButtonLabel("export.preparing");
-    const fontReady = await Promise.race([fontLoad.then(() => true), new Promise(resolve => window.setTimeout(() => resolve(false), 8000))]);
+    const [, fontReady] = await Promise.all([
+      hydrateEnglishItemNames(activeCharacters.flatMap((_, index) => getCharacterItemIds(index, look).map(getItem))),
+      Promise.race([fontLoad.then(() => true), new Promise(resolve => window.setTimeout(() => resolve(false), 8000))]),
+    ]);
+    assertUnchanged();
+    gear = state.characters.map((_, index) => getCharacterItemIds(index, look).map(getItem).filter(Boolean).map(item => ({
+      name: getItemName(item, state.language), secondaryName: getSecondaryItemName(item, state.language),
+      slot: item.slot, slotName: getOutfitSlotName(item.slot, state.language),
+    })));
     if (!fontReady) throw new Error(t("image.fontTimeout"));
     assertUnchanged();
     fitBoardTitle();

@@ -45,6 +45,7 @@ const baseUrl = process.env.TEST_BASE_URL || "http://localhost:4173";
 
     releaseSearch();
     await page.waitForTimeout(150);
+    assert.equal(await page.evaluate(() => getItem("900001")), null, "a late translation must not restore deleted item records");
     assert.equal(
       await page.evaluate(() => localStorage.getItem("tuyeong-set-maker2-draft-v3")),
       null,

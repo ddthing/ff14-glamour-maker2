@@ -1469,3 +1469,21 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
 .canvas-board .multi-info-item > small {
   line-height: 1.14;
 }
+
+/* Official translations form separate lines under the selected language. */
+.canvas-board .gear-name-translation {
+  display: block;
+  font: inherit;
+  color: inherit;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.canvas-board .gear-name-translation + .gear-name-translation {
+  margin-top: .18em;
+}
+
+.canvas-board .multi-info-item > small:has(.gear-name-translation) {
+  opacity: .8;
+  letter-spacing: 0;
+}

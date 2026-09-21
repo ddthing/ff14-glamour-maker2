@@ -266,6 +266,7 @@ input[type="range"]:focus-visible {
   font-weight: 650;
   overflow: visible;
   overflow-wrap: anywhere;
+  word-break: keep-all;
   white-space: normal;
   line-height: 1.5;
 }
@@ -2511,6 +2512,13 @@ input[type="range"]:focus-visible {
   .inspector .inspector-section {
     scroll-margin-top: calc(var(--mobile-inspector-header-height, 69px) + 8px);
   }
+}
+
+.equipment-copy .gear-name-translation {
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
 }
 
 /* Image workflow ---------------------------------------------------------
