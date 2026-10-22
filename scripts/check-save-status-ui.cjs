@@ -119,7 +119,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
 
     await page.evaluate(() => document.body.classList.add("image-placement-mode"));
     assert.equal(await page.locator("#saveStatus").isVisible(), true, "focused image placement should retain save feedback");
-    assert.equal(await page.locator("#languageSelect").isVisible(), false, "focused image placement should still hide unrelated global actions");
+    assert.equal(await page.locator(".u267-gb").isVisible(), false, "focused image placement should still hide unrelated global actions");
     await page.evaluate(() => document.body.classList.remove("image-placement-mode"));
 
     console.log(JSON.stringify({ status: "PASS", desktop, mobile }));

@@ -121,7 +121,7 @@ async function assertBrowserLanguageFlow() {
     assert.equal(copyHint.padding, "0px", `copy guidance should not add a visual panel: ${JSON.stringify(copyHint)}`);
     assert.equal(copyHint.border, "0px", `copy guidance should not add a visual panel: ${JSON.stringify(copyHint)}`);
 
-    await page.locator("#languageSelect").selectOption("ja");
+    await page.locator("#languageSelect").selectOption("ja", { force: true });
     await page.waitForFunction(() => document.documentElement.lang === "ja");
     assert.equal(await page.locator("#inspectorTitle").textContent(), "スタイル");
     assert.equal(await page.locator("#imageImportGroupTitle").textContent(), "写真を追加");

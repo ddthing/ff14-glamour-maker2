@@ -53,8 +53,8 @@ const currentKeys = {
     assert.ok(branding.currentStorage[currentKeys.draft]);
     assert.deepEqual(Object.values(branding.oldStorage), [null, null]);
 
-    await page.locator("#languageSelect").selectOption("en");
-    await page.waitForFunction(() => document.documentElement.lang === "en" && document.querySelector(".wordmark-copy strong")?.textContent === "Glamour Set Maker");
+    await page.locator("#languageSelect").selectOption("en", { force: true });
+    await page.waitForFunction(() => document.documentElement.lang === "en" && document.querySelector(".wordmark-copy strong")?.textContent === "Glamour Set Maker" && document.querySelector(".wordmark-copy small")?.textContent === "02 · LOOKBOOK");
     const englishBranding = await page.evaluate(() => ({
       title: document.title,
       wordmark: document.querySelector(".wordmark-copy strong")?.textContent,
@@ -70,8 +70,8 @@ const currentKeys = {
     assert.equal(englishBranding.siteName, "Glamour Set Maker");
     assert.match(englishBranding.title, /^Glamour Set Maker 02 · LOOKBOOK \|/);
 
-    await page.locator("#languageSelect").selectOption("ja");
-    await page.waitForFunction(() => document.documentElement.lang === "ja" && document.querySelector(".wordmark-copy strong")?.textContent === "ミラプリセットメーカー");
+    await page.locator("#languageSelect").selectOption("ja", { force: true });
+    await page.waitForFunction(() => document.documentElement.lang === "ja" && document.querySelector(".wordmark-copy strong")?.textContent === "ミラプリセットメーカー" && document.querySelector(".wordmark-copy small")?.textContent === "02 · ルックブック");
     const japaneseBranding = await page.evaluate(() => ({
       title: document.title,
       wordmark: document.querySelector(".wordmark-copy strong")?.textContent,

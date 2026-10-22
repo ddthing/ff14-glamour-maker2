@@ -1,0 +1,40 @@
+/* Lucian UX/UI Prompt #197 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#197 */
+.u197{position:fixed;inset:0;z-index:1200;width:100vw;height:100vh;height:100dvh;color:var(--ux-ink);pointer-events:none}
+.u197[hidden]{display:none!important}
+.u197 .u197-ov{position:absolute;inset:0;display:block;width:100%;height:100%;opacity:0;pointer-events:none;transition:opacity .35s}
+.u197 .u197-ov path{fill:rgba(10,12,22,.66);fill-rule:evenodd;pointer-events:none}
+.u197.is-tour .u197-ov{opacity:1}
+.u197.is-tour .u197-ov path{pointer-events:visiblePainted}
+.u197 .u197-ring{position:absolute;left:0;top:0;width:0;height:0;border-radius:14px;box-shadow:0 0 0 2px var(--ux-accent);pointer-events:none;opacity:0;transition:opacity .3s}
+.u197.is-tour .u197-ring{opacity:1}
+.u197 .u197-ring::after{content:"";position:absolute;inset:-2px;border-radius:inherit;box-shadow:0 0 0 2px var(--ux-accent);animation:u197-pulse 1.5s ease-out infinite}
+@keyframes u197-pulse{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(1.25)}}
+.u197 .u197-tip{position:absolute;left:0;top:0;display:flex;flex-direction:column;width:224px;max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px);overflow:visible;padding:12px 13px 11px;border:0;border-radius:14px;background:var(--ux-surface);color:var(--ux-ink);box-shadow:0 14px 30px -10px var(--ux-shadow-strong);opacity:0;visibility:hidden;transform:translateY(6px) scale(.97);transition:left .45s cubic-bezier(.3,1.15,.4,1),top .45s cubic-bezier(.3,1.15,.4,1),opacity .25s,transform .35s var(--ux-spring),visibility 0s .3s;pointer-events:none}
+.u197.is-tour .u197-tip{opacity:1;visibility:visible;transform:none;transition:left .45s cubic-bezier(.3,1.15,.4,1),top .45s cubic-bezier(.3,1.15,.4,1),opacity .25s,transform .35s var(--ux-spring);pointer-events:auto}
+.u197 .u197-tip::before{content:"";position:absolute;left:var(--ax,30px);width:12px;height:12px;margin-left:-6px;background:inherit;transform:rotate(45deg);transition:left .45s cubic-bezier(.3,1.15,.4,1);pointer-events:none}
+.u197 .u197-tip.dn::before{top:-5px}
+.u197 .u197-tip.up::before{bottom:-5px}
+.u197 .u197-tip.rt::before{left:-5px;top:var(--ay,30px);margin:-6px 0 0}
+.u197 .u197-tip.lt::before{right:-5px;top:var(--ay,30px);margin:-6px 0 0}
+.u197 .u197-tip small{font-size:10.5px;font-weight:800;color:var(--ux-accent)}
+.u197 .u197-tip h2{display:block;margin:3px 0 0;font-size:14px;line-height:1.25;font-weight:850;color:var(--ux-ink)}
+.u197 .u197-tip p{margin:3px 0 10px;font-size:12px;line-height:1.45;color:var(--ux-ink-2)}
+.u197 .u197-copy{min-height:0;overflow-y:auto;overscroll-behavior:contain;animation:u197-fade .35s ease}
+@keyframes u197-fade{from{opacity:0;transform:translateY(4px)}}
+.u197 .u197-tf{display:flex;align-items:center;gap:6px}
+.u197 .u197-dots{display:flex;align-items:center;gap:4px;margin-right:auto}
+.u197 .u197-dots i{width:6px;height:6px;border-radius:3px;background:var(--ux-line-2);transition:width .3s var(--ux-spring),background-color .3s}
+.u197 .u197-dots i.on{width:16px;background:var(--ux-accent)}
+.u197 .u197-tf button{min-height:32px;padding:0 11px;border:0;border-radius:8px;background:var(--ux-surface-2);color:var(--ux-ink-2);font-size:12px;font-weight:800;white-space:nowrap}
+.u197 .u197-tf .u197-nx{background:var(--ux-ink);color:var(--ux-surface)}
+.u197 .u197-x{position:absolute;right:8px;top:8px;min-height:26px;padding:0 8px;border:0;border-radius:7px;background:transparent;color:var(--ux-ink-3);font-size:11px;font-weight:800}
+.u197 .u197-tip button:focus-visible{outline:2px solid var(--ux-accent);outline-offset:3px}
+body.u197-tour-active .inspector-panel{animation:none}
+@media(max-width:420px){
+  .u197 .u197-tf{gap:5px}
+  .u197 .u197-tf button{min-height:36px;padding:0 9px}
+}
+@media(prefers-reduced-motion:reduce){
+  .u197 .u197-ov,.u197 .u197-ring,.u197 .u197-tip,.u197 .u197-tip::before,.u197 .u197-dots i{transition:none!important}
+  .u197 .u197-ring::after,.u197 .u197-copy{animation:none!important}
+}

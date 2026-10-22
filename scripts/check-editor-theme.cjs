@@ -341,17 +341,17 @@ async function clearWorkspace(page) {
     await setSystemTheme(page, false, "dark");
     await waitForTheme(page, "dark");
 
-    await page.locator("#languageSelect").selectOption("ko");
+    await page.locator("#languageSelect").selectOption("ko", { force: true });
     await page.waitForFunction(() => document.documentElement.lang === "ko");
     assert.equal(await page.locator("#editorThemeToggle").getAttribute("aria-label"), "화면 테마: 다크. 밝은 화면으로 전환");
     assert.equal(await page.locator("#editorThemeToggle").getAttribute("title"), "밝은 화면으로 전환");
-    await page.locator("#languageSelect").selectOption("en");
+    await page.locator("#languageSelect").selectOption("en", { force: true });
     await page.waitForFunction(() => document.documentElement.lang === "en" && document.querySelector("#editorThemeToggle")?.getAttribute("aria-label") === "Editor theme: Dark. Switch to light mode");
     assert.equal(await page.locator("#editorThemeToggle").getAttribute("title"), "Switch to light mode");
-    await page.locator("#languageSelect").selectOption("ja");
+    await page.locator("#languageSelect").selectOption("ja", { force: true });
     await page.waitForFunction(() => document.documentElement.lang === "ja" && document.querySelector("#editorThemeToggle")?.getAttribute("aria-label") === "画面テーマ: ダーク. ライトモードに切り替え");
     assert.equal(await page.locator("#editorThemeToggle").getAttribute("title"), "ライトモードに切り替え");
-    await page.locator("#languageSelect").selectOption("ko");
+    await page.locator("#languageSelect").selectOption("ko", { force: true });
     await page.waitForFunction(() => document.documentElement.lang === "ko");
 
     await page.locator("#editorThemeToggle").click();
@@ -411,8 +411,10 @@ async function clearWorkspace(page) {
     const contrastFailures = contrast.filter((entry) => entry.missing || entry.ratio < 4.5);
     assert.deepEqual(contrastFailures, [], `dark editor surfaces need readable source text, export action, frame labels and controls: ${JSON.stringify(contrast)}`);
     await page.locator("#undoButton").focus();
-    await page.keyboard.press("Tab");
-    await page.keyboard.press("Tab");
+    for (let step = 0; step < 6; step += 1) {
+      await page.keyboard.press("Tab");
+      if (await page.evaluate(() => document.activeElement?.id === "editorThemeToggle")) break;
+    }
     const themeFocus = await page.evaluate(() => {
       const element = document.activeElement;
       const style = getComputedStyle(element);

@@ -11,6 +11,9 @@ const {stopChild}=require('./test-process.cjs');
   assert.equal((await fetch('http://127.0.0.1:4197/models/background-style.js')).status, 200, '/models/background-style.js');
   assert.equal((await fetch('http://127.0.0.1:4197/models/draft-autosave.js')).status, 200, '/models/draft-autosave.js');
   assert.equal((await fetch('http://127.0.0.1:4197/models/look-record.js')).status, 200, '/models/look-record.js');
+  for (const file of ['/models/lucian-language.js', '/models/lucian-tour.js', '/styles/lucian-base.css', '/styles/lucian-language.css', '/styles/lucian-tour.css', '/styles/lucian-theme-transition.css']) {
+    assert.equal((await fetch(`http://127.0.0.1:4197${file}`)).status, 200, file);
+  }
   const faviconResponse = await fetch('http://127.0.0.1:4197/assets/icons/favicon-02.svg');
   assert.match(faviconResponse.headers.get('content-type') || '', /image\/svg\+xml/);
   assert.match(await faviconResponse.text(), /투영세트메이커2/);

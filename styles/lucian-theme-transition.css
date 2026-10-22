@@ -1,0 +1,62 @@
+/* Lucian UX/UI Prompt #219 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#219 */
+
+/* Keep icon motion and transition pseudo styling local to the editor theme control. */
+.u219-theme-icon svg {
+  width: 16px;
+  height: 16px;
+  transition: transform .6s cubic-bezier(.3, 1.4, .5, 1);
+}
+
+.u219-theme-icon.is-dark svg {
+  transform: rotate(-90deg);
+}
+
+/* Reveal the new theme with Lucian's 700ms circular clip. On the return to
+   light mode the old dark snapshot contracts, matching the source element's
+   dark-overlay behavior while leaving the live editor DOM untouched. */
+html.u219-theme-transition::view-transition-group(root),
+html.u219-theme-transition::view-transition-image-pair(root) {
+  animation: none;
+  isolation: isolate;
+}
+
+html.u219-theme-transition--dark::view-transition-old(root) {
+  z-index: 0;
+  animation: none;
+}
+
+html.u219-theme-transition--dark::view-transition-new(root) {
+  z-index: 1;
+  clip-path: circle(0px at var(--u219-origin-x, 50vw) var(--u219-origin-y, 50vh));
+  animation: u219-theme-circle-grow .7s cubic-bezier(.65, 0, .35, 1) both;
+}
+
+html.u219-theme-transition--light::view-transition-new(root) {
+  z-index: 0;
+  clip-path: none;
+  animation: none;
+}
+
+html.u219-theme-transition--light::view-transition-old(root) {
+  z-index: 1;
+  clip-path: circle(var(--u219-reveal-radius, 100vmax) at var(--u219-origin-x, 50vw) var(--u219-origin-y, 50vh));
+  animation: u219-theme-circle-shrink .7s cubic-bezier(.65, 0, .35, 1) both;
+}
+
+@keyframes u219-theme-circle-grow {
+  from { clip-path: circle(0px at var(--u219-origin-x, 50vw) var(--u219-origin-y, 50vh)); }
+  to { clip-path: circle(var(--u219-reveal-radius, 100vmax) at var(--u219-origin-x, 50vw) var(--u219-origin-y, 50vh)); }
+}
+
+@keyframes u219-theme-circle-shrink {
+  from { clip-path: circle(var(--u219-reveal-radius, 100vmax) at var(--u219-origin-x, 50vw) var(--u219-origin-y, 50vh)); }
+  to { clip-path: circle(0px at var(--u219-origin-x, 50vw) var(--u219-origin-y, 50vh)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.u219-theme-transition--dark::view-transition-new(root),
+  html.u219-theme-transition--light::view-transition-old(root) {
+    clip-path: none !important;
+    animation: none !important;
+  }
+}

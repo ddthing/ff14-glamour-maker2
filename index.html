@@ -37,12 +37,16 @@
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
       />
     </noscript>
-    <script src="models/editor-theme.js?v=20261022-editor-theme-2"></script>
-    <link rel="stylesheet" href="styles/tokens.css?v=20261022-editor-theme-2" />
+    <script src="models/editor-theme.js?v=20261022-editor-theme-3"></script>
+    <link rel="stylesheet" href="styles/tokens.css?v=20261022-editor-theme-3" />
     <link rel="stylesheet" href="styles.css?v=20261022-editor-polish-3" />
     <link rel="stylesheet" href="styles/card-composer.css?v=20260909-remove-gear-label-lines-1" />
     <link rel="stylesheet" href="styles/editor-controls.css?v=20261022-editor-onboarding-1" />
     <link rel="stylesheet" href="styles/card-readability.css?v=20261022-card-readability-1" />
+    <link rel="stylesheet" href="styles/lucian-base.css?v=20261022-lucian-3" />
+    <link rel="stylesheet" href="styles/lucian-language.css?v=20261022-lucian-3" />
+    <link rel="stylesheet" href="styles/lucian-tour.css?v=20261022-lucian-3" />
+    <link rel="stylesheet" href="styles/lucian-theme-transition.css?v=20261022-lucian-3" />
   </head>
   <body>
     <a class="skip-link" data-i18n="skip.editor" href="#canvas">편집 영역으로 건너뛰기</a>
@@ -57,6 +61,10 @@
             <button class="topbar-history-button" id="undoButton" type="button" data-i18n-aria-label="canvas.undo" data-i18n-title="canvas.undo" aria-label="되돌리기" title="되돌리기" aria-keyshortcuts="Control+Z Meta+Z"><span class="sr-only" data-i18n="canvas.undo">되돌리기</span></button>
             <button class="topbar-history-button is-muted" id="redoButton" type="button" data-i18n-aria-label="canvas.redo" data-i18n-title="canvas.redo" aria-label="다시 실행" title="다시 실행" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z"><span class="sr-only" data-i18n="canvas.redo">다시 실행</span></button>
           </div>
+          <button class="editor-tour-trigger" id="editorTourButton" type="button" aria-haspopup="dialog" aria-label="편집기 사용법" title="편집기 사용법">
+            <span class="editor-tour-trigger-mark" aria-hidden="true">?</span>
+            <span class="editor-tour-trigger-label">사용법</span>
+          </button>
           <button class="editor-theme-toggle" id="editorThemeToggle" type="button" aria-pressed="false" aria-label="화면 테마: 라이트. 어두운 화면으로 전환" title="어두운 화면으로 전환">
             <span class="editor-theme-toggle-mark" id="editorThemeToggleMark" aria-hidden="true">☀</span>
             <span id="editorThemeCurrent">라이트</span>
@@ -583,5 +591,7 @@
     <script defer src="models/background-style.js?v=20260911-background-style-1"></script>
     <script defer src="models/background-removal.js?v=20260907-browser-birefnet-3"></script>
     <script defer src="app.js?v=20261022-workspace-upgrade-1"></script>
+    <script defer src="models/lucian-language.js?v=20261022-lucian-3"></script>
+    <script defer src="models/lucian-tour.js?v=20261022-lucian-3"></script>
   </body>
 </html>
