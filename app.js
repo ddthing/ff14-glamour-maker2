@@ -3592,10 +3592,13 @@ function captureExportTextLines(element, board, viewScale, scale, {
 } = {}) {
   const lines = [];
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  // Character geometry still needs one read per code unit for exact wrapping,
+  // but Range objects are reusable. Avoid allocating one transient DOM object
+  // per character during live copy preview and PNG export.
+  const range = document.createRange();
   let node;
   while ((node = walker.nextNode())) {
     for (let index = 0; index < node.length; index += 1) {
-      const range = document.createRange();
       range.setStart(node, index);
       range.setEnd(node, index + 1);
       const rect = range.getBoundingClientRect();
@@ -3799,6 +3802,37 @@ function scheduleCardCopyPreview() {
   });
 }
 
+function buildExportFilename(title) {
+  const fallback = "tuyeong-set-maker2-look";
+  const maxStemLength = 80;
+  const limitCodeUnits = (value) => {
+    let result = "";
+    let length = 0;
+    for (const character of value) {
+      if (length + character.length > maxStemLength) break;
+      result += character;
+      length += character.length;
+    }
+    return result;
+  };
+  let stem = String(title ?? "")
+    .normalize("NFC")
+    .replace(/[<>:"\/\\|?*\u0000-\u001f\u007f-\u009f]/gu, "-")
+    .replace(/[\u061c\u200b\u200e\u200f\u2028\u2029\u202a-\u202e\u2060\u2066-\u2069\ufeff]/gu, "")
+    .replace(/\s+/gu, "-")
+    .replace(/-+/gu, "-")
+    .replace(/^[.-]+/u, "")
+    .replace(/[ .-]+$/u, "");
+  stem = limitCodeUnits(stem).replace(/[ .-]+$/u, "");
+  if (!stem) return `${fallback}.png`;
+
+  // Windows treats these as device names even when an extension follows.
+  if (/^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\..*)?$/iu.test(stem)) {
+    stem = limitCodeUnits(`look-${stem}`).replace(/[ .-]+$/u, "");
+  }
+  return `${stem || fallback}.png`;
+}
+
 async function downloadComposition(event, snapshot = { ...state, characters: state.characters.map(character => ({ ...character })), titleOutline: { ...state.titleOutline }, outline: { ...state.outline }, shadow: { ...state.shadow } }) {
   if (exportInProgress) return;
   const state = snapshot;
@@ -3866,9 +3900,8 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
       placementScale, outlineColor: rgba(state.outline.color, 0.8), infoTextColor: infoTextTheme.foreground,
       infoTextMuted: infoTextTheme.muted, infoTextHalo: infoTextTheme.halo });
     assertUnchanged();
-    const extension = "png";
     const link = document.createElement("a");
-    link.download = `${look.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "tuyeong-set-maker2-look"}.${extension}`;
+    link.download = buildExportFilename(look.title);
     const objectUrl = URL.createObjectURL(outputBlob);
     link.href = objectUrl;
     link.click();
@@ -4027,6 +4060,11 @@ async function resetWorkspace() {
       storageFailed = true;
     }
   });
+  try {
+    window.EditorTheme?.clearPreference();
+  } catch {
+    storageFailed = true;
+  }
   itemRecordCache.clear();
   itemSearch.clear();
   localizedItemNameRequests.clear();
@@ -4307,7 +4345,63 @@ function initialiseInteractions() {
   $("#canvasBoard").addEventListener("dragleave", () => elements.board.classList.remove("is-drop-target"));
   $("#canvasBoard").addEventListener("drop", (event) => { event.preventDefault(); elements.board.classList.remove("is-drop-target"); void handleImageFiles(event.dataTransfer.files); });
   let dragState = null;
+  let dragRenderFrame = 0;
+  let pendingDragPoint = null;
+  const renderPendingDragPoint = () => {
+    dragRenderFrame = 0;
+    const activeDrag = dragState;
+    const point = pendingDragPoint;
+    pendingDragPoint = null;
+    if (!activeDrag?.moved || !point) return;
+    if (activeDrag.lookId !== state.selectedLookId || activeDrag.characterIndex !== state.selectedCharacter
+      || activeDrag.editorMode !== imageEditorOpen) {
+      if (activeDrag.rendered && !activeDrag.editorMode) saveState();
+      elements.portraitWrap.classList.remove("is-dragging");
+      if (elements.portraitWrap.hasPointerCapture(activeDrag.pointerId)) {
+        elements.portraitWrap.releasePointerCapture(activeDrag.pointerId);
+      }
+      dragState = null;
+      return;
+    }
+    updateSelectedImageState({
+      panX: activeDrag.panX + point.clientX - activeDrag.startX,
+      panY: activeDrag.panY + point.clientY - activeDrag.startY,
+    });
+    activeDrag.rendered = true;
+    activeDrag.lastPoint = point;
+    renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false, refreshControls: false });
+    if (elements.panXRange) {
+      elements.panXRange.value = String(state.panX);
+      syncRangeControlUi(elements.panXRange);
+    }
+    if (elements.panYRange) {
+      elements.panYRange.value = String(state.panY);
+      syncRangeControlUi(elements.panYRange);
+    }
+    syncImagePlacementSummary();
+  };
+  const scheduleDragRender = (event) => {
+    pendingDragPoint = { clientX: event.clientX, clientY: event.clientY };
+    if (dragRenderFrame) return;
+    dragRenderFrame = window.requestAnimationFrame(renderPendingDragPoint);
+  };
+  const flushDragRender = (event) => {
+    if (Number.isFinite(event?.clientX) && Number.isFinite(event?.clientY)) {
+      const matchesLastRender = dragState?.lastPoint?.clientX === event.clientX
+        && dragState?.lastPoint?.clientY === event.clientY;
+      pendingDragPoint = matchesLastRender ? null : { clientX: event.clientX, clientY: event.clientY };
+    }
+    if (dragRenderFrame) window.cancelAnimationFrame(dragRenderFrame);
+    dragRenderFrame = 0;
+    renderPendingDragPoint();
+  };
+  const cancelDragRender = () => {
+    if (dragRenderFrame) window.cancelAnimationFrame(dragRenderFrame);
+    dragRenderFrame = 0;
+    pendingDragPoint = null;
+  };
   elements.portraitWrap.addEventListener("pointerdown", (event) => {
+    if (dragState) return;
     if (event.button !== 0) return;
     if (event.target.closest(".character-image-actions")) return;
     const figure = event.target.closest(".character-figure");
@@ -4319,14 +4413,28 @@ function initialiseInteractions() {
     }
     if (figure?.dataset.empty === "true") return;
     if (Number.isInteger(targetIndex) && targetIndex !== state.selectedCharacter) selectCharacter(targetIndex);
-    dragState = { startX: event.clientX, startY: event.clientY, panX: state.panX, panY: state.panY, moved: false, editorMode: imageEditorOpen };
+    cancelDragRender();
+    dragState = {
+      startX: event.clientX,
+      startY: event.clientY,
+      panX: state.panX,
+      panY: state.panY,
+      moved: false,
+      rendered: false,
+      editorMode: imageEditorOpen,
+      lookId: state.selectedLookId,
+      characterIndex: state.selectedCharacter,
+      pointerId: event.pointerId,
+    };
     elements.portraitWrap.setPointerCapture(event.pointerId);
     elements.portraitWrap.classList.add("is-dragging");
   });
   elements.portraitWrap.addEventListener("pointermove", (event) => {
-    if (!dragState) return;
+    if (!dragState || event.pointerId !== dragState.pointerId) return;
     if (dragState.editorMode && !imageEditorOpen) {
       elements.portraitWrap.classList.remove("is-dragging");
+      cancelDragRender();
+      if (elements.portraitWrap.hasPointerCapture(event.pointerId)) elements.portraitWrap.releasePointerCapture(event.pointerId);
       dragState = null;
       return;
     }
@@ -4336,26 +4444,16 @@ function initialiseInteractions() {
       dragState.moved = true;
     }
     if (!dragState.moved) return;
-    updateSelectedImageState({
-      panX: dragState.panX + event.clientX - dragState.startX,
-      panY: dragState.panY + event.clientY - dragState.startY,
-    });
-    renderStyles({ refreshInfo: false, refreshPattern: false, fitTitle: false, refreshControls: false });
-    if (elements.panXRange) {
-      elements.panXRange.value = String(state.panX);
-      syncRangeControlUi(elements.panXRange);
-    }
-    if (elements.panYRange) {
-      elements.panYRange.value = String(state.panY);
-      syncRangeControlUi(elements.panYRange);
-    }
-    syncImagePlacementSummary();
+    scheduleDragRender(event);
   });
   const finishDrag = (event) => {
-    if (!dragState) return;
+    if (!dragState || event.pointerId !== dragState.pointerId) return;
+    if (dragState.moved) flushDragRender(event.type === "pointerup" ? event : null);
+    else cancelDragRender();
+    const completedDrag = dragState;
     if (elements.portraitWrap.hasPointerCapture(event.pointerId)) elements.portraitWrap.releasePointerCapture(event.pointerId);
     elements.portraitWrap.classList.remove("is-dragging");
-    if (dragState.moved && !imageEditorOpen) saveState();
+    if (completedDrag?.moved && !completedDrag.editorMode && completedDrag.lookId === state.selectedLookId) saveState();
     dragState = null;
   };
   elements.portraitWrap.addEventListener("pointerup", finishDrag);

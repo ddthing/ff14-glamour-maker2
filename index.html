@@ -37,16 +37,17 @@
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
       />
     </noscript>
-    <link rel="stylesheet" href="styles/tokens.css?v=20260908-shared-tokens-1" />
-    <link rel="stylesheet" href="styles.css?v=20260910-brand-mark-2" />
+    <script src="models/editor-theme.js?v=20261022-editor-theme-2"></script>
+    <link rel="stylesheet" href="styles/tokens.css?v=20261022-editor-theme-2" />
+    <link rel="stylesheet" href="styles.css?v=20261022-editor-polish-3" />
     <link rel="stylesheet" href="styles/card-composer.css?v=20260909-remove-gear-label-lines-1" />
-    <link rel="stylesheet" href="styles/editor-controls.css?v=20260909-remove-font-size-dock-1" />
-    <link rel="stylesheet" href="styles/card-readability.css?v=20260910-full-item-names-1" />
+    <link rel="stylesheet" href="styles/editor-controls.css?v=20261022-editor-onboarding-1" />
+    <link rel="stylesheet" href="styles/card-readability.css?v=20261022-card-readability-1" />
   </head>
   <body>
     <a class="skip-link" data-i18n="skip.editor" href="#canvas">편집 영역으로 건너뛰기</a>
     <div class="app-shell">
-      <header class="topbar">
+      <header class="topbar" data-theme-surface>
         <a class="wordmark" href="#canvas" data-i18n-aria-label="project.home" aria-label="투영세트메이커 02 · 룩북 홈">
           <span class="wordmark-mark" aria-hidden="true"></span><span class="wordmark-copy"><strong data-i18n="project.name">투영세트메이커</strong><small data-i18n="project.tagline">02 · 룩북</small></span>
         </a>
@@ -56,6 +57,10 @@
             <button class="topbar-history-button" id="undoButton" type="button" data-i18n-aria-label="canvas.undo" data-i18n-title="canvas.undo" aria-label="되돌리기" title="되돌리기" aria-keyshortcuts="Control+Z Meta+Z"><span class="sr-only" data-i18n="canvas.undo">되돌리기</span></button>
             <button class="topbar-history-button is-muted" id="redoButton" type="button" data-i18n-aria-label="canvas.redo" data-i18n-title="canvas.redo" aria-label="다시 실행" title="다시 실행" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z"><span class="sr-only" data-i18n="canvas.redo">다시 실행</span></button>
           </div>
+          <button class="editor-theme-toggle" id="editorThemeToggle" type="button" aria-pressed="false" aria-label="화면 테마: 라이트. 어두운 화면으로 전환" title="어두운 화면으로 전환">
+            <span class="editor-theme-toggle-mark" id="editorThemeToggleMark" aria-hidden="true">☀</span>
+            <span id="editorThemeCurrent">라이트</span>
+          </button>
           <label class="language-select-control" for="languageSelect">
             <span class="language-select-label" data-i18n="language.label">언어</span>
             <span class="language-select-wrap">
@@ -70,7 +75,7 @@
         </div>
       </header>
 
-      <aside class="rail" data-i18n-aria-label="mode.aria" aria-label="작업 모드">
+      <aside class="rail" data-theme-surface data-i18n-aria-label="mode.aria" aria-label="작업 모드">
         <div class="rail-nav rail-mode-nav" role="tablist" data-i18n-aria-label="mode.aria" aria-label="작업 모드" aria-orientation="vertical">
           <button class="rail-button rail-mode-button mode-tab is-active" id="styleTab" data-panel="stylePanel" role="tab" aria-selected="true" aria-controls="stylePanel" type="button">
             <span class="tool-key" aria-hidden="true">01</span><small data-i18n="mode.style">꾸미기</small>
@@ -107,7 +112,7 @@
         </div>
       </aside>
 
-      <aside class="library-sidebar" id="lookLibrary" aria-label="LOOK BOOK">
+      <aside class="library-sidebar" id="lookLibrary" data-theme-surface aria-label="LOOK BOOK">
         <div class="collection-lockup">
           <strong>LOOK BOOK</strong>
         </div>
@@ -131,7 +136,7 @@
         <div class="workspace-grid">
           <section class="canvas-column" data-i18n-aria-label="canvas.aria" aria-label="룩 캔버스">
             <div class="stage-wrap">
-              <div class="text-editor-dock" id="textEditorDock" role="region" data-i18n-aria-label="copy.dock" aria-label="텍스트 빠른 편집" hidden>
+              <div class="text-editor-dock" id="textEditorDock" data-theme-surface role="region" data-i18n-aria-label="copy.dock" aria-label="텍스트 빠른 편집" hidden>
                 <div class="text-editor-dock-target">
                   <span class="text-editor-dock-target-mark" aria-hidden="true">T</span>
                   <div class="text-editor-dock-target-copy">
@@ -170,7 +175,7 @@
                   </div>
                 </div>
               </div>
-              <div class="text-editor-dock-popover" id="textEditorMoreMenu" role="dialog" aria-labelledby="textEditorOutlineTitle" hidden>
+              <div class="text-editor-dock-popover" id="textEditorMoreMenu" data-theme-surface role="dialog" aria-labelledby="textEditorOutlineTitle" hidden>
                 <div class="text-editor-dock-popover-head">
                   <div>
                     <span class="text-editor-dock-eyebrow" data-i18n="copy.dockKicker">텍스트 선택됨</span>
@@ -213,7 +218,7 @@
                   <small class="board-copyright" id="boardCopyright" data-i18n="card.copyright">© SQUARE ENIX</small>
                 </div>
               </div>
-              <div class="canvas-view-bar" id="canvasViewBar" role="group" data-i18n-aria-label="canvas.viewBar" aria-label="카드 보기 조절">
+              <div class="canvas-view-bar" id="canvasViewBar" data-theme-surface role="group" data-i18n-aria-label="canvas.viewBar" aria-label="카드 보기 조절">
                 <div class="canvas-view-context">
                   <svg class="ui-icon canvas-view-context-mark" aria-hidden="true" focusable="false"><use href="assets/icons/ui.svg#canvas-view"></use></svg>
                   <span data-i18n="canvas.viewLabel">카드 보기</span>
@@ -246,7 +251,7 @@
             </div>
           </section>
 
-          <aside class="inspector" data-i18n-aria-label="inspector.aria" aria-label="편집 속성">
+          <aside class="inspector" data-theme-surface data-i18n-aria-label="inspector.aria" aria-label="편집 속성">
             <div class="inspector-header">
               <div class="inspector-title-row">
                 <div><span data-i18n="inspector.detail">상세 편집</span><h1 id="inspectorTitle" data-i18n="mode.style">꾸미기</h1></div>
@@ -509,7 +514,7 @@
       </main>
     </div>
 
-    <div class="image-editor-dialog image-editor-modebar" id="imageEditorDialog" role="region" aria-labelledby="imageEditorTitle" aria-describedby="imageEditorDescription" hidden>
+    <div class="image-editor-dialog image-editor-modebar" id="imageEditorDialog" data-theme-surface role="region" aria-labelledby="imageEditorTitle" aria-describedby="imageEditorDescription" hidden>
       <div class="image-editor-dialog-shell">
         <header class="image-editor-dialog-header">
           <div><span class="dialog-kicker" data-i18n="imageEditor.kicker">카드에서 직접 편집</span><h2 id="imageEditorTitle" data-i18n="imageEditor.title">크기와 위치 맞추기</h2><p id="imageEditorDescription" data-i18n="imageEditor.description">선택한 캐릭터만 강조됩니다. 카드에서 드래그하거나 방향키로 이동하세요.</p></div>
@@ -536,12 +541,12 @@
       </div>
     </div>
 
-    <dialog id="deleteWorkspaceDialog" class="delete-workspace-dialog" aria-labelledby="deleteWorkspaceTitle" aria-describedby="deleteWorkspaceDescription">
+    <dialog id="deleteWorkspaceDialog" class="delete-workspace-dialog" data-theme-surface aria-labelledby="deleteWorkspaceTitle" aria-describedby="deleteWorkspaceDescription">
       <h2 id="deleteWorkspaceTitle" data-i18n="dialog.deleteTitle">이 브라우저의 작업을 모두 삭제할까요?</h2>
       <p id="deleteWorkspaceDescription" data-i18n="dialog.deleteDescription">LOOK BOOK, 원본 사진, 배경 제거 이미지를 모두 삭제합니다. 삭제한 데이터는 되돌릴 수 없습니다.</p>
       <div class="delete-workspace-actions"><button id="cancelWorkspaceDelete" data-i18n="dialog.deleteCancel" type="button" autofocus>취소</button><button id="confirmWorkspaceDelete" data-i18n="dialog.deleteConfirm" type="button">모두 삭제</button></div>
     </dialog>
-    <dialog id="lookManagerDialog" class="look-manager-dialog" aria-labelledby="lookManagerTitle">
+    <dialog id="lookManagerDialog" class="look-manager-dialog" data-theme-surface aria-labelledby="lookManagerTitle">
       <header><h2 id="lookManagerTitle" data-i18n="manager.title">룩 관리</h2><button id="closeLookManager" type="button" data-i18n-aria-label="manager.close" aria-label="룩 관리 닫기">×</button></header>
       <form id="renameLookForm">
         <label for="lookNameInput" data-i18n="manager.name">룩 이름</label>
@@ -553,7 +558,7 @@
       <footer><button id="restoreDeletedLookButton" data-i18n="manager.restore" type="button" disabled>삭제 취소</button><span id="lookManagerStatus" role="status" aria-live="polite"></span></footer>
     </dialog>
     <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden />
-    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="toast" id="toast" data-theme-surface role="status" aria-live="polite"></div>
     <script defer src="models/look-editor.js?v=20260906-redesign-1"></script>
     <script defer src="models/look-book.js?v=20260906-management-1"></script>
     <script defer src="models/look-record.js?v=20260911-look-record-1"></script>
@@ -562,21 +567,21 @@
     <script defer src="models/draft-storage.js?v=20260908-draft-storage-3"></script>
     <script defer src="models/draft-autosave.js?v=20260911-draft-autosave-1"></script>
     <script defer src="models/draft-schema.js?v=20260910-draft-canonical-1"></script>
-    <script defer src="models/i18n.js?v=20260909-remove-font-size-dock-1"></script>
+    <script defer src="models/i18n.js?v=20261022-i18n-perf-1"></script>
     <script defer src="models/item-records.js?v=20260908-item-records-1"></script>
     <script defer src="models/item-search.js?v=20260908-language-aware-search-1"></script>
     <script defer src="models/crop-plan.js?v=20260908-crop-plan-1"></script>
     <script defer src="models/card-layout.js?v=20260908-gear-layout-2"></script>
     <script defer src="models/card-copy.js?v=20260909-floating-text-toolbar-1"></script>
     <script defer src="models/color-contrast.js?v=20260907-silhouette-contrast-1"></script>
-    <script defer src="models/card-materials.js?v=20260908-material-kit-1"></script>
+    <script defer src="models/card-materials.js?v=20261022-card-materials-1"></script>
     <script defer src="models/card-gear-copy.js?v=20260910-full-item-names-1"></script>
-    <script defer src="models/card-png.js?v=20260910-full-item-names-1"></script>
+    <script defer src="models/card-png.js?v=20261022-card-png-1"></script>
     <script defer src="models/editor-navigation.js?v=20260906-navigation-1"></script>
     <script defer src="models/editor-history.js?v=20260911-editor-history-1"></script>
     <script defer src="models/title-typography.js?v=20260908-title-fonts-1"></script>
     <script defer src="models/background-style.js?v=20260911-background-style-1"></script>
     <script defer src="models/background-removal.js?v=20260907-browser-birefnet-3"></script>
-    <script defer src="app.js?v=20260911-editor-history-1"></script>
+    <script defer src="app.js?v=20261022-workspace-upgrade-1"></script>
   </body>
 </html>

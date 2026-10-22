@@ -58,7 +58,8 @@
   --scrollbar-thumb-hover: color-mix(in srgb, var(--muted-foreground) 64%, transparent);
 }
 
-.dark {
+.dark,
+html[data-editor-theme="dark"] [data-theme-surface] {
   color-scheme: dark;
   --background: oklch(0.148 0.004 228.8);
   --foreground: oklch(0.987 0.002 197.1);
@@ -91,4 +92,21 @@
   --sidebar-accent-foreground: oklch(0.987 0.002 197.1);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.56 0.021 213.5);
+
+  /* Resolve the shell aliases again inside each scoped dark surface. A custom
+     property inherited from :root keeps its computed light value otherwise. */
+  --ink: var(--background);
+  --surface: var(--card);
+  --surface-2: var(--muted);
+  --surface-3: color-mix(in oklch, var(--muted) 70%, var(--background));
+  --line: var(--border);
+  --line-strong: color-mix(in oklch, var(--border) 75%, var(--foreground));
+  --text: var(--foreground);
+  --text-muted: var(--muted-foreground);
+  --text-dim: color-mix(in oklch, var(--muted-foreground) 78%, var(--background));
+  --signal: var(--primary);
+  --signal-dark: var(--primary-foreground);
+  --danger: var(--destructive);
+  --scrollbar-thumb: color-mix(in srgb, var(--muted-foreground) 42%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--muted-foreground) 64%, transparent);
 }

@@ -27,6 +27,67 @@ function assertLanguageDetection() {
   assert.equal(I18n.detectLanguage({ navigatorRef: { languages: ["xx"], language: "xx" }, intlRef: timezoneIntl }), "ko");
 }
 
+function assertLanguageApplicationUsesOneTraversal() {
+  function elementWithAttributes(attributes = {}) {
+    const values = new Map(Object.entries(attributes));
+    const dataset = Object.fromEntries(Object.entries(attributes)
+      .filter(([name]) => name.startsWith("data-"))
+      .map(([name, value]) => [name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), value]));
+    return {
+      dataset,
+      textContent: "",
+      hasAttribute: (name) => values.has(name),
+      getAttribute: (name) => values.has(name) ? values.get(name) : null,
+      setAttribute: (name, value) => values.set(name, String(value)),
+      attribute: (name) => values.get(name) ?? null,
+    };
+  }
+
+  const localizedText = elementWithAttributes({ "data-i18n": "mode.style" });
+  const ariaLabel = elementWithAttributes({ "data-i18n-aria-label": "language.label" });
+  const title = elementWithAttributes({ "data-i18n-title": "export.label" });
+  const placeholder = elementWithAttributes({ "data-i18n-placeholder": "item.searchPlaceholder" });
+  const alt = elementWithAttributes({ "data-i18n-alt": "language.label" });
+  const valueText = elementWithAttributes({ "data-i18n-aria-valuetext": "range.none" });
+  const content = elementWithAttributes({ "data-i18n-content": "meta.locale" });
+  const languageLabel = elementWithAttributes({ "data-i18n-lang-label": "language.label" });
+  const elements = [localizedText, ariaLabel, title, placeholder, alt, valueText, content, languageLabel];
+  let selector = "";
+  let queryCount = 0;
+  const documentElement = elementWithAttributes();
+  const root = {
+    documentElement,
+    contains: (element) => elements.includes(element),
+    querySelectorAll: (value) => {
+      queryCount += 1;
+      selector = value;
+      return elements;
+    },
+  };
+
+  assert.equal(I18n.apply(root, "en"), "en");
+  assert.equal(queryCount, 1, `language apply should query translated nodes once, received ${queryCount}`);
+  assert.equal(selector, [
+    "[data-i18n]",
+    "[data-i18n-aria-label]",
+    "[data-i18n-title]",
+    "[data-i18n-placeholder]",
+    "[data-i18n-alt]",
+    "[data-i18n-aria-valuetext]",
+    "[data-i18n-content]",
+    "[data-i18n-lang-label]",
+  ].join(", "));
+  assert.equal(documentElement.attribute("lang"), "en");
+  assert.equal(localizedText.textContent, "Style");
+  assert.equal(ariaLabel.attribute("aria-label"), "Language");
+  assert.equal(title.attribute("title"), "Export PNG");
+  assert.equal(placeholder.attribute("placeholder"), "Korean, English, Japanese name or ID");
+  assert.equal(alt.attribute("alt"), "Language");
+  assert.equal(valueText.attribute("aria-valuetext"), "None");
+  assert.equal(content.attribute("content"), "en_US");
+  assert.equal(languageLabel.textContent, "Language");
+}
+
 async function assertBrowserLanguageFlow() {
   const browser = await chromium.launch({ headless: true, channel: "msedge" });
   try {
@@ -84,6 +145,7 @@ async function assertBrowserLanguageFlow() {
 (async () => {
   assertDictionaryParity();
   assertLanguageDetection();
+  assertLanguageApplicationUsesOneTraversal();
   await assertBrowserLanguageFlow();
   console.log(JSON.stringify({ status: "PASS", languages: I18n.supportedLanguages }));
 })().catch((error) => {

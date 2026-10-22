@@ -5,6 +5,13 @@ const I18n = (() => {
   const fallbackLanguage = "ko";
   const localeByLanguage = { ko: "ko-KR", en: "en-US", ja: "ja-JP" };
   const documentLocaleByLanguage = { ko: "ko_KR", en: "en_US", ja: "ja_JP" };
+  const translatedAttributeNames = ["aria-label", "title", "placeholder", "alt", "aria-valuetext"];
+  const translatedElementSelector = [
+    "[data-i18n]",
+    ...translatedAttributeNames.map((name) => `[data-i18n-${name}]`),
+    "[data-i18n-content]",
+    "[data-i18n-lang-label]",
+  ].join(", ");
 
   const dictionaries = {
     ko: {
@@ -1296,21 +1303,26 @@ const I18n = (() => {
     const selected = normaliseLanguage(language);
     if (!root?.querySelectorAll) return selected;
     root.documentElement?.setAttribute("lang", selected);
-    root.querySelectorAll("[data-i18n]").forEach((element) => {
-      element.textContent = t(element.dataset.i18n, {}, selected);
-    });
-    const attributeNames = ["aria-label", "title", "placeholder", "alt", "aria-valuetext"];
-    attributeNames.forEach((attributeName) => {
-      const marker = `data-i18n-${attributeName}`;
-      root.querySelectorAll(`[${marker}]`).forEach((element) => {
-        element.setAttribute(attributeName, t(element.getAttribute(marker), {}, selected));
-      });
-    });
-    root.querySelectorAll("[data-i18n-content]").forEach((element) => {
-      element.setAttribute("content", t(element.dataset.i18nContent, {}, selected));
-    });
-    root.querySelectorAll("[data-i18n-lang-label]").forEach((element) => {
-      element.textContent = t(element.dataset.i18nLangLabel, {}, selected);
+    root.querySelectorAll(translatedElementSelector).forEach((element) => {
+      // A translated parent can replace its descendants. The former separate
+      // queries did not see those descendants in later attribute/content
+      // passes, so keep the same behavior while walking one static result set.
+      if (root.contains && !root.contains(element)) return;
+      if (element.hasAttribute("data-i18n")) {
+        element.textContent = t(element.getAttribute("data-i18n"), {}, selected);
+      }
+      for (const attributeName of translatedAttributeNames) {
+        const marker = `data-i18n-${attributeName}`;
+        if (element.hasAttribute(marker)) {
+          element.setAttribute(attributeName, t(element.getAttribute(marker), {}, selected));
+        }
+      }
+      if (element.hasAttribute("data-i18n-content")) {
+        element.setAttribute("content", t(element.dataset.i18nContent, {}, selected));
+      }
+      if (element.hasAttribute("data-i18n-lang-label")) {
+        element.textContent = t(element.dataset.i18nLangLabel, {}, selected);
+      }
     });
     return selected;
   }

@@ -82,6 +82,31 @@ const remoteFontPattern = "**/pretendardvariable-dynamic-subset.min.css";
       return Boolean(elements.catalogResults.querySelector('[data-catalog-scope-sentinel="true"]'));
     });
     assert.equal(catalogScope, true, "style-only refresh should not rebuild an empty item catalog");
+    const textCapture = await page.evaluate(() => {
+      const copy = "Wrapped editorial copy stays exact across line breaks. ".repeat(3);
+      const element = document.createElement("span");
+      element.style.cssText = "position:fixed;left:-10000px;top:0;width:120px;font:16px/20px Arial,sans-serif;white-space:normal;";
+      element.textContent = copy;
+      document.body.append(element);
+      const originalCreateRange = document.createRange.bind(document);
+      const ownCreateRange = Object.getOwnPropertyDescriptor(document, "createRange");
+      let createRangeCalls = 0;
+      document.createRange = () => {
+        createRangeCalls += 1;
+        return originalCreateRange();
+      };
+      try {
+        const lines = captureExportTextLines(element, { top: 0, left: 0 }, 1, 1);
+        return { createRangeCalls, renderedCopy: lines.map((line) => line.text).join(""), lineCount: lines.length, characterCount: copy.length };
+      } finally {
+        if (ownCreateRange) Object.defineProperty(document, "createRange", ownCreateRange);
+        else delete document.createRange;
+        element.remove();
+      }
+    });
+    assert.equal(textCapture.createRangeCalls, 1, `copy preview should reuse one Range for ${textCapture.characterCount} characters, received ${textCapture.createRangeCalls}`);
+    assert.ok(textCapture.lineCount > 1, `copy fixture should exercise wrapped text: ${JSON.stringify(textCapture)}`);
+    assert.equal(textCapture.renderedCopy, "Wrapped editorial copy stays exact across line breaks. ".repeat(3), "reusing a Range must preserve every copy character and its line grouping");
     const largeDraft = await page.evaluate(async () => {
       while (looks.length < 250) {
         const index = looks.length + 1;

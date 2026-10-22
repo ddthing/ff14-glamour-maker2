@@ -2219,7 +2219,7 @@ input[type="range"]:focus-visible {
 
 /* Editing typography and navigation use one readable rhythm. */
 .inspector .panel-section-head h2 { font-size: 16px; line-height: 1.5; font-weight: 750; letter-spacing: -.035em; }
-.inspector .inspector-section { padding-block: 24px; scroll-margin-block-start: 64px; }
+.inspector .inspector-section { padding-block: 20px; scroll-margin-block-start: 64px; }
 .inspector :is(.panel-eyebrow, .panel-state, .panel-selection-summary,
   .source-copy span, .image-state, .copy-editor-hint,
   .copy-editor-count, .copy-editor-field > span,
@@ -2570,8 +2570,8 @@ input[type="range"]:focus-visible {
 .image-workflow-title > span:last-child {
   overflow: hidden;
   color: var(--foreground);
-  font-size: 12px;
-  font-weight: 750;
+  font-size: 13px;
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

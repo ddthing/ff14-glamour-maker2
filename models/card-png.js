@@ -3,6 +3,9 @@
 const CardGearCopyModule = typeof module !== "undefined" && module.exports
   ? require("./card-gear-copy.js")
   : typeof CardGearCopy !== "undefined" ? CardGearCopy : globalThis.CardGearCopy;
+const CardMaterialsModule = typeof module !== "undefined" && module.exports
+  ? require("./card-materials.js")
+  : typeof CardMaterials !== "undefined" ? CardMaterials : globalThis.CardMaterials;
 const CardPng = (() => {
 function traceFivePointStar(context, radius) {
   const innerRadius = radius * 0.42;
@@ -295,29 +298,17 @@ function traceEightPointSparkle(context, radius) {
   context.closePath();
 }
 
-function traceArchivePaper(context, x, y, width, height, variant = 0) {
-  const edgeJitter = [0, 0.018, -0.012, 0.012, -0.008, 0.016, -0.014, 0.006];
-  const top = [0.035, 0.012, 0.028, 0.004, 0.024, 0.008, 0.03, 0.014];
-  const bottom = [0.978, 0.994, 0.982, 0.998, 0.976, 0.99, 0.98, 0.996];
-  const right = [0.98, 0.996, 0.984, 0.998, 0.978, 0.992, 0.982, 0.995];
-  const left = [0.02, 0.004, 0.018, 0.002, 0.022, 0.008, 0.018, 0.005];
-  const points = [];
-  for (let index = 0; index < 8; index += 1) {
-    const offset = (index + variant) % edgeJitter.length;
-    points.push([index / 7, top[index] + edgeJitter[offset]]);
-  }
-  for (let index = 7; index >= 0; index -= 1) {
-    const offset = (index + variant + 2) % edgeJitter.length;
-    points.push([right[index] + edgeJitter[offset], (index + 1) / 8]);
-  }
-  for (let index = 7; index >= 0; index -= 1) {
-    const offset = (index + variant + 4) % edgeJitter.length;
-    points.push([index / 7, bottom[index] + edgeJitter[offset]]);
-  }
-  for (let index = 0; index < 8; index += 1) {
-    const offset = (index + variant + 6) % edgeJitter.length;
-    points.push([left[index] + edgeJitter[offset], (7 - index) / 8]);
-  }
+function traceArchivePaper(context, x, y, width, height) {
+  // Keep this silhouette in lockstep with the archive note's CSS clip-path;
+  // the PNG and DOM preview should share the same quiet torn edge.
+  const points = [
+    [0, 0.04], [0.08, 0.01], [0.18, 0.03], [0.29, 0], [0.4, 0.03],
+    [0.5, 0.01], [0.61, 0.03], [0.72, 0], [0.84, 0.03], [1, 0.02],
+    [0.98, 0.2], [1, 0.38], [0.97, 0.55], [1, 0.74], [0.98, 0.98],
+    [0.86, 0.97], [0.74, 1], [0.62, 0.97], [0.5, 1], [0.38, 0.97],
+    [0.25, 1], [0.12, 0.97], [0.01, 1], [0.03, 0.82], [0, 0.64],
+    [0.02, 0.45], [0, 0.24],
+  ];
   context.beginPath();
   points.forEach(([pointX, pointY], index) => {
     const resolvedX = x + pointX * width;
@@ -337,7 +328,7 @@ function traceScrapbookTape(context, x, y, width, height) {
   context.closePath();
 }
 
-function drawMaterialNote(context, image, pathBuilder, x, y, width, height, tint, shadowColor, borderColor) {
+function drawMaterialNote(context, image, pathBuilder, x, y, width, height, tint, shadowColor, borderColor, sourceRect) {
   context.save();
   context.shadowColor = shadowColor;
   context.shadowBlur = Math.max(3, Math.round(width * 0.018));
@@ -353,11 +344,19 @@ function drawMaterialNote(context, image, pathBuilder, x, y, width, height, tint
   pathBuilder();
   context.clip();
   if (image) {
-    context.globalAlpha = 0.68;
-    drawCoverImage(context, image, x, y, width, height);
-    context.globalAlpha = 0.24;
-    context.fillStyle = tint;
+    context.globalCompositeOperation = "multiply";
+    if (sourceRect) {
+      context.drawImage(image, sourceRect.x, sourceRect.y, sourceRect.width, sourceRect.height, x, y, width, height);
+    } else {
+      drawCoverImage(context, image, x, y, width, height);
+    }
+    context.globalCompositeOperation = "soft-light";
+    const highlight = context.createLinearGradient(x, y, x, y + height * 0.34);
+    highlight.addColorStop(0, "rgba(255, 255, 255, .2)");
+    highlight.addColorStop(1, "rgba(255, 255, 255, 0)");
+    context.fillStyle = highlight;
     context.fillRect(x, y, width, height);
+    context.globalCompositeOperation = "source-over";
   }
   context.restore();
   context.save();
@@ -368,7 +367,7 @@ function drawMaterialNote(context, image, pathBuilder, x, y, width, height, tint
   context.restore();
 }
 
-function drawMaterialTape(context, x, y, width, height, color, rotation = 0) {
+function drawMaterialTape(context, image, x, y, width, height, color, rotation = 0) {
   context.save();
   context.translate(x + width / 2, y + height / 2);
   context.rotate(rotation);
@@ -376,18 +375,33 @@ function drawMaterialTape(context, x, y, width, height, color, rotation = 0) {
   traceScrapbookTape(context, x, y, width, height);
   context.fillStyle = color;
   context.fill();
-  context.strokeStyle = "rgba(78, 67, 55, .12)";
-  context.lineWidth = Math.max(0.5, width * 0.0015);
-  context.stroke();
-  context.strokeStyle = "rgba(255, 255, 255, .16)";
-  context.lineWidth = Math.max(0.5, height * 0.08);
-  for (let index = 1; index < 5; index += 1) {
-    const lineX = x + (width * index) / 5;
-    context.beginPath();
-    context.moveTo(lineX, y + height * 0.17);
-    context.lineTo(lineX + width * 0.015, y + height * 0.83);
-    context.stroke();
+  traceScrapbookTape(context, x, y, width, height);
+  context.clip();
+  const imageWidth = Number(image?.naturalWidth || image?.width || 0);
+  const imageHeight = Number(image?.naturalHeight || image?.height || 0);
+  const sourceRect = CardMaterialsModule?.tapeSourceRect(imageWidth, imageHeight);
+  if (image && sourceRect) {
+    context.globalCompositeOperation = "multiply";
+    context.drawImage(image, sourceRect.x, sourceRect.y, sourceRect.width, sourceRect.height, x, y, width, height);
+    context.globalCompositeOperation = "soft-light";
+    const highlight = context.createLinearGradient(x, y, x + width, y);
+    highlight.addColorStop(0, "rgba(255, 255, 255, .28)");
+    highlight.addColorStop(0.42, "rgba(255, 255, 255, 0)");
+    highlight.addColorStop(1, "rgba(79, 69, 58, .08)");
+    context.fillStyle = highlight;
+    context.fillRect(x, y, width, height);
   }
+  context.globalCompositeOperation = "source-over";
+  traceScrapbookTape(context, x, y, width, height);
+  context.strokeStyle = "rgba(82, 70, 56, .1)";
+  context.lineWidth = Math.max(0.5, width * 0.01);
+  context.stroke();
+  context.strokeStyle = "rgba(255, 255, 255, .32)";
+  context.lineWidth = Math.max(0.5, height * 0.08);
+  context.beginPath();
+  context.moveTo(x + width * 0.04, y + height * 0.12);
+  context.lineTo(x + width * 0.96, y + height * 0.04);
+  context.stroke();
   context.restore();
 }
 
@@ -570,24 +584,6 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
       context.textBaseline = "top";
       lines.forEach((line, index) => context.fillText(line, x, top + lineHeight * index));
     };
-    const collageSlotColors = Object.freeze({
-      head: "#7d96a5",
-      body: "#a97778",
-      hands: "#8b9b86",
-      legs: "#b29467",
-      feet: "#817b98",
-      weapon: "#646b70",
-      offhand: "#646b70",
-    });
-    const scrapbookSlotColors = Object.freeze({
-      head: "#6f8790",
-      body: "#9c6e63",
-      hands: "#7f8d78",
-      legs: "#b18457",
-      feet: "#766b80",
-      weapon: "#4d5b5d",
-      offhand: "#4d5b5d",
-    });
     const drawGearTile = (item, x, y, width, height, { textAlign = "left", noteIndex = 0 } = {}) => {
       const padding = Math.max(10, Math.round(width * 0.045));
       const secondaryName = item.secondaryName;
@@ -598,15 +594,10 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
       const collageTheme = state.backgroundPattern === "collage";
       const scrapbookTheme = state.backgroundPattern === "scrapbook";
       const paperNoteTheme = collageTheme || scrapbookTheme;
-      const material = typeof CardMaterials !== "undefined" ? CardMaterials.get(state.backgroundPattern) : null;
-      const noteTints = material?.noteTints || (collageTheme
-        ? ["#f4e8d7", "#e7ddd0", "#e9d7d0", "#e0e5d9"]
-        : ["#f7f0e3", "#e7eef0", "#edf0e7", "#eef2f3"]);
-      const tapeTints = material?.tapeTints || (collageTheme
-        ? ["rgba(211, 181, 137, .78)", "rgba(165, 184, 181, .76)", "rgba(220, 193, 157, .74)"]
-        : ["rgba(198, 213, 217, .72)", "rgba(219, 196, 164, .68)", "rgba(190, 205, 193, .72)"]);
+      const material = CardMaterialsModule?.get(state.backgroundPattern);
+      const materialNote = CardMaterialsModule?.noteFor(state.backgroundPattern, noteIndex);
       const pathBuilder = () => {
-        if (collageTheme) traceArchivePaper(context, x, y, width, height, noteIndex);
+        if (collageTheme) traceArchivePaper(context, x, y, width, height);
         else traceScrapbookNote(context, x, y, width, height);
       };
       context.save();
@@ -619,9 +610,15 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
           y,
           width,
           height,
-          noteTints[noteIndex % noteTints.length],
+          materialNote?.tint || (collageTheme ? "#f4e8d7" : "#f7f0e3"),
           collageTheme ? "rgba(67, 55, 43, .16)" : "rgba(48, 69, 75, .13)",
           collageTheme ? "rgba(67, 55, 43, .24)" : "rgba(48, 69, 75, .22)",
+          CardMaterialsModule?.noteSourceRect(
+            state.backgroundPattern,
+            noteIndex,
+            Number(backgroundImage?.naturalWidth || backgroundImage?.width || 0),
+            Number(backgroundImage?.naturalHeight || backgroundImage?.height || 0),
+          ),
         );
       } else {
         roundRect(x, y, width, height, exportTheme.radius);
@@ -632,20 +629,23 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
         context.stroke();
       }
       if (paperNoteTheme) {
-        const tapeLeft = noteIndex % 3 === 1 ? 0.64 : noteIndex % 3 === 2 ? 0.52 : 0.16;
-        const tapeWidthRatio = noteIndex % 3 === 1 ? 0.21 : noteIndex % 3 === 2 ? 0.27 : 0.24;
-        const tapeX = x + Math.round(width * tapeLeft);
-        const tapeY = y - Math.max(8, Math.round(height * 0.07));
-        const tapeWidth = Math.max(18, Math.round(width * tapeWidthRatio));
-        const tapeHeight = Math.max(5, Math.round(height * 0.12));
+        const tapeSpec = materialNote?.tape;
+        const tapeLeft = tapeSpec ? tapeSpec.left / 100 : noteIndex % 3 === 1 ? 0.64 : noteIndex % 3 === 2 ? 0.52 : 0.16;
+        const tapeWidthRatio = tapeSpec ? tapeSpec.width / 100 : noteIndex % 3 === 1 ? 0.21 : noteIndex % 3 === 2 ? 0.27 : 0.24;
+        const tapeHeightRatio = tapeSpec ? tapeSpec.height / 100 : 0.12;
+        const tapeX = x + width * tapeLeft;
+        const tapeY = y - height * 0.07;
+        const tapeWidth = Math.max(18, width * tapeWidthRatio);
+        const tapeHeight = Math.max(5, height * tapeHeightRatio);
         drawMaterialTape(
           context,
+          backgroundImage,
           tapeX,
           tapeY,
           tapeWidth,
           tapeHeight,
-          tapeTints[noteIndex % tapeTints.length],
-          (noteIndex % 2 ? 1 : -1) * Math.PI / 180,
+          tapeSpec?.color || "rgba(198, 213, 217, .72)",
+          (tapeSpec?.rotation ?? (noteIndex % 2 ? 1 : -1)) * Math.PI / 180,
         );
         if (shouldDrawPatternStamp(state.backgroundPattern, isPortrait)) {
           if (collageTheme) {
