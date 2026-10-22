@@ -12,6 +12,8 @@ function makeFixture() {
   const root = fs.mkdtempSync(path.join(fixtureRoot, "repo-"));
   fs.mkdirSync(path.join(root, "scripts"), { recursive: true });
   fs.copyFileSync(buildScript, path.join(root, "scripts", "build-site.cjs"));
+  fs.mkdirSync(path.join(root, "functions", "_shared"), { recursive: true });
+  fs.copyFileSync(path.join(sourceRoot, "functions", "_shared", "item-slots.mjs"), path.join(root, "functions", "_shared", "item-slots.mjs"));
   return root;
 }
 
@@ -25,7 +27,7 @@ function populateBuildSources(root) {
   for (const page of ["terms", "privacy", "guide", "contact", "support"]) {
     fs.writeFileSync(path.join(root, page, "index.html"), "<main>fixture</main>");
   }
-  const slots = ["head", "body", "hands", "legs", "feet", "weapon"];
+  const slots = ["head", "body", "hands", "legs", "feet", "weapon", "earrings", "necklace", "bracelet", "ring"];
   fs.writeFileSync(
     path.join(root, "assets", "data", "items-ko.json"),
     JSON.stringify(slots.map((slot, index) => ({ id: index + 1, slot }))),
@@ -114,6 +116,8 @@ try {
     assert.equal(runtimeBuild.status, 0, `${runtimeBuild.stdout}\n${runtimeBuild.stderr}`);
     assert.equal(fs.existsSync(path.join(root, runtimeOutput, "stale.txt")), false, "known temporary build output should be refreshed");
     assert.equal(fs.existsSync(path.join(root, runtimeOutput, "assets", "data", "items-ko-head.json")), true);
+    assert.equal(fs.existsSync(path.join(root, runtimeOutput, "assets", "data", "items-ko-earrings.json")), true);
+    assert.equal(fs.existsSync(path.join(root, runtimeOutput, "assets", "data", "items-ko-ring.json")), true);
 
     const defaultBuild = runBuild(root);
     assert.equal(defaultBuild.status, 0, `${defaultBuild.stdout}\n${defaultBuild.stderr}`);

@@ -431,6 +431,156 @@
   clip-path: polygon(50% 0, 61.8% 34.5%, 97.5% 34.5%, 68.5% 55.5%, 79.5% 90.5%, 50% 69%, 20.5% 90.5%, 31.5% 55.5%, 2.5% 34.5%, 38.2% 34.5%);
 }
 
+/* cardVisibility removes a hidden note from the DOM, so fixed legacy slots
+   must follow the raw data index instead of the remaining child order. */
+.canvas-board:not([data-composition-custom="true"])[data-ratio="portrait"][data-cast="1"] #boardGearList .board-gear-item[data-gear-index="0"] { top: 18.5185%; left: 3.1481%; right: auto; }
+.canvas-board:not([data-composition-custom="true"])[data-ratio="portrait"][data-cast="1"] #boardGearList .board-gear-item[data-gear-index="1"] { top: 30.3704%; right: 3.1481%; left: auto; }
+.canvas-board:not([data-composition-custom="true"])[data-ratio="portrait"][data-cast="1"] #boardGearList .board-gear-item[data-gear-index="2"] { top: 43.7037%; left: 3.1481%; right: auto; }
+.canvas-board:not([data-composition-custom="true"])[data-ratio="portrait"][data-cast="1"] #boardGearList .board-gear-item[data-gear-index="3"] { top: 58.5185%; right: 3.1481%; left: auto; }
+.canvas-board:not([data-composition-custom="true"])[data-ratio="portrait"][data-cast="1"] #boardGearList .board-gear-item[data-gear-index="4"] { top: 73.3333%; left: 3.1481%; right: auto; }
+
+.canvas-board:not([data-composition-custom="true"])[data-ratio="portrait"][data-cast="1"][data-single-layout="info-right"] #boardGearList .board-gear-item[data-gear-index="0"],
+.canvas-board:not([data-composition-custom="true"])[data-ratio="portrait"][data-cast="1"][data-single-layout="info-right"] #boardGearList .board-gear-item[data-gear-index="2"],
+.canvas-board:not([data-composition-custom="true"])[data-ratio="portrait"][data-cast="1"][data-single-layout="info-right"] #boardGearList .board-gear-item[data-gear-index="4"] { left: auto; right: 3.1481%; }
+.canvas-board:not([data-composition-custom="true"])[data-ratio="portrait"][data-cast="1"][data-single-layout="info-right"] #boardGearList .board-gear-item[data-gear-index="1"],
+.canvas-board:not([data-composition-custom="true"])[data-ratio="portrait"][data-cast="1"][data-single-layout="info-right"] #boardGearList .board-gear-item[data-gear-index="3"] { left: 3.1481%; right: auto; }
+
+.canvas-board:not([data-composition-custom="true"])[data-ratio="landscape"][data-cast="1"] #boardGearList .board-gear-item[data-gear-index="0"] { top: 23.1111%; left: 2.3333%; right: auto; }
+.canvas-board:not([data-composition-custom="true"])[data-ratio="landscape"][data-cast="1"] #boardGearList .board-gear-item[data-gear-index="1"] { top: 23.1111%; right: 2.3333%; left: auto; }
+.canvas-board:not([data-composition-custom="true"])[data-ratio="landscape"][data-cast="1"] #boardGearList .board-gear-item[data-gear-index="2"] { top: 43.2593%; left: 2.3333%; right: auto; }
+.canvas-board:not([data-composition-custom="true"])[data-ratio="landscape"][data-cast="1"] #boardGearList .board-gear-item[data-gear-index="3"] { top: 43.2593%; right: 2.3333%; left: auto; }
+.canvas-board:not([data-composition-custom="true"])[data-ratio="landscape"][data-cast="1"] #boardGearList .board-gear-item[data-gear-index="4"] { top: 63.4074%; left: 2.3333%; right: auto; }
+
+.canvas-board:not([data-composition-custom="true"])[data-ratio="landscape"][data-cast="1"][data-single-layout="info-right"] #boardGearList .board-gear-item[data-gear-index="0"],
+.canvas-board:not([data-composition-custom="true"])[data-ratio="landscape"][data-cast="1"][data-single-layout="info-right"] #boardGearList .board-gear-item[data-gear-index="2"],
+.canvas-board:not([data-composition-custom="true"])[data-ratio="landscape"][data-cast="1"][data-single-layout="info-right"] #boardGearList .board-gear-item[data-gear-index="4"] { left: auto; right: 2.3333%; }
+.canvas-board:not([data-composition-custom="true"])[data-ratio="landscape"][data-cast="1"][data-single-layout="info-right"] #boardGearList .board-gear-item[data-gear-index="1"],
+.canvas-board:not([data-composition-custom="true"])[data-ratio="landscape"][data-cast="1"][data-single-layout="info-right"] #boardGearList .board-gear-item[data-gear-index="3"] { left: 2.3333%; right: auto; }
+
+.canvas-board:not([data-composition-custom="true"])[data-cast="2"] #boardGearList .board-gear-rail .board-gear-item[data-gear-index="0"] { grid-row: 1 !important; }
+.canvas-board:not([data-composition-custom="true"])[data-cast="2"] #boardGearList .board-gear-rail .board-gear-item[data-gear-index="1"] { grid-row: 2 !important; }
+.canvas-board:not([data-composition-custom="true"])[data-cast="2"] #boardGearList .board-gear-rail .board-gear-item[data-gear-index="2"] { grid-row: 3 !important; }
+.canvas-board:not([data-composition-custom="true"])[data-cast="2"] #boardGearList .board-gear-rail .board-gear-item[data-gear-index="3"] { grid-row: 4 !important; }
+.canvas-board:not([data-composition-custom="true"])[data-cast="2"] #boardGearList .board-gear-rail .board-gear-item[data-gear-index="4"] { grid-row: 5 !important; }
+
+/* Custom information plans are applied only when the saved composition or
+   selected item count differs from the legacy five-note recipe. The app sets
+   each planned button's percentage rectangle from CardComposition. */
+.canvas-board[data-composition-custom="true"] #boardGearList {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  pointer-events: none;
+  isolation: isolate;
+}
+
+.canvas-board[data-composition-custom="true"][data-composition-layer="info-front"] #boardGearList {
+  z-index: 15 !important;
+}
+
+.canvas-board[data-composition-custom="true"] #boardGearList .board-gear-item {
+  position: absolute !important;
+  display: block !important;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  outline: 1px solid var(--recipe-edge, rgba(38, 50, 56, .18));
+  outline-offset: -1px;
+  transform: none;
+}
+
+.canvas-board[data-composition-custom="true"] #boardGearList .gear-tile-copy {
+  position: absolute;
+  left: var(--plan-copy-left, 3%);
+  top: var(--plan-copy-top, 3%);
+  width: var(--plan-copy-width, 94%);
+  height: var(--plan-copy-height, 94%);
+  box-sizing: border-box;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: calc(var(--plan-group-gap, 3) * var(--card-plan-unit-scale, 1));
+  overflow: visible;
+  padding: 0;
+}
+
+.canvas-board[data-ratio="portrait"] { --card-plan-unit-scale: calc(100cqw / 1080); }
+.canvas-board[data-ratio="landscape"] { --card-plan-unit-scale: calc(100cqw / 1200); }
+
+.canvas-board[data-composition-layer="person-front"] #boardGearList {
+  z-index: 16 !important;
+}
+
+.canvas-board[data-composition-layer="person-front"] #boardGearList .board-gear-item {
+  border-color: transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.canvas-board[data-composition-layer="person-front"] #boardGearList .gear-note-surface,
+.canvas-board[data-composition-layer="person-front"] #boardGearList .gear-tile-tape,
+.canvas-board[data-composition-layer="person-front"] #boardGearList .gear-note-stamp {
+  display: none !important;
+}
+
+.canvas-board[data-composition-layer="person-front"] #boardGearSurfaceLayer {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 9 !important;
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  pointer-events: none;
+}
+
+.canvas-board[data-composition-layer="person-front"] #boardGearSurfaceLayer .board-gear-surface-item {
+  position: absolute !important;
+  display: block !important;
+  box-sizing: border-box;
+  margin: 0 !important;
+  pointer-events: none;
+}
+
+.canvas-board[data-composition-layer="person-front"] #boardGearSurfaceLayer .gear-note-surface,
+.canvas-board[data-composition-layer="person-front"] #boardGearSurfaceLayer .gear-tile-tape,
+.canvas-board[data-composition-layer="person-front"] #boardGearSurfaceLayer .gear-note-stamp {
+  display: block !important;
+}
+
+.canvas-board[data-composition-custom="true"] #boardGearList .gear-tile-copy > .gear-slot-label,
+.canvas-board[data-composition-custom="true"] #boardGearList .gear-tile-copy > strong,
+.canvas-board[data-composition-custom="true"] #boardGearList .gear-tile-copy > .gear-item-secondary {
+  max-width: 100%;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.canvas-board[data-composition-custom="true"] #boardGearList .gear-tile-copy > .gear-slot-label {
+  font-size: calc(var(--plan-slot-size, 8) * var(--card-plan-unit-scale, 1));
+  line-height: calc(var(--plan-slot-line-height, 9) * var(--card-plan-unit-scale, 1));
+}
+
+.canvas-board[data-composition-custom="true"] #boardGearList .gear-tile-copy > strong {
+  font-size: calc(var(--plan-primary-size, 12) * var(--card-plan-unit-scale, 1));
+  line-height: calc(var(--plan-primary-line-height, 14) * var(--card-plan-unit-scale, 1));
+}
+
+.canvas-board[data-composition-custom="true"] #boardGearList .gear-tile-copy > .gear-item-secondary {
+  font-size: calc(var(--plan-secondary-size, 9) * var(--card-plan-unit-scale, 1));
+  line-height: calc(var(--plan-secondary-line-height, 10) * var(--card-plan-unit-scale, 1));
+}
+
 @media (prefers-reduced-motion: reduce) {
   .scene-pattern { transition: none; }
 }

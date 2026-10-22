@@ -79,9 +79,13 @@ async function assertAboveRail(page, selector, label) {
     await assertAboveRail(page, "#itemSearch", "item search after direct focus in the empty equipment panel");
     assert.equal(await page.evaluate(() => document.activeElement?.id), "itemSearch");
 
+    await page.locator(".equipment-row-shell:last-child .equipment-row").focus();
+    await page.waitForTimeout(80);
+    await assertAboveRail(page, ".equipment-row-shell:last-child .equipment-row", "last core equipment row after keyboard focus");
+
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await page.waitForTimeout(80);
-    await assertAboveRail(page, ".equipment-row-shell:last-child .equipment-row", "last equipment row at the bottom of the page");
+    await assertAboveRail(page, "#extraEntryEditorSummary", "extra equipment action at the bottom of the expanded equipment panel");
 
     const layout = await page.evaluate(() => ({
       horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,

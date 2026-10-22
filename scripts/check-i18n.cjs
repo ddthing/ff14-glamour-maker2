@@ -2,6 +2,20 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
 const I18n = require("../models/i18n.js");
+const featureCopyKeys = [
+  "equipment.eyebrow", "equipment.extraTitle", "equipment.extraCount", "equipment.addGroup", "equipment.edit",
+  "equipment.add", "equipment.save", "equipment.update", "equipment.cancel", "equipment.remove", "equipment.removeAria",
+  "equipment.groupLabel", "equipment.slotLabel", "equipment.manualName", "equipment.manualNamePlaceholder", "equipment.manualNameHint",
+  "equipment.nameEnglish", "equipment.nameJapanese", "equipment.note", "equipment.notePlaceholder", "equipment.multilingual",
+  "equipment.catalogSearch", "equipment.catalogSearchPlaceholder", "equipment.catalogSearchHint", "equipment.manualOnly", "equipment.empty",
+  "equipment.cardVisible", "equipment.cardVisibleAria", "equipment.sourceCatalog", "equipment.sourceManual", "equipment.maxReached",
+  "equipment.added", "equipment.updated", "equipment.removed", "equipment.requiredName", "equipment.selectedCount",
+  "composition.title", "composition.layer", "composition.layerAria", "composition.infoFront", "composition.personFront",
+  "composition.protectText", "composition.protectHint", "composition.infoGap", "composition.infoGapAria",
+  "composition.personFrontUnavailable", "composition.focusHint", "sheet.actions", "sheet.selected", "sheet.allActive",
+  "sheet.selectedHint", "sheet.allHint", "sheet.preparingSelected", "sheet.preparingAll", "sheet.savedSelectedPng",
+  "sheet.savedSelectedZip", "sheet.savedAllZip", "sheet.empty", "sheet.changed", "sheet.error",
+];
 
 function assertDictionaryParity() {
   const index = fs.readFileSync("index.html", "utf8");
@@ -13,6 +27,13 @@ function assertDictionaryParity() {
   }
   for (const language of I18n.supportedLanguages) {
     assert.equal(I18n.t("does.not.exist", {}, language), "does.not.exist");
+  }
+  for (const key of featureCopyKeys) {
+    const values = I18n.supportedLanguages.map((language) => I18n.dictionaries[language][key]);
+    assert.ok(values.every((value) => typeof value === "string" && value.length > 0), `${key} must have copy in every language`);
+    const variables = values.map((value) => [...value.matchAll(/\{([a-zA-Z0-9_]+)\}/g)].map((match) => match[1]).sort());
+    assert.deepEqual(variables[1], variables[0], `${key} interpolation variables differ in English`);
+    assert.deepEqual(variables[2], variables[0], `${key} interpolation variables differ in Japanese`);
   }
 }
 

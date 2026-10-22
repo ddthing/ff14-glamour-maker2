@@ -1,6 +1,9 @@
 /* Draft v3 is still the browser persistence contract. The selected look is
    the source of truth; legacy top-level fields are only compatibility mirrors
    for older readers and migrations. */
+const DraftSchemaEquipmentModule = typeof module !== "undefined" && module.exports
+  ? require("./equipment.js")
+  : globalThis.Equipment;
 const DraftSchema = (() => {
   function clone(value) {
     if (Array.isArray(value)) return value.map(clone);
@@ -20,7 +23,14 @@ const DraftSchema = (() => {
   }
 
   function create({ looks = [], selectedLookId = "", language = "", catalogItems = [] } = {}) {
-    const serializedLooks = Array.isArray(looks) ? looks : [];
+    const serializedLooks = (Array.isArray(looks) ? looks : []).map((look) => {
+      const result = clone(look || {});
+      const normalizedEquipment = DraftSchemaEquipmentModule.ensureLook(look);
+      result.extraEquipment = normalizedEquipment.extraEquipment;
+      result.cardVisibility = normalizedEquipment.cardVisibility;
+      result.cardComposition = normalizedEquipment.cardComposition;
+      return result;
+    });
     const selected = serializedLooks.find((look) => look?.id === selectedLookId) || serializedLooks[0] || {};
     const editor = selected.editor || {};
     const character = selectedCharacter(editor);
@@ -46,6 +56,9 @@ const DraftSchema = (() => {
       characterCount: editor.characterCount,
       selectedCharacter: editor.selectedCharacter,
       outfits: clone(selected.outfits),
+      extraEquipment: clone(selected.extraEquipment),
+      cardVisibility: clone(selected.cardVisibility),
+      cardComposition: clone(selected.cardComposition),
       catalogItems: clone(catalogItems),
       multiInfoEnabled: editor.multiInfoEnabled,
       multiInfoMode: editor.multiInfoMode,

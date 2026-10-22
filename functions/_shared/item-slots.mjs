@@ -1,5 +1,5 @@
-// EquipSlotCategory is a game-data enum, not a one-to-one list of the six
-// editor slots. Costume-only and restricted gear uses categories 15–23.
+// EquipSlotCategory is a game-data enum, not a one-to-one list of editor
+// slots. Costume-only and restricted gear uses categories 15–23.
 // Keep this table at one seam so ingestion, local fallback, and live results
 // cannot silently disagree about which items are searchable.
 export const supportedItemSlots = Object.freeze([
@@ -9,6 +9,10 @@ export const supportedItemSlots = Object.freeze([
   "legs",
   "feet",
   "weapon",
+  "earrings",
+  "necklace",
+  "bracelet",
+  "ring",
 ]);
 
 const slotByEquipSlotCategory = Object.freeze({
@@ -19,6 +23,10 @@ const slotByEquipSlotCategory = Object.freeze({
   5: "hands",
   7: "legs",
   8: "feet",
+  9: "earrings",
+  10: "necklace",
+  11: "bracelet",
+  12: "ring",
   13: "weapon",
   14: "weapon",
   15: "body",
@@ -32,9 +40,9 @@ const slotByEquipSlotCategory = Object.freeze({
 });
 
 // These categories are intentionally outside the editor contract: currency,
-// waist gear, accessories, and soul crystals. They must be explicit so a new
+// waist gear, and soul crystals. They must be explicit so a new
 // category cannot disappear from the index without a build-time warning.
-const knownIgnoredEquipSlotCategories = Object.freeze([0, 6, 9, 10, 11, 12, 17]);
+const knownIgnoredEquipSlotCategories = Object.freeze([0, 6, 17]);
 
 export function resolveItemSlotFromEquipSlotCategory(value) {
   return classifyEquipSlotCategory(value).slot;

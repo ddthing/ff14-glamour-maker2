@@ -635,16 +635,18 @@ function describeBackgroundSelection(source = state) {
 // built-in catalog here made the first render look finished with fabricated
 // outfits and caused test data to leak into production drafts.
 const outfitSlots = ["head", "body", "hands", "legs", "feet"];
-const itemRecordCache = ItemRecords.create({ slots: outfitSlots });
+const itemRecordCache = ItemRecords.create({ slots: [...Equipment.slots.all, "ring"] });
 const itemSearchState = {
   timer: null,
   mode: "idle",
 };
+const extraItemSearchState = { timer: null, mode: "idle", requestSlot: "" };
 // The search API currently returns eight matches. Keep a wider safety window
 // for future pagination, but never let an unexpectedly large payload create an
 // unbounded DOM subtree or eager image workload in the inspector.
 const catalogRenderLimit = 24;
 const itemSearch = ItemSearch.create({ fetch: (...args) => fetch(...args) });
+const extraItemSearch = ItemSearch.create({ fetch: (...args) => fetch(...args) });
 
 const outfitSlotNamesByLanguage = {
   ko: { head: "머리", body: "몸", hands: "손", legs: "다리", feet: "발", weapon: "무기" },
@@ -653,7 +655,7 @@ const outfitSlotNamesByLanguage = {
 };
 const outfitSlotNames = outfitSlotNamesByLanguage.ko;
 function getOutfitSlotName(slot, language = state.language) {
-  return outfitSlotNamesByLanguage[language]?.[slot] || outfitSlotNames[slot] || I18n.t("item.section", {}, language);
+  return Equipment.slotLabel(slot, language) || outfitSlotNamesByLanguage[language]?.[slot] || outfitSlotNames[slot] || I18n.t("item.section", {}, language);
 }
 
 function createOutfit(itemIds = []) {
@@ -746,14 +748,29 @@ function createBlankLook(number = 1, id = `look-${number}`) {
     subtitleColor: "",
     outline: { color: "#f1dfbb", width: 0 },
     titleOutline: { color: "#ffffff", width: 0 },
+    extraEquipment: Equipment.normalizeExtras([]),
+    cardVisibility: Equipment.normalizeVisibility([]),
+    cardComposition: Equipment.normalizeComposition({}),
   };
+}
+
+function ensureLookEquipmentState(look = getSelectedLook()) {
+  if (!look) return null;
+  if (!Array.isArray(look.extraEquipment) || look.extraEquipment.length !== 5) {
+    look.extraEquipment = Equipment.normalizeExtras(look.extraEquipment);
+  }
+  if (!Array.isArray(look.cardVisibility) || look.cardVisibility.length !== 5) {
+    look.cardVisibility = Equipment.normalizeVisibility(look.cardVisibility);
+  }
+  look.cardComposition = Equipment.normalizeComposition(look.cardComposition);
+  return look;
 }
 
 
 let looks = [createBlankLook(1, "look-1")];
 const deletedLooks = [];
 let lookCopyInProgress = false;
-looks.forEach(ensureLookOutfits);
+looks.forEach((look) => { ensureLookOutfits(look); ensureLookEquipmentState(look); });
 let defaultLookSnapshots = new Map();
 
 function createLookResetSnapshot(look, index = 0) {
@@ -779,6 +796,9 @@ function createLookResetSnapshot(look, index = 0) {
     subtitleUnderline: blank.subtitleUnderline,
     subtitleUppercase: blank.subtitleUppercase,
     subtitleColor: blank.subtitleColor,
+    extraEquipment: Equipment.normalizeExtras(blank.extraEquipment),
+    cardVisibility: Equipment.normalizeVisibility(blank.cardVisibility),
+    cardComposition: Equipment.normalizeComposition(blank.cardComposition),
   };
 }
 
@@ -954,6 +974,35 @@ const elements = {
   itemsSummaryTitle: $("#itemsSummaryTitle"),
   equipmentList: $("#equipmentList"),
   catalogResults: $("#catalogResults"),
+  extraEquipmentGroups: $("#extraEquipmentGroups"),
+  extraEquipmentCount: $("#extraEquipmentCount"),
+  extraEquipmentStatus: $("#extraEquipmentStatus"),
+  extraEntryEditor: $("#extraEntryEditor"),
+  extraEntryEditorSummary: $("#extraEntryEditorSummary"),
+  extraEntryForm: $("#extraEntryForm"),
+  extraEntryGroupSelect: $("#extraEntryGroupSelect"),
+  extraEntrySlotSelect: $("#extraEntrySlotSelect"),
+  extraEntryNameInput: $("#extraEntryNameInput"),
+  extraEntryNameLabel: $("#extraEntryNameLabel"),
+  extraEntryEnglishInput: $("#extraEntryEnglishInput"),
+  extraEntryJapaneseInput: $("#extraEntryJapaneseInput"),
+  extraEntryNoteInput: $("#extraEntryNoteInput"),
+  extraEntrySaveButton: $("#extraEntrySaveButton"),
+  extraCatalogSearchGroup: $("#extraCatalogSearchGroup"),
+  extraItemSearch: $("#extraItemSearch"),
+  extraCatalogStatus: $("#extraCatalogStatus"),
+  extraCatalogResults: $("#extraCatalogResults"),
+  exportSelectedGearSheet: $("#exportSelectedGearSheet"),
+  exportAllGearSheets: $("#exportAllGearSheets"),
+  gearSheetAllHint: $("#gearSheetAllHint"),
+  gearSheetStatus: $("#gearSheetStatus"),
+  compositionLayerControls: $("#compositionLayerControls"),
+  protectCardText: $("#protectCardText"),
+  infoGapRange: $("#infoGapRange"),
+  infoGapValue: $("#infoGapValue"),
+  compositionLayerHint: $("#compositionLayerHint"),
+  compositionFocusHint: $("#compositionFocusHint"),
+  compositionCountHint: $("#compositionCountHint"),
   languageSelect: $("#languageSelect"),
   saveRetryButton: $("#saveRetryButton"),
   outlineColorInput: $("#outlineColorInput"),
@@ -993,6 +1042,7 @@ function applyPageLanguage(language = state.language) {
   document.documentElement.lang = state.language;
   document.documentElement.dataset.language = state.language;
   if (elements.languageSelect) elements.languageSelect.value = state.language;
+  if (extraEditorLocale) syncExtraEntryNameLocale();
   if (typeof syncCanvasFocusControls === "function") syncCanvasFocusControls(document.body.classList.contains("canvas-focus-mode"));
   syncLibraryPanel();
   if (typeof openPanel === "function") openPanel(state.activePanel);
@@ -1178,6 +1228,7 @@ const serializedLookCache = new WeakMap();
 
 function syncStateIntoLook(look = getSelectedLook()) {
   if (!look) return;
+  ensureLookEquipmentState(look);
   serializedLookCache.delete(look);
   look.editor = captureEditorState(state);
   look.background = backgroundStyle.hasBackground(state.background) ? state.background : backgroundStyle.defaultBackground;
@@ -1293,9 +1344,13 @@ async function hydrateEnglishItemNames(items = []) {
 
 function hydrateCurrentLookEnglishNames() {
   const look = getSelectedLook();
+  ensureLookEquipmentState(look);
   const items = state.characters
     .slice(0, state.characterCount)
-    .flatMap((_, index) => getCharacterItemIds(index, look).map(getItem));
+    .flatMap((_, index) => [
+      ...getCharacterItemIds(index, look).map(getItem),
+      ...(look.extraEquipment[index] || []).filter((entry) => entry.source === "catalog").map((entry) => getItem(entry.itemId)),
+    ]);
   void hydrateEnglishItemNames(items);
 }
 
@@ -1802,6 +1857,7 @@ function recordHistory(snapshot = createSnapshot()) {
 
 function createSnapshot() {
   const look = getSelectedLook();
+  ensureLookEquipmentState(look);
   return {
     title: look.title,
     subtitle: look.subtitle,
@@ -1818,6 +1874,9 @@ function createSnapshot() {
     selectedCharacter: state.selectedCharacter,
     activeSlot: state.activeSlot,
     outfits: cloneOutfits(getLookOutfits(look)),
+    extraEquipment: Equipment.normalizeExtras(look.extraEquipment),
+    cardVisibility: Equipment.normalizeVisibility(look.cardVisibility),
+    cardComposition: Equipment.normalizeComposition(look.cardComposition),
     multiInfoEnabled: state.multiInfoEnabled,
     multiInfoMode: state.multiInfoMode,
     titleFont: state.titleFont,
@@ -1900,6 +1959,11 @@ function restoreSnapshot(snapshot) {
   if (Array.isArray(snapshot.outfits)) {
     look.outfits = cloneOutfits(snapshot.outfits);
     ensureLookOutfits(look);
+  }
+  if (Array.isArray(snapshot.extraEquipment)) look.extraEquipment = Equipment.normalizeExtras(snapshot.extraEquipment);
+  if (Array.isArray(snapshot.cardVisibility)) look.cardVisibility = Equipment.normalizeVisibility(snapshot.cardVisibility);
+  if (snapshot.cardComposition && typeof snapshot.cardComposition === "object") {
+    look.cardComposition = Equipment.normalizeComposition(snapshot.cardComposition);
   }
   renderAll();
   saveState();
@@ -2168,6 +2232,9 @@ function selectCharacter(index) {
   if (nextIndex !== state.selectedCharacter) {
     elements.itemSearch.value = "";
     clearCatalogResults();
+    if (elements.extraItemSearch) elements.extraItemSearch.value = "";
+    clearExtraCatalogResults();
+    if (extraEditingId) closeExtraEntryEditor();
   }
   state.selectedCharacter = nextIndex;
   syncSelectedCharacter();
@@ -2350,40 +2417,225 @@ function syncCutoutActionLabel() {
   label.textContent = state.cutout ? t("cutout.restore") : t("cutout.remove");
 }
 
+function getCardGearByCharacter(look = getSelectedLook()) {
+  ensureLookEquipmentState(look);
+  return Array.from({ length: 5 }, (_, characterIndex) => {
+    const coreItems = [
+      ...getCharacterItemIds(characterIndex, look).map(getItem),
+      ...(look.extraEquipment[characterIndex] || []).filter((entry) => entry.source === "catalog").map((entry) => getItem(entry.itemId)),
+    ].filter(Boolean);
+    return Equipment.entriesFor({
+      look,
+      characterIndex,
+      coreItems,
+      language: state.language,
+      selectedOnly: false,
+    }).map((entry) => ({
+      ...entry,
+      secondaryName: getSecondaryItemName({ names: entry.names }),
+      slotName: Equipment.slotLabel(entry.slot, state.language),
+    }));
+  });
+}
+
+function getCompositionOccupancyByCharacter() {
+  return state.characters.slice(0, state.characterCount).map((character, characterIndex) => {
+    if (!character?.cutout) return null;
+    const image = elements.portraitWrap?.querySelector(`.character-figure[data-character-index="${characterIndex}"] img`);
+    if (!image || !image.complete || !image.naturalWidth) return null;
+    return CardComposition.alphaOccupancyFor(image, character.assetKey || image.currentSrc || image.src);
+  });
+}
+
+function refreshCardCompositionPlan(look = getSelectedLook(), layout = getCardLayout()) {
+  ensureLookEquipmentState(look);
+  const gearByCharacter = getCardGearByCharacter(look);
+  compositionPlan = CardLayout.planComposition({
+    state,
+    look,
+    layout,
+    characters: state.characters,
+    composition: look.cardComposition,
+    gearByCharacter,
+    selectedCharacter: state.selectedCharacter,
+    multiInfoEnabled: state.multiInfoEnabled,
+    language: state.language,
+    occupancyByCharacter: getCompositionOccupancyByCharacter(),
+  });
+  return { plan: compositionPlan, gearByCharacter, layout };
+}
+
+function getBoardGearCompositionKey(plan = compositionPlan) {
+  if (!plan) return "";
+  return JSON.stringify([
+    state.selectedLookId,
+    state.characterCount,
+    state.selectedCharacter,
+    state.singleRatio,
+    state.singleLayout,
+    state.multiInfoEnabled,
+    plan.isCustom,
+    plan.effectiveLayer,
+    plan.protectText,
+    plan.infoGap,
+    (plan.items || []).map((item) => [item.characterIndex, item.gearIndex, item.itemId, item.x, item.y, item.width, item.height]),
+  ]);
+}
+
+function renderCompositionControls(look = getSelectedLook(), plan = compositionPlan, gearByCharacter = getCardGearByCharacter(look)) {
+  if (!look || !elements.protectCardText || !elements.infoGapRange) return;
+  const composition = ensureLookEquipmentState(look).cardComposition;
+  const allCutouts = state.characters.slice(0, state.characterCount).length === state.characterCount
+    && state.characters.slice(0, state.characterCount).every((character) => character?.cutout === true);
+  elements.compositionLayerControls?.querySelectorAll("[data-composition-layer]").forEach((button) => {
+    const selected = button.dataset.compositionLayer === composition.layer;
+    const unavailable = button.dataset.compositionLayer === "person-front" && !allCutouts;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-pressed", String(selected));
+    button.disabled = unavailable;
+    button.setAttribute("aria-disabled", String(unavailable));
+    if (unavailable) {
+      button.title = t("composition.personFrontUnavailable");
+      button.setAttribute("aria-describedby", "compositionLayerHint");
+    } else {
+      button.removeAttribute("title");
+      button.removeAttribute("aria-describedby");
+    }
+  });
+  elements.protectCardText.checked = composition.protectText !== false;
+  elements.infoGapRange.value = String(composition.infoGap);
+  elements.infoGapRange.style.setProperty("--range-progress", `${(composition.infoGap / 64) * 100}%`);
+  elements.infoGapRange.setAttribute("aria-valuetext", `${composition.infoGap} px`);
+  if (elements.infoGapValue) elements.infoGapValue.textContent = `${composition.infoGap} px`;
+
+  const needsLayerFallback = !allCutouts;
+  if (elements.compositionLayerHint) {
+    elements.compositionLayerHint.hidden = !needsLayerFallback;
+    elements.compositionLayerHint.textContent = needsLayerFallback ? t("composition.personFrontUnavailable") : "";
+  }
+  const focusIndex = plan?.focusCharacterIndex;
+  if (elements.compositionFocusHint) {
+    elements.compositionFocusHint.hidden = !Number.isInteger(focusIndex);
+    elements.compositionFocusHint.textContent = Number.isInteger(focusIndex)
+      ? t("composition.focusHint", { number: String(focusIndex + 1).padStart(2, "0") })
+      : "";
+  }
+  const allEntries = state.characterCount === 2
+    ? gearByCharacter.slice(0, state.characterCount).flat()
+    : Number.isInteger(focusIndex)
+      ? gearByCharacter[focusIndex] || []
+      : state.characterCount >= 3
+        ? gearByCharacter.slice(0, state.characterCount).flat()
+        : gearByCharacter[state.selectedCharacter] || [];
+  const selectedCount = state.characterCount >= 3 && !state.multiInfoEnabled
+    ? 0
+    : allEntries.filter((entry) => entry.showOnCard !== false).length;
+  if (elements.compositionCountHint) elements.compositionCountHint.textContent = t("equipment.selectedCount", { count: selectedCount });
+}
+
 function renderBoardGear() {
-  const look = getSelectedLook();
-  const renderGearItem = (itemId, index, characterIndex, { showCharacter = false } = {}) => {
-    const item = getItem(itemId);
-    if (!item) return "";
-    const slotName = getOutfitSlotName(item.slot);
-    const primaryName = getItemName(item);
-    const secondaryName = getSecondaryItemName(item);
+  const boardGearList = elements.boardGearList;
+  if (!boardGearList) return;
+  const look = ensureLookEquipmentState(getSelectedLook());
+  const { plan, gearByCharacter, layout } = refreshCardCompositionPlan(look);
+  compositionPlan = plan;
+  elements.board.dataset.compositionCustom = String(plan.isCustom);
+  elements.board.dataset.compositionLayer = plan.effectiveLayer;
+  elements.board.dataset.copyProtection = String(plan.protectText);
+  if (Number.isInteger(plan.focusCharacterIndex)) elements.board.dataset.focusCharacter = String(plan.focusCharacterIndex);
+  else elements.board.removeAttribute("data-focus-character");
+
+  let surfaceLayer = document.getElementById("boardGearSurfaceLayer");
+  if (!surfaceLayer) {
+    surfaceLayer = document.createElement("div");
+    surfaceLayer.id = "boardGearSurfaceLayer";
+    surfaceLayer.className = "board-gear-list board-gear-tiles board-gear-surface-layer";
+    surfaceLayer.setAttribute("aria-hidden", "true");
+    elements.portraitWrap?.parentNode?.insertBefore(surfaceLayer, elements.portraitWrap);
+  }
+  const isSplitLayer = plan.isCustom && plan.effectiveLayer === "person-front";
+  surfaceLayer.hidden = !isSplitLayer;
+
+  const renderGearItem = (entry, index, characterIndex, { showCharacter = false, planned = null } = {}) => {
+    if (!entry) return "";
+    const item = entry.source === "catalog" ? getItem(entry.itemId) : null;
+    const slot = entry.slot;
+    const slotName = entry.slotName || Equipment.slotLabel(slot, state.language);
+    const primaryName = entry.name || Equipment.localizedName(entry.names, state.language) || t("item.emptyName");
+    const secondaryMarkup = renderSecondaryItemNames({ names: entry.names });
     const characterNumber = String(characterIndex + 1).padStart(2, "0");
     const characterLabel = showCharacter ? `${t("item.summary", { number: characterNumber })} · ` : "";
-    return `<button class="board-gear-item gear-slot-${item.slot}" data-character-index="${characterIndex}" data-gear-index="${index}" data-card-slot="${item.slot}" type="button" aria-label="${escapeHtml(t("item.gearEdit", { number: characterNumber, slot: slotName, name: primaryName }))}">
+    const secondaryHtml = secondaryMarkup
+      ? `<small class="gear-item-secondary">${secondaryMarkup}</small>`
+      : "";
+    let style = "";
+    if (planned) {
+      const { layoutWidth, layoutHeight } = layout.dimensions;
+      const left = (planned.x / layoutWidth) * 100;
+      const top = (planned.y / layoutHeight) * 100;
+      const width = (planned.width / layoutWidth) * 100;
+      const height = (planned.height / layoutHeight) * 100;
+      const copy = planned.copy || {};
+      const copyBounds = planned.copyBounds || { x: planned.x, y: planned.y, width: planned.width, height: planned.height };
+      const copyLeft = ((copyBounds.x - planned.x) / planned.width) * 100;
+      const copyTop = ((copyBounds.y - planned.y) / planned.height) * 100;
+      const copyWidth = (copyBounds.width / planned.width) * 100;
+      const copyHeight = (copyBounds.height / planned.height) * 100;
+      style = ` style="left:${left}%;top:${top}%;width:${width}%;height:${height}%;--plan-slot-size:${copy.slotSize || 0};--plan-primary-size:${copy.primarySize || 0};--plan-secondary-size:${copy.secondarySize || 0};--plan-slot-line-height:${copy.slotLineHeight || 0};--plan-primary-line-height:${copy.primaryLineHeight || 0};--plan-secondary-line-height:${copy.secondaryLineHeight || 0};--plan-group-gap:${copy.groupGap || 0};--plan-copy-left:${copyLeft}%;--plan-copy-top:${copyTop}%;--plan-copy-width:${copyWidth}%;--plan-copy-height:${copyHeight}%"`;
+    }
+    const extraAttrs = entry.extra ? ` data-extra-id="${escapeHtml(entry.id)}" data-extra-slot="${escapeHtml(slot)}"` : "";
+    const itemIdAttr = entry.itemId != null ? ` data-item-id="${escapeHtml(entry.itemId)}"` : "";
+    const button = `<button class="board-gear-item gear-slot-${escapeHtml(slot)}${entry.extra ? " is-extra" : ""}" data-character-index="${characterIndex}" data-gear-index="${index}" data-card-slot="${escapeHtml(slot)}"${extraAttrs}${itemIdAttr} type="button" aria-label="${escapeHtml(t("item.gearEdit", { number: characterNumber, slot: slotName, name: primaryName }))}"${style}>
       <span class="gear-note-surface" aria-hidden="true"></span><span class="gear-tile-tape" aria-hidden="true"></span><span class="gear-note-stamp" aria-hidden="true"></span>
-      <div class="gear-tile-copy"><span class="gear-slot-label">${characterLabel}${escapeHtml(slotName)}</span><strong data-full-name="${escapeHtml(primaryName)}" title="${escapeHtml(primaryName)}">${escapeHtml(primaryName)}</strong>${secondaryName ? `<small class="gear-item-secondary" data-full-name="${escapeHtml(secondaryName)}" title="${escapeHtml(secondaryName)}">${renderSecondaryItemNames(item)}</small>` : ""}</div>
+      <div class="gear-tile-copy"><span class="gear-slot-label">${characterLabel}${escapeHtml(slotName)}</span><strong data-full-name="${escapeHtml(primaryName)}" title="${escapeHtml(primaryName)}">${escapeHtml(primaryName)}</strong>${secondaryHtml}</div>
     </button>`;
+    if (!isSplitLayer || !planned) return button;
+    return button;
   };
-  const boardGearList = $("#boardGearList");
-  if (state.characterCount === 2) {
-    boardGearList.innerHTML = [0, 1].map((characterIndex) => {
-      const items = getCharacterItemIds(characterIndex, look);
-      const railSide = characterIndex === 0 ? "left" : "right";
-      return `<section class="board-gear-rail board-gear-rail--${railSide}" data-gear-character="${characterIndex}" aria-label="${escapeHtml(t("item.gearInfo", { number: String(characterIndex + 1).padStart(2, "0") }))}">
-        <div class="board-gear-rail-items">${items.map((itemId, index) => renderGearItem(itemId, index, characterIndex)).join("")}</div>
-      </section>`;
+
+  if (plan.isCustom) {
+    const plannedItems = plan.items.map((planned) => {
+      const entry = gearByCharacter[planned.characterIndex]?.[planned.gearIndex];
+      return entry ? renderGearItem(entry, planned.gearIndex, planned.characterIndex, { showCharacter: false, planned }) : "";
     }).join("");
+    boardGearList.innerHTML = plannedItems;
+    surfaceLayer.innerHTML = isSplitLayer ? plan.items.map((planned) => {
+      const entry = gearByCharacter[planned.characterIndex]?.[planned.gearIndex];
+      if (!entry) return "";
+      const { layoutWidth, layoutHeight } = layout.dimensions;
+      return `<div class="board-gear-item board-gear-surface-item gear-slot-${escapeHtml(entry.slot)}" data-character-index="${planned.characterIndex}" data-gear-index="${planned.gearIndex}" style="left:${(planned.x / layoutWidth) * 100}%;top:${(planned.y / layoutHeight) * 100}%;width:${(planned.width / layoutWidth) * 100}%;height:${(planned.height / layoutHeight) * 100}%"><span class="gear-note-surface" aria-hidden="true"></span><span class="gear-tile-tape" aria-hidden="true"></span><span class="gear-note-stamp" aria-hidden="true"></span></div>`;
+    }).join("") : "";
   } else {
-    boardGearList.innerHTML = getCharacterItemIds(state.selectedCharacter, look)
-      .map((itemId, index) => renderGearItem(itemId, index, state.selectedCharacter, { showCharacter: state.characterCount > 1 }))
-      .join("");
+    surfaceLayer.innerHTML = "";
+    if (state.characterCount === 2) {
+      boardGearList.innerHTML = [0, 1].map((characterIndex) => {
+        const items = gearByCharacter[characterIndex] || [];
+        const railSide = characterIndex === 0 ? "left" : "right";
+        return `<section class="board-gear-rail board-gear-rail--${railSide}" data-gear-character="${characterIndex}" aria-label="${escapeHtml(t("item.gearInfo", { number: String(characterIndex + 1).padStart(2, "0") }))}">
+          <div class="board-gear-rail-items">${items.map((entry, index) => entry.showOnCard === false ? "" : renderGearItem(entry, index, characterIndex)).join("")}</div>
+        </section>`;
+      }).join("");
+    } else {
+      const items = gearByCharacter[state.selectedCharacter] || [];
+      boardGearList.innerHTML = items
+        .map((entry, index) => entry.showOnCard === false ? "" : renderGearItem(entry, index, state.selectedCharacter, { showCharacter: state.characterCount > 1 }))
+        .join("");
+    }
   }
-  $$("#boardGearList [data-card-slot]").forEach((button) => button.addEventListener("click", () => {
+
+  boardGearList.querySelectorAll("[data-card-slot]").forEach((button) => button.addEventListener("click", () => {
     const characterIndex = Number(button.dataset.characterIndex);
-    setActiveEquipmentSlot(button.dataset.cardSlot);
+    const slot = button.dataset.cardSlot;
+    const extraId = button.dataset.extraId;
     if (Number.isInteger(characterIndex) && characterIndex !== state.selectedCharacter) selectCharacter(characterIndex);
     openPanel("itemsPanel");
+    if (extraId) {
+      const entry = getSelectedLook().extraEquipment?.[state.selectedCharacter]?.find((item) => item.id === extraId);
+      if (entry) openExtraEntryEditor({ groupId: extraGroupForSlot(entry.slot)?.id, slot: entry.slot, entry });
+      else renderEquipment();
+      return;
+    }
+    setActiveEquipmentSlot(slot);
     renderEquipment();
     renderCatalog();
     window.requestAnimationFrame(() => {
@@ -2391,21 +2643,23 @@ function renderBoardGear() {
       ensureMobileControlVisible(elements.itemSearch);
     });
   }));
+  boardGearCompositionKey = getBoardGearCompositionKey(compositionPlan);
 }
 
 function renderMultiInfo() {
   const isLineup = state.characterCount >= 3;
-  const visible = isLineup && state.multiInfoEnabled;
+  const visible = isLineup && state.multiInfoEnabled && !compositionPlan?.isCustom;
   elements.multiInfoLayer.hidden = !visible;
+  const gearByCharacter = getCardGearByCharacter();
   elements.multiInfoLayer.innerHTML = visible ? state.characters.slice(0, state.characterCount).map((character, index) => {
-    const items = getCharacterItemIds(index).map(getItem).filter(Boolean);
-    const itemNames = items.map((item) => getItemName(item)).filter(Boolean);
+    const items = (gearByCharacter[index] || []).map((entry, gearIndex) => ({ entry, gearIndex })).filter(({ entry }) => entry.showOnCard !== false);
+    const itemNames = items.map(({ entry }) => entry.name).filter(Boolean);
     const accessibleItems = itemNames.length ? `: ${itemNames.join(", ")}` : "";
     return `<button class="multi-info-column${index === state.selectedCharacter ? " is-selected" : ""}" type="button" data-info-character="${index}" aria-label="${escapeHtml(t("item.multiInfoEdit", { number: String(index + 1).padStart(2, "0"), items: accessibleItems }))}">
-      <span class="multi-info-items">${items.map((item) => {
-        const secondaryName = getSecondaryItemName(item);
-        const primaryName = getItemName(item);
-        return `<span class="multi-info-item"><span data-full-name="${escapeHtml(primaryName)}" title="${escapeHtml(primaryName)}">${escapeHtml(primaryName)}</span>${secondaryName ? `<small data-full-name="${escapeHtml(secondaryName)}" title="${escapeHtml(secondaryName)}">${renderSecondaryItemNames(item)}</small>` : ""}</span>`;
+      <span class="multi-info-items">${items.map(({ entry, gearIndex }) => {
+        const secondaryMarkup = renderSecondaryItemNames({ names: entry.names });
+        const primaryName = entry.name;
+        return `<span class="multi-info-item" data-gear-index="${gearIndex}" data-card-slot="${escapeHtml(entry.slot)}"${entry.extra ? ` data-extra-id="${escapeHtml(entry.id)}"` : ""}><span data-full-name="${escapeHtml(primaryName)}" title="${escapeHtml(primaryName)}">${escapeHtml(primaryName)}</span>${secondaryMarkup ? `<small class="gear-item-secondary">${secondaryMarkup}</small>` : ""}</span>`;
       }).join("")}</span>
     </button>`;
   }).join("") : "";
@@ -2521,6 +2775,17 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
   // geometry, and information notes on one stable visual system.
   elements.board.dataset.style = "custom";
   const cardLayout = getCardLayout();
+  const { plan: nextCompositionPlan, gearByCharacter } = refreshCardCompositionPlan(getSelectedLook(), cardLayout);
+  const nextBoardGearCompositionKey = getBoardGearCompositionKey(nextCompositionPlan);
+  const compositionGeometryChanged = nextBoardGearCompositionKey !== boardGearCompositionKey;
+  elements.board.dataset.compositionCustom = String(nextCompositionPlan.isCustom);
+  elements.board.dataset.compositionLayer = nextCompositionPlan.effectiveLayer;
+  elements.board.dataset.copyProtection = String(nextCompositionPlan.protectText);
+  if (Number.isInteger(nextCompositionPlan.focusCharacterIndex)) {
+    elements.board.dataset.focusCharacter = String(nextCompositionPlan.focusCharacterIndex);
+  } else {
+    elements.board.removeAttribute("data-focus-character");
+  }
   elements.board.dataset.ratio = cardLayout.ratio;
   elements.board.dataset.singleLayout = state.singleLayout;
   const twoPersonRails = CardLayout.infoRails({ characterCount: 2 });
@@ -2669,6 +2934,7 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
     renderSourcePanel();
     syncImagePlacementSummary();
     $("#multiInfoToggle").checked = state.multiInfoEnabled;
+    renderCompositionControls(getSelectedLook(), nextCompositionPlan, gearByCharacter);
     syncTitleFontControls();
     syncTitleAlignmentControls();
     syncCopyColorControls();
@@ -2739,6 +3005,10 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
     if (exportInProgress) setExportButtonLabel("export.preparing");
   }
   if (refreshPattern) renderPattern();
+  if (compositionGeometryChanged) {
+    renderBoardGear();
+    boardGearCompositionKey = getBoardGearCompositionKey(compositionPlan);
+  }
   if (refreshInfo) renderMultiInfo();
   if (fitTitle) fitBoardTitle();
   scheduleCardCopyPreview();
@@ -2759,8 +3029,9 @@ function focusItemSearch() {
 }
 
 function renderEquipment() {
-  const look = getSelectedLook();
+  const look = ensureLookEquipmentState(getSelectedLook());
   const outfit = getCharacterOutfit(state.selectedCharacter, look);
+  const visibility = look.cardVisibility[state.selectedCharacter];
   const characterNumber = String(state.selectedCharacter + 1).padStart(2, "0");
   const characterLabel = t("item.summary", { number: characterNumber });
   if (elements.itemsSummaryTitle) elements.itemsSummaryTitle.textContent = characterLabel;
@@ -2774,12 +3045,14 @@ function renderEquipment() {
     const rowLabel = item
       ? t("item.gearRow", { slot: getOutfitSlotName(slot), name: itemName })
       : t("item.emptyRow", { slot: getOutfitSlotName(slot) });
-    return `<div class="equipment-row-shell">
+    const visibilityLabel = t("equipment.cardVisibleAria", { slot: getOutfitSlotName(slot), name: itemName });
+    return `<div class="equipment-row-shell${item ? " has-item" : ""}">
       <button class="equipment-row${selected ? " is-selected" : ""}${item ? "" : " is-empty"}" data-slot="${slot}" type="button" aria-pressed="${selected}" aria-label="${escapeHtml(rowLabel)}">
         <span class="equipment-icon${hasItemImage ? " has-item-image" : ""}" aria-hidden="true">${renderItemImage(item, slot)}</span>
         <span class="equipment-copy"><strong>${escapeHtml(itemName)}</strong><span>${secondaryName ? renderSecondaryItemNames(item) : escapeHtml(itemMeta)}</span></span>
         <span class="equipment-check">${item ? t("item.change") : t("item.connect")}</span>
       </button>
+      <label class="equipment-card-visibility" title="${escapeHtml(visibilityLabel)}"><input type="checkbox" data-core-visibility="${slot}" aria-label="${escapeHtml(visibilityLabel)}"${visibility[slot] !== false ? " checked" : ""} /><span>${escapeHtml(t("equipment.cardVisible"))}</span></label>
       ${item ? `<button class="equipment-remove" data-remove-slot="${slot}" type="button" aria-label="${escapeHtml(t("item.remove", { slot: getOutfitSlotName(slot), name: itemName }))}">${escapeHtml(t("item.removeAction"))}</button>` : ""}
     </div>`;
   }).join("");
@@ -2794,7 +3067,442 @@ function renderEquipment() {
   }));
   bindItemImageFallbacks(elements.equipmentList);
   if (elements.languageSelect) elements.languageSelect.value = state.language;
+  const { plan: nextPlan, gearByCharacter } = refreshCardCompositionPlan(look);
+  compositionPlan = nextPlan;
+  elements.board.dataset.compositionCustom = String(nextPlan.isCustom);
+  elements.board.dataset.compositionLayer = nextPlan.effectiveLayer;
+  elements.board.dataset.copyProtection = String(nextPlan.protectText);
+  if (Number.isInteger(nextPlan.focusCharacterIndex)) elements.board.dataset.focusCharacter = String(nextPlan.focusCharacterIndex);
+  else elements.board.removeAttribute("data-focus-character");
+  renderCompositionControls(look, nextPlan, gearByCharacter);
+  renderExtraEquipment();
+  renderGearSheetControls(look, gearByCharacter);
   renderBoardGear();
+  renderMultiInfo();
+}
+
+const extraCatalogQuerySlotByEquipmentSlot = Object.freeze({
+  weapon: "weapon",
+  earrings: "earrings",
+  necklace: "necklace",
+  bracelet: "bracelet",
+  ringLeft: "ring",
+  ringRight: "ring",
+});
+
+function extraGroupForSlot(slot) {
+  return Equipment.groups.find((group) => group.id !== "core" && group.slots.includes(slot)) || Equipment.groups.find((group) => group.id === "custom");
+}
+
+function syncExtraEntryGroupOptions() {
+  if (!elements.extraEntryGroupSelect) return;
+  if (elements.extraEntryGroupSelect.dataset.language !== state.language || !elements.extraEntryGroupSelect.options.length) {
+    const selected = elements.extraEntryGroupSelect.value;
+    elements.extraEntryGroupSelect.innerHTML = Equipment.groups.filter((group) => group.id !== "core")
+      .map((group) => `<option value="${escapeHtml(group.id)}">${escapeHtml(group.labels[state.language] || group.labels.ko)}</option>`)
+      .join("");
+    elements.extraEntryGroupSelect.dataset.language = state.language;
+    if ([...elements.extraEntryGroupSelect.options].some((option) => option.value === selected)) elements.extraEntryGroupSelect.value = selected;
+  }
+  syncExtraEntrySlotOptions(elements.extraEntrySlotSelect?.value);
+}
+
+function syncExtraEntrySlotOptions(preferredSlot = "") {
+  if (!elements.extraEntryGroupSelect || !elements.extraEntrySlotSelect) return;
+  const group = Equipment.groups.find((entry) => entry.id === elements.extraEntryGroupSelect.value && entry.id !== "core")
+    || Equipment.groups.find((entry) => entry.id === "weapons");
+  if (!group) return;
+  const existing = elements.extraEntrySlotSelect.value;
+  elements.extraEntrySlotSelect.innerHTML = group.slots.map((slot) => `<option value="${escapeHtml(slot)}">${escapeHtml(Equipment.slotLabel(slot, state.language))}</option>`).join("");
+  const candidate = [preferredSlot, existing].find((slot) => group.slots.includes(slot)) || group.slots[0];
+  elements.extraEntrySlotSelect.value = candidate;
+  syncExtraCatalogSearchAvailability();
+}
+
+function syncExtraCatalogSearchAvailability() {
+  const slot = elements.extraEntrySlotSelect?.value || "";
+  const supported = Boolean(extraCatalogQuerySlotByEquipmentSlot[slot]);
+  if (elements.extraCatalogSearchGroup) elements.extraCatalogSearchGroup.hidden = !supported;
+  if (!supported) clearExtraCatalogResults();
+}
+
+function renderExtraEquipment() {
+  if (!elements.extraEquipmentGroups || !elements.extraEntryGroupSelect) return;
+  const look = ensureLookEquipmentState(getSelectedLook());
+  const entries = look.extraEquipment[state.selectedCharacter] || [];
+  const projectedById = new Map(getCardGearByCharacter(look)[state.selectedCharacter]
+    .filter((entry) => entry.extra)
+    .map((entry) => [entry.id, entry]));
+  syncExtraEntryGroupOptions();
+  if (elements.extraEquipmentCount) elements.extraEquipmentCount.textContent = t("equipment.extraCount", {
+    count: entries.length,
+    max: Equipment.MAX_EXTRA_ENTRIES,
+  });
+
+  elements.extraEquipmentGroups.innerHTML = Equipment.groups.filter((group) => group.id !== "core").map((group) => {
+    const groupEntries = entries.filter((entry) => group.slots.includes(entry.slot));
+    const groupLabel = group.labels[state.language] || group.labels.ko;
+    const rows = groupEntries.length ? groupEntries.map((entry) => {
+      const projected = projectedById.get(entry.id);
+      const name = projected?.name || Equipment.localizedName(entry.names, state.language) || t("item.emptyName");
+      const secondaryName = projected?.secondaryName || "";
+      const meta = [Equipment.slotLabel(entry.slot, state.language), t(entry.source === "catalog" ? "equipment.sourceCatalog" : "equipment.sourceManual")].filter(Boolean).join(" · ");
+      const visibilityLabel = t("equipment.cardVisibleAria", { slot: Equipment.slotLabel(entry.slot, state.language), name });
+      const note = entry.note ? `<span>${escapeHtml(entry.note)}</span>` : "";
+      return `<li class="extra-equipment-row" data-extra-id="${escapeHtml(entry.id)}">
+        <div class="extra-equipment-copy"><strong>${escapeHtml(name)}</strong><span>${escapeHtml(meta)}${secondaryName ? ` · ${escapeHtml(secondaryName)}` : ""}</span>${note}</div>
+        <div class="extra-equipment-row-actions">
+          <label class="equipment-card-visibility" title="${escapeHtml(visibilityLabel)}"><input type="checkbox" data-extra-visibility="${escapeHtml(entry.id)}" aria-label="${escapeHtml(visibilityLabel)}"${entry.showOnCard !== false ? " checked" : ""} /><span>${escapeHtml(t("equipment.cardVisible"))}</span></label>
+          <button class="extra-equipment-row-action" data-edit-extra="${escapeHtml(entry.id)}" type="button">${escapeHtml(t("equipment.edit"))}</button>
+          <button class="extra-equipment-row-action" data-remove-extra="${escapeHtml(entry.id)}" type="button" aria-label="${escapeHtml(t("equipment.removeAria", { slot: Equipment.slotLabel(entry.slot, state.language), name }))}">${escapeHtml(t("equipment.remove"))}</button>
+        </div>
+      </li>`;
+    }).join("") : `<li class="extra-equipment-empty">${escapeHtml(t("equipment.empty"))}</li>`;
+    return `<section class="extra-equipment-group" data-extra-group="${escapeHtml(group.id)}" aria-label="${escapeHtml(groupLabel)}">
+      <div class="extra-equipment-group-head"><h3 class="extra-equipment-group-title">${escapeHtml(groupLabel)}</h3><span class="extra-equipment-group-count">${groupEntries.length}</span><button class="extra-equipment-add" data-add-extra-group="${escapeHtml(group.id)}" type="button"${entries.length >= Equipment.MAX_EXTRA_ENTRIES ? " disabled" : ""}>${escapeHtml(t("equipment.addGroup"))}</button></div>
+      <ul class="extra-equipment-list">${rows}</ul>
+    </section>`;
+  }).join("");
+  if (!extraEditingId && !elements.extraEntryEditor?.open) syncExtraEntrySlotOptions();
+  if (elements.extraEquipmentStatus?.dataset.language !== state.language) {
+    elements.extraEquipmentStatus.dataset.language = state.language;
+    elements.extraEquipmentStatus.textContent = "";
+  }
+  if (elements.extraEntrySaveButton) elements.extraEntrySaveButton.textContent = t(extraEditingId ? "equipment.update" : "equipment.add");
+  if (elements.extraEntryEditorSummary) elements.extraEntryEditorSummary.textContent = t(extraEditingId ? "equipment.edit" : "equipment.add");
+  if (extraEditorLocale) syncExtraEntryNameLocale();
+}
+
+function syncExtraEntryNameLocale() {
+  if (!elements.extraEntryNameInput) return;
+  const locale = extraEditorLocale || state.language;
+  elements.extraEntryNameInput.lang = locale;
+  if (elements.extraEntryNameLabel) elements.extraEntryNameLabel.textContent = `${t("equipment.manualName")} · ${locale.toUpperCase()}`;
+  const englishLabel = elements.extraEntryEnglishInput?.closest("label");
+  const japaneseLabel = elements.extraEntryJapaneseInput?.closest("label");
+  if (englishLabel) englishLabel.hidden = locale === "en";
+  if (japaneseLabel) japaneseLabel.hidden = locale === "ja";
+}
+
+function renderGearSheetControls(look = getSelectedLook(), gearByCharacter = getCardGearByCharacter(look)) {
+  const selectedEntries = gearByCharacter[state.selectedCharacter] || [];
+  const activeEntries = gearByCharacter.slice(0, state.characterCount).flat();
+  const busy = gearSheetExportInProgress || exportInProgress;
+  if (elements.exportSelectedGearSheet) elements.exportSelectedGearSheet.disabled = busy || selectedEntries.length === 0;
+  if (elements.exportAllGearSheets) elements.exportAllGearSheets.disabled = busy || activeEntries.length === 0;
+  if (elements.gearSheetAllHint) elements.gearSheetAllHint.textContent = t("sheet.allHint", { count: state.characterCount });
+}
+
+function openExtraEntryEditor({ groupId = "weapons", slot = "", entry = null } = {}) {
+  if (!elements.extraEntryEditor) return;
+  extraEditingId = entry?.id || null;
+  extraEditorLocale = state.language;
+  syncExtraEntryGroupOptions();
+  const group = Equipment.groups.find((candidate) => candidate.id === groupId && candidate.id !== "core")
+    || extraGroupForSlot(slot)
+    || Equipment.groups.find((candidate) => candidate.id === "weapons");
+  elements.extraEntryGroupSelect.value = group?.id || "weapons";
+  syncExtraEntrySlotOptions(slot || entry?.slot || "");
+  const projected = entry?.source === "catalog"
+    ? getCardGearByCharacter(getSelectedLook())[state.selectedCharacter].find((candidate) => candidate.id === entry.id && candidate.extra) || entry
+    : entry;
+  if (entry) {
+    elements.extraEntryNameInput.value = projected?.names?.[extraEditorLocale] || entry.names?.[extraEditorLocale] || "";
+    elements.extraEntryEnglishInput.value = projected?.names?.en || entry.names?.en || "";
+    elements.extraEntryJapaneseInput.value = projected?.names?.ja || entry.names?.ja || "";
+    elements.extraEntryNoteInput.value = entry.note || "";
+  } else {
+    elements.extraEntryNameInput.value = "";
+    elements.extraEntryEnglishInput.value = "";
+    elements.extraEntryJapaneseInput.value = "";
+    elements.extraEntryNoteInput.value = "";
+  }
+  extraEditorPrimaryBaseline = normaliseInlineText(elements.extraEntryNameInput.value);
+  extraEditorEnglishBaseline = normaliseInlineText(elements.extraEntryEnglishInput.value);
+  extraEditorJapaneseBaseline = normaliseInlineText(elements.extraEntryJapaneseInput.value);
+  syncExtraEntryNameLocale();
+  elements.extraEntryEditor.open = true;
+  elements.extraEntryEditorSummary.textContent = t(extraEditingId ? "equipment.edit" : "equipment.add");
+  elements.extraEntrySaveButton.textContent = t(extraEditingId ? "equipment.update" : "equipment.add");
+  if (!entry) {
+    elements.extraItemSearch.value = "";
+    clearExtraCatalogResults();
+  }
+  window.requestAnimationFrame(() => {
+    elements.extraEntryNameInput?.focus({ preventScroll: true });
+    ensureMobileControlVisible(elements.extraEntryNameInput);
+  });
+}
+
+function closeExtraEntryEditor({ refocus = false } = {}) {
+  extraEditingId = null;
+  extraEditorLocale = "";
+  extraEditorPrimaryBaseline = "";
+  extraEditorEnglishBaseline = "";
+  extraEditorJapaneseBaseline = "";
+  clearExtraCatalogResults();
+  if (elements.extraItemSearch) elements.extraItemSearch.value = "";
+  if (elements.extraEntryEditor) elements.extraEntryEditor.open = false;
+  if (elements.extraEntryEditorSummary) elements.extraEntryEditorSummary.textContent = t("equipment.add");
+  if (elements.extraEntrySaveButton) elements.extraEntrySaveButton.textContent = t("equipment.add");
+  if (elements.extraEntryNameInput) elements.extraEntryNameInput.value = "";
+  if (elements.extraEntryEnglishInput) elements.extraEntryEnglishInput.value = "";
+  if (elements.extraEntryJapaneseInput) elements.extraEntryJapaneseInput.value = "";
+  if (elements.extraEntryNoteInput) elements.extraEntryNoteInput.value = "";
+  syncExtraEntryNameLocale();
+  if (refocus) elements.extraEntryEditor?.querySelector("summary")?.focus({ preventScroll: true });
+}
+
+function setExtraEquipmentStatus(message, { error = false } = {}) {
+  if (!elements.extraEquipmentStatus) return;
+  elements.extraEquipmentStatus.dataset.error = String(error);
+  elements.extraEquipmentStatus.textContent = message || "";
+}
+
+function createExtraEntryId() {
+  let token = "";
+  try { token = crypto.randomUUID().replace(/-/gu, ""); } catch { /* older browsers use the fallback below */ }
+  if (!token) token = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
+  return `extra-c${state.selectedCharacter + 1}-${token}`;
+}
+
+function mergeOptionalEntryNames(entry, locale, primaryName) {
+  const names = { ...(entry?.names || {}) };
+  const primaryChanged = primaryName !== extraEditorPrimaryBaseline;
+  if (primaryChanged) {
+    if (primaryName) names[locale] = primaryName;
+    else delete names[locale];
+  }
+  if (locale !== "en") {
+    const english = normaliseInlineText(elements.extraEntryEnglishInput?.value || "");
+    if (english !== extraEditorEnglishBaseline) {
+      if (english) names.en = english;
+      else delete names.en;
+    }
+  } else if (primaryChanged) {
+    if (primaryName) names.en = primaryName;
+    else delete names.en;
+  }
+  if (locale !== "ja") {
+    const japanese = normaliseInlineText(elements.extraEntryJapaneseInput?.value || "");
+    if (japanese !== extraEditorJapaneseBaseline) {
+      if (japanese) names.ja = japanese;
+      else delete names.ja;
+    }
+  } else if (primaryChanged) {
+    if (primaryName) names.ja = primaryName;
+    else delete names.ja;
+  }
+  return names;
+}
+
+function saveExtraEntry(event) {
+  event?.preventDefault();
+  const look = ensureLookEquipmentState(getSelectedLook());
+  const entries = look.extraEquipment[state.selectedCharacter] || [];
+  const slot = elements.extraEntrySlotSelect?.value || "";
+  const group = extraGroupForSlot(slot);
+  if (!group) {
+    setExtraEquipmentStatus(t("equipment.requiredName"), { error: true });
+    return;
+  }
+  const name = normaliseInlineText(elements.extraEntryNameInput?.value || "");
+  const locale = extraEditorLocale || state.language;
+  const existingIndex = extraEditingId ? entries.findIndex((entry) => entry.id === extraEditingId) : -1;
+  const existing = existingIndex >= 0 ? entries[existingIndex] : null;
+  const names = mergeOptionalEntryNames(existing, locale, name);
+  if (!existing && !name) {
+    setExtraEquipmentStatus(t("equipment.requiredName"), { error: true });
+    elements.extraEntryNameInput?.focus();
+    return;
+  }
+  if (!Object.values(names).some((value) => String(value || "").trim())) {
+    setExtraEquipmentStatus(t("equipment.requiredName"), { error: true });
+    elements.extraEntryNameInput?.focus();
+    return;
+  }
+  if (!existing && entries.length >= Equipment.MAX_EXTRA_ENTRIES) {
+    setExtraEquipmentStatus(t("equipment.maxReached"), { error: true });
+    return;
+  }
+
+  recordHistory();
+  const currentEntries = look.extraEquipment[state.selectedCharacter] || [];
+  const currentExistingIndex = extraEditingId ? currentEntries.findIndex((entry) => entry.id === extraEditingId) : -1;
+  const currentExisting = currentExistingIndex >= 0 ? currentEntries[currentExistingIndex] : null;
+  const currentNames = mergeOptionalEntryNames(currentExisting, locale, name);
+  // Keep catalog identity when the user edits a localized label. Entry names
+  // are local overrides; the linked ItemRecords record still fills other
+  // locales and keeps the catalog metadata available. Changing the slot
+  // detaches the record because the original catalog item may no longer fit.
+  const preserveCatalog = currentExisting?.source === "catalog"
+    && currentExisting.itemId != null
+    && currentExisting.slot === slot;
+  const nextEntry = Equipment.normalizeEntry({
+    id: currentExisting?.id || createExtraEntryId(),
+    slot,
+    names: currentNames,
+    itemId: preserveCatalog ? currentExisting.itemId : null,
+    source: preserveCatalog ? "catalog" : "manual",
+    showOnCard: currentExisting?.showOnCard !== false,
+    note: normaliseInlineText(elements.extraEntryNoteInput?.value || ""),
+  }, slot);
+  if (!nextEntry) {
+    setExtraEquipmentStatus(t("equipment.requiredName"), { error: true });
+    return;
+  }
+  if (currentExistingIndex >= 0) currentEntries[currentExistingIndex] = nextEntry;
+  else currentEntries.push(nextEntry);
+  look.extraEquipment[state.selectedCharacter] = Equipment.normalizeExtras(look.extraEquipment)[state.selectedCharacter];
+  renderStyles();
+  renderEquipment();
+  saveState();
+  setExtraEquipmentStatus(t(currentExisting ? "equipment.updated" : "equipment.added", { name: Equipment.localizedName(nextEntry.names, state.language) }));
+  closeExtraEntryEditor();
+  if (!currentExisting) showToast(t("equipment.added", { name: Equipment.localizedName(nextEntry.names, state.language) }));
+}
+
+function addCatalogExtraItem(itemId) {
+  const item = getItem(itemId);
+  const slot = elements.extraEntrySlotSelect?.value || "";
+  if (!item || !extraCatalogQuerySlotByEquipmentSlot[slot]) return;
+  const look = ensureLookEquipmentState(getSelectedLook());
+  const entries = look.extraEquipment[state.selectedCharacter] || [];
+  const existingIndex = extraEditingId ? entries.findIndex((entry) => entry.id === extraEditingId) : -1;
+  if (existingIndex < 0 && entries.length >= Equipment.MAX_EXTRA_ENTRIES) {
+    setExtraEquipmentStatus(t("equipment.maxReached"), { error: true });
+    return;
+  }
+  recordHistory();
+  const currentEntries = look.extraEquipment[state.selectedCharacter] || [];
+  const currentIndex = extraEditingId ? currentEntries.findIndex((entry) => entry.id === extraEditingId) : -1;
+  const current = currentIndex >= 0 ? currentEntries[currentIndex] : null;
+  const entry = Equipment.normalizeEntry({
+    id: current?.id || createExtraEntryId(),
+    slot,
+    names: { ...(item.names || {}) },
+    itemId: item.id,
+    source: "catalog",
+    showOnCard: current?.showOnCard !== false,
+    note: elements.extraEntryNoteInput?.value || current?.note || "",
+  }, slot);
+  if (!entry) {
+    setExtraEquipmentStatus(t("equipment.requiredName"), { error: true });
+    return;
+  }
+  if (currentIndex >= 0) currentEntries[currentIndex] = entry;
+  else currentEntries.push(entry);
+  look.extraEquipment[state.selectedCharacter] = Equipment.normalizeExtras(look.extraEquipment)[state.selectedCharacter];
+  renderStyles();
+  renderEquipment();
+  saveState();
+  setExtraEquipmentStatus(t(current ? "equipment.updated" : "equipment.added", { name: Equipment.localizedName(entry.names, state.language) }));
+  closeExtraEntryEditor();
+  showToast(t(current ? "equipment.updated" : "equipment.added", { name: Equipment.localizedName(entry.names, state.language) }));
+  void hydrateEnglishItemNames([item]);
+}
+
+function removeExtraEntry(entryId) {
+  const look = ensureLookEquipmentState(getSelectedLook());
+  const entries = look.extraEquipment[state.selectedCharacter] || [];
+  const entry = entries.find((item) => item.id === entryId);
+  if (!entry) return;
+  const name = Equipment.localizedName(entry.names, state.language);
+  recordHistory();
+  look.extraEquipment[state.selectedCharacter] = (look.extraEquipment[state.selectedCharacter] || []).filter((item) => item.id !== entryId);
+  if (extraEditingId === entryId) closeExtraEntryEditor();
+  renderStyles();
+  renderEquipment();
+  saveState();
+  setExtraEquipmentStatus(t("equipment.removed", { name }));
+  showToast(t("equipment.removed", { name }));
+}
+
+function setCoreCardVisibility(slot, visible) {
+  if (!outfitSlots.includes(slot)) return;
+  const look = ensureLookEquipmentState(getSelectedLook());
+  if (look.cardVisibility[state.selectedCharacter][slot] === visible) return;
+  recordHistory();
+  look.cardVisibility[state.selectedCharacter][slot] = visible;
+  renderStyles();
+  renderEquipment();
+  saveState();
+}
+
+function setExtraCardVisibility(entryId, visible) {
+  const look = ensureLookEquipmentState(getSelectedLook());
+  const entry = look.extraEquipment[state.selectedCharacter]?.find((item) => item.id === entryId);
+  if (!entry || (entry.showOnCard !== false) === visible) return;
+  recordHistory();
+  const current = look.extraEquipment[state.selectedCharacter]?.find((item) => item.id === entryId);
+  if (current) current.showOnCard = visible;
+  renderStyles();
+  renderEquipment();
+  saveState();
+}
+
+function renderExtraCatalogMessage(message, detail = "", { loading = false } = {}) {
+  if (!elements.extraCatalogResults || !elements.extraCatalogStatus) return;
+  elements.extraCatalogStatus.textContent = [message, detail].filter(Boolean).join(" ");
+  elements.extraCatalogResults.setAttribute("aria-busy", String(loading));
+  elements.extraCatalogResults.innerHTML = loading
+    ? '<span class="catalog-progress" aria-hidden="true"></span>'
+    : `<div class="empty-results"><strong>${escapeHtml(message)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ""}</div>`;
+}
+
+function renderExtraCatalogResults(results, { notice = "" } = {}) {
+  const visibleResults = (Array.isArray(results) ? results : []).slice(0, catalogRenderLimit);
+  elements.extraCatalogStatus.textContent = [t("catalog.resultCountPlain", { count: visibleResults.length }), notice].filter(Boolean).join(" ");
+  elements.extraCatalogResults.setAttribute("aria-busy", "false");
+  elements.extraCatalogResults.innerHTML = visibleResults.length ? visibleResults.map((item, index) => {
+    const hasItemImage = Boolean(getItemImageUrl(item));
+    const secondary = getSecondaryItemName(item);
+    return `<button class="catalog-result" data-extra-item-id="${escapeHtml(item.id)}" type="button"><span class="catalog-result-icon${hasItemImage ? " has-item-image" : ""}">${renderCatalogIcon(item, index)}</span><span class="catalog-result-copy"><strong>${escapeHtml(getItemName(item))}</strong><span>${escapeHtml(secondary || getOutfitSlotName(item.slot))}</span></span><span class="catalog-result-action" aria-hidden="true">＋</span></button>`;
+  }).join("") : `<div class="empty-results"><strong>${escapeHtml(t("catalog.noMatch"))}</strong></div>`;
+  bindItemImageFallbacks(elements.extraCatalogResults);
+}
+
+function renderExtraCatalog() {
+  window.clearTimeout(extraItemSearchState.timer);
+  const query = elements.extraItemSearch?.value.trim() || "";
+  const slot = elements.extraEntrySlotSelect?.value || "";
+  const requestSlot = extraCatalogQuerySlotByEquipmentSlot[slot];
+  if (!requestSlot) {
+    clearExtraCatalogResults();
+    return;
+  }
+  extraItemSearchState.requestSlot = requestSlot;
+  return extraItemSearch.search({ query, slot: requestSlot, language: state.language }, (result) => {
+    extraItemSearchState.mode = result.kind;
+    if (result.kind === "idle") {
+      elements.extraCatalogResults.innerHTML = "";
+      elements.extraCatalogResults.setAttribute("aria-busy", "false");
+      elements.extraCatalogStatus.textContent = "";
+    } else if (result.kind === "short") renderExtraCatalogMessage(t("catalog.short"));
+    else if (result.kind === "loading") renderExtraCatalogMessage(t("catalog.loading"), "", { loading: true });
+    else if (result.kind === "results") {
+      registerItemRecords(result.results.slice(0, catalogRenderLimit));
+      renderExtraCatalogResults(result.results, { notice: result.source === "stale" ? t("catalog.stale") : "" });
+    } else renderExtraCatalogMessage(t("catalog.error"), t("catalog.errorDetail"));
+  });
+}
+
+function clearExtraCatalogResults() {
+  if (!elements.extraCatalogResults || !elements.extraCatalogStatus) return;
+  window.clearTimeout(extraItemSearchState.timer);
+  extraItemSearchState.timer = null;
+  extraItemSearch.cancel();
+  extraItemSearchState.mode = "idle";
+  elements.extraCatalogResults.innerHTML = "";
+  elements.extraCatalogResults.setAttribute("aria-busy", "false");
+  elements.extraCatalogStatus.textContent = "";
+}
+
+function scheduleExtraCatalogSearch() {
+  clearExtraCatalogResults();
+  if (!elements.extraItemSearch?.value.trim()) return;
+  if (!extraCatalogQuerySlotByEquipmentSlot[elements.extraEntrySlotSelect?.value || ""]) return;
+  extraItemSearchState.timer = window.setTimeout(() => { void renderExtraCatalog(); }, 280);
 }
 
 function renderCatalogMessage(message, detail = "", { loading = false } = {}) {
@@ -3061,10 +3769,12 @@ function renderAll() {
 function selectLook(id) {
   const nextLook = looks.find((look) => look.id === id);
   if (!nextLook || nextLook.id === state.selectedLookId) return;
+  closeExtraEntryEditor();
   syncStateIntoLook(getSelectedLook());
   getSelectedLook().history = state.history;
   getSelectedLook().redo = state.redo;
   state.selectedLookId = nextLook.id;
+  ensureLookEquipmentState(nextLook);
   const editor = nextLook.editor || defaultLookEditor();
   Object.assign(state, editor, { characters: LookEditor.captureCharacters(editor.characters), shadow: { ...editor.shadow } });
   state.background = backgroundStyle.hasBackground(nextLook.background) ? nextLook.background : backgroundStyle.defaultBackground;
@@ -3580,6 +4290,16 @@ function assertVisibleCutoutImage(image) {
 }
 
 let exportInProgress = false;
+let gearSheetExportInProgress = false;
+let extraEditingId = null;
+let extraEditorLocale = "";
+let extraEditorPrimaryBaseline = "";
+let extraEditorEnglishBaseline = "";
+let extraEditorJapaneseBaseline = "";
+let compositionPlan = null;
+let boardGearCompositionKey = "";
+let compositionRenderFrame = 0;
+let compositionGapHistoryActive = false;
 function exportRevision() {
   return JSON.stringify([workspaceEpoch, state.selectedLookId, state.language, createSnapshot()]);
 }
@@ -3680,8 +4400,8 @@ function captureExportTextElement(element, board, viewScale, scale, fallbackAlig
   };
 }
 
-function captureExportGearInfo(gear, snapshot, dimensions) {
-  if (snapshot.characterCount >= 3) return captureExportLineupInfo(gear, snapshot, dimensions);
+function captureExportGearInfo(gear, snapshot, dimensions, plan = compositionPlan) {
+  if (snapshot.characterCount >= 3 && !plan?.isCustom) return captureExportLineupInfo(gear, snapshot, dimensions);
   const board = elements.board?.getBoundingClientRect();
   const viewScale = getCanvasViewScale();
   if (!board?.width || !board.height || !viewScale) return gear;
@@ -3736,7 +4456,7 @@ function captureExportLineupInfo(gear, snapshot, dimensions) {
     if (!column) return items;
     const domItems = Array.from(column.querySelectorAll(":scope .multi-info-item"));
     return items.map((item, itemIndex) => {
-      const domItem = domItems[itemIndex];
+      const domItem = domItems.find((element) => Number(element.dataset.gearIndex) === itemIndex) || domItems[itemIndex];
       const primary = domItem?.querySelector(":scope > span");
       if (!primary) return item;
       const secondary = domItem.querySelector(":scope > small");
@@ -3772,7 +4492,46 @@ function captureExportLineupInfo(gear, snapshot, dimensions) {
   });
 }
 
-function renderCardCopyPreview(copyLayout = null) {
+function drawProtectedGearCopyPanels(context, plan = compositionPlan) {
+  if (!plan?.isCustom || plan.effectiveLayer !== "person-front" || !plan.protectText) return;
+  const board = elements.board?.getBoundingClientRect();
+  const viewScale = getCanvasViewScale();
+  if (!board?.width || !viewScale) return;
+  (plan.items || []).forEach((itemPlan) => {
+    const note = elements.boardGearList?.querySelector(`.board-gear-item[data-character-index="${itemPlan.characterIndex}"][data-gear-index="${itemPlan.gearIndex}"]`);
+    const copy = note?.querySelector(":scope > .gear-tile-copy");
+    if (!copy) return;
+    const style = getComputedStyle(copy);
+    const surface = style.backgroundColor;
+    const bounds = itemPlan.copyBounds;
+    if (!bounds || !surface || surface === "transparent" || surface === "rgba(0, 0, 0, 0)") return;
+    const radius = Math.max(2, Math.min(7, bounds.height * 0.12));
+    context.save();
+    context.beginPath();
+    if (typeof context.roundRect === "function") context.roundRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
+    else context.rect(bounds.x, bounds.y, bounds.width, bounds.height);
+    context.fillStyle = surface;
+    context.fill();
+    const boardStyle = getComputedStyle(elements.board);
+    const edge = boardStyle.getPropertyValue("--card-copy-protected-edge").trim() || style.outlineColor || style.borderTopColor;
+    if (edge && edge !== "transparent" && edge !== "rgba(0, 0, 0, 0)") {
+      context.strokeStyle = edge;
+      context.lineWidth = Math.max(0.5, Math.min(1.5, bounds.height * 0.025));
+      context.stroke();
+    }
+    context.restore();
+  });
+}
+
+function capturedGearCopyLayout(gear = []) {
+  return gear.flatMap((items) => items.flatMap((item) => {
+    const preview = item?.preview;
+    if (!preview?.primaryCopy?.lines?.length) return [];
+    return [preview.slotCopy, preview.primaryCopy, preview.secondaryCopy].filter((copy) => copy?.lines?.length);
+  }));
+}
+
+function renderCardCopyPreview(copyLayout = null, gearLayout = null, plan = compositionPlan) {
   const canvas = elements.boardCopyCanvas;
   if (!(canvas instanceof HTMLCanvasElement) || typeof CardCopy === "undefined" || typeof CardCopy.draw !== "function") return null;
   if (elements.board?.dataset.copyFontPending === "true") return null;
@@ -3780,6 +4539,11 @@ function renderCardCopyPreview(copyLayout = null) {
   if (!board.width || !board.height) return null;
   const dimensions = getExportDimensions();
   const layout = copyLayout || captureExportCopy();
+  let gear = gearLayout;
+  const drawProtectedGear = Boolean(plan?.isCustom && plan.effectiveLayer === "person-front" && plan.protectText);
+  if (drawProtectedGear && !gear) {
+    gear = captureExportGearInfo(getCardGearByCharacter(), createSnapshot(), dimensions, plan);
+  }
   if (canvas.width !== dimensions.exportWidth || canvas.height !== dimensions.exportHeight) {
     canvas.width = dimensions.exportWidth;
     canvas.height = dimensions.exportHeight;
@@ -3789,8 +4553,10 @@ function renderCardCopyPreview(copyLayout = null) {
   context.setTransform(1, 0, 0, 1, 0, 0);
   context.clearRect(0, 0, canvas.width, canvas.height);
   context.scale(CardCopy.outputScale, CardCopy.outputScale);
-  CardCopy.draw(context, layout);
+  if (drawProtectedGear) drawProtectedGearCopyPanels(context, plan);
+  CardCopy.draw(context, drawProtectedGear ? [...layout, ...capturedGearCopyLayout(gear || [])] : layout);
   elements.board.dataset.copyRendered = "true";
+  elements.board.dataset.gearCopyRendered = String(drawProtectedGear);
   return layout;
 }
 
@@ -3833,19 +4599,167 @@ function buildExportFilename(title) {
   return `${stem || fallback}.png`;
 }
 
-async function downloadComposition(event, snapshot = { ...state, characters: state.characters.map(character => ({ ...character })), titleOutline: { ...state.titleOutline }, outline: { ...state.outline }, shadow: { ...state.shadow } }) {
-  if (exportInProgress) return;
+function downloadBlob(blob, filename) {
+  if (!(blob instanceof Blob)) throw new TypeError("The export did not return a file.");
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename;
+  link.hidden = true;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+}
+
+function gearSheetFilenameStem(title) {
+  return buildExportFilename(title).replace(/\.png$/iu, "") || "tuyeong-set-maker2-look";
+}
+
+function waitForExportCopyFonts(fonts, timeoutMs = 8000) {
+  if (typeof document.fonts?.load !== "function") return Promise.resolve(true);
+  let timeoutId = 0;
+  const loadPromise = Promise.all(fonts.map(({ weight, family, text }) =>
+    document.fonts.load(`${weight} 64px ${family}`, text || " ")
+  )).then(() => document.fonts.ready).then(() => true);
+  return Promise.race([
+    loadPromise,
+    new Promise((resolve) => {
+      timeoutId = window.setTimeout(() => resolve(false), timeoutMs);
+    }),
+  ]).finally(() => window.clearTimeout(timeoutId));
+}
+
+function beginGearSheetExportStatus(key) {
+  gearSheetExportInProgress = true;
+  if (elements.gearSheetStatus) {
+    elements.gearSheetStatus.removeAttribute("data-error");
+    elements.gearSheetStatus.textContent = t(key);
+  }
+  renderGearSheetControls();
+  elements.exportSelectedGearSheet?.setAttribute("aria-busy", String(key === "sheet.preparingSelected"));
+  elements.exportAllGearSheets?.setAttribute("aria-busy", String(key === "sheet.preparingAll"));
+}
+
+function finishGearSheetExportStatus(message, { error = false } = {}) {
+  gearSheetExportInProgress = false;
+  elements.exportSelectedGearSheet?.removeAttribute("aria-busy");
+  elements.exportAllGearSheets?.removeAttribute("aria-busy");
+  if (elements.gearSheetStatus) {
+    elements.gearSheetStatus.dataset.error = String(error);
+    elements.gearSheetStatus.textContent = message || "";
+  }
+  renderGearSheetControls();
+}
+
+function createGearSheetCharacterSnapshot(look, characterIndex) {
+  const gearByCharacter = getCardGearByCharacter(look);
+  return {
+    title: getLookTitle(look, state.language),
+    characterIndex,
+    language: state.language,
+    entries: gearByCharacter[characterIndex].map((entry) => ({ ...entry, names: { ...entry.names } })),
+    image: resolveCharacterAsset(state.characters[characterIndex], "hero") || null,
+    slotLabel: Equipment.slotLabel,
+    groups: Equipment.groups,
+  };
+}
+
+async function downloadSelectedGearSheet() {
+  if (gearSheetExportInProgress || exportInProgress) return;
+  const look = ensureLookEquipmentState(getSelectedLook());
+  const lookId = state.selectedLookId;
+  const characterIndex = state.selectedCharacter;
+  const revision = exportRevision();
+  const initial = createGearSheetCharacterSnapshot(look, characterIndex);
+  if (!initial.entries.length) {
+    finishGearSheetExportStatus(t("sheet.empty"), { error: true });
+    return;
+  }
+  const catalogItems = initial.entries.filter((entry) => entry.source === "catalog" && entry.itemId != null).map((entry) => getItem(entry.itemId));
+  beginGearSheetExportStatus("sheet.preparingSelected");
+  try {
+    await hydrateEnglishItemNames(catalogItems);
+    if (lookId !== state.selectedLookId || characterIndex !== state.selectedCharacter || revision !== exportRevision()) throw new Error("stale-sheet-export");
+    const current = createGearSheetCharacterSnapshot(getSelectedLook(), characterIndex);
+    const result = await EquipmentSheetExport.selected(current);
+    if (lookId !== state.selectedLookId || characterIndex !== state.selectedCharacter || revision !== exportRevision()) throw new Error("stale-sheet-export");
+    const stem = gearSheetFilenameStem(current.title);
+    const character = String(characterIndex + 1).padStart(2, "0");
+    const filename = `${stem}-character-${character}-equipment-sheet.${result.format}`;
+    downloadBlob(result.blob, filename);
+    const savedKey = result.format === "png" ? "sheet.savedSelectedPng" : "sheet.savedSelectedZip";
+    finishGearSheetExportStatus(t(savedKey));
+    showToast(t(savedKey));
+  } catch (error) {
+    const changed = error?.message === "stale-sheet-export" || lookId !== state.selectedLookId || characterIndex !== state.selectedCharacter;
+    const message = changed ? t("sheet.changed") : getUserFacingError(error, "sheet.error");
+    finishGearSheetExportStatus(message, { error: true });
+    showToast(message);
+  }
+}
+
+async function downloadAllGearSheets() {
+  if (gearSheetExportInProgress || exportInProgress) return;
+  const look = ensureLookEquipmentState(getSelectedLook());
+  const lookId = state.selectedLookId;
+  const selectedCharacter = state.selectedCharacter;
+  const characterCount = state.characterCount;
+  const revision = exportRevision();
+  const initial = Array.from({ length: characterCount }, (_, characterIndex) => createGearSheetCharacterSnapshot(look, characterIndex));
+  if (!initial.some((character) => character.entries.length)) {
+    finishGearSheetExportStatus(t("sheet.empty"), { error: true });
+    return;
+  }
+  const catalogItems = initial.flatMap((character) => character.entries
+    .filter((entry) => entry.source === "catalog" && entry.itemId != null)
+    .map((entry) => getItem(entry.itemId)));
+  beginGearSheetExportStatus("sheet.preparingAll");
+  try {
+    await hydrateEnglishItemNames(catalogItems);
+    if (lookId !== state.selectedLookId || selectedCharacter !== state.selectedCharacter || characterCount !== state.characterCount || revision !== exportRevision()) throw new Error("stale-sheet-export");
+    const characters = Array.from({ length: characterCount }, (_, characterIndex) => createGearSheetCharacterSnapshot(getSelectedLook(), characterIndex));
+    const title = getLookTitle(getSelectedLook(), state.language);
+    const result = await EquipmentSheetExport.all({
+      title,
+      language: state.language,
+      characters,
+      slotLabel: Equipment.slotLabel,
+      groups: Equipment.groups,
+    });
+    if (lookId !== state.selectedLookId || selectedCharacter !== state.selectedCharacter || characterCount !== state.characterCount || revision !== exportRevision()) throw new Error("stale-sheet-export");
+    const filename = `${gearSheetFilenameStem(title)}-equipment-sheets.zip`;
+    downloadBlob(result.blob, filename);
+    finishGearSheetExportStatus(t("sheet.savedAllZip"));
+    showToast(t("sheet.savedAllZip"));
+  } catch (error) {
+    const changed = error?.message === "stale-sheet-export"
+      || lookId !== state.selectedLookId
+      || selectedCharacter !== state.selectedCharacter
+      || characterCount !== state.characterCount;
+    const message = changed ? t("sheet.changed") : getUserFacingError(error, "sheet.error");
+    finishGearSheetExportStatus(message, { error: true });
+    showToast(message);
+  }
+}
+
+async function downloadComposition(event, snapshot = { ...state, ...createSnapshot(), characters: state.characters.map(character => ({ ...character })), titleOutline: { ...state.titleOutline }, outline: { ...state.outline }, shadow: { ...state.shadow } }) {
+  if (exportInProgress || gearSheetExportInProgress) return;
   const state = snapshot;
-  const look = { ...getSelectedLook(), outfits: cloneOutfits(getLookOutfits(getSelectedLook())) };
+  const selectedLook = ensureLookEquipmentState(getSelectedLook());
+  const look = {
+    ...selectedLook,
+    outfits: cloneOutfits(getLookOutfits(selectedLook)),
+    extraEquipment: Equipment.normalizeExtras(selectedLook.extraEquipment),
+    cardVisibility: Equipment.normalizeVisibility(selectedLook.cardVisibility),
+    cardComposition: Equipment.normalizeComposition(selectedLook.cardComposition),
+  };
   const layout = getCardLayout(state);
   const dimensions = layout.dimensions;
   const background = getBackgroundTheme(state);
   const exportTheme = getExportTheme(state);
   const textureInk = getTextureInk(background);
-  let gear = state.characters.map((character, index) => getCharacterItemIds(index, look).map(getItem).filter(Boolean).map(item => ({
-    name: getItemName(item, state.language), secondaryName: getSecondaryItemName(item, state.language),
-    slot: item.slot, slotName: getOutfitSlotName(item.slot, state.language),
-  })));
+  let gear = getCardGearByCharacter(look).map((items) => items.map((item) => ({ ...item, names: { ...item.names } })));
   const revision = exportRevision();
   const assertUnchanged = () => {
     if (revision !== exportRevision()) throw new Error(t("image.resultChanged"));
@@ -3862,27 +4776,29 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
     }
     const titleFontConfig = getTitleFontConfig(state.titleFont);
     state.titleWeight = normaliseTitleWeight(state.titleFont, state.titleWeight ?? defaultTitleWeight);
-    const fontLoad = typeof document.fonts?.load === "function"
-      ? document.fonts.load(`${state.titleWeight} 64px ${titleFontConfig.family}`)
-      : Promise.resolve();
+    const subtitleFontConfig = getTitleFontConfig(state.subtitleFont);
+    const subtitleWeight = normaliseTitleWeight(state.subtitleFont, state.subtitleWeight ?? defaultSubtitleWeight);
     exportInProgress = true;
+    renderGearSheetControls();
     exportButton.setAttribute("aria-busy", "true");
     setExportButtonLabel("export.preparing");
     const [, fontReady] = await Promise.all([
-      hydrateEnglishItemNames(activeCharacters.flatMap((_, index) => getCharacterItemIds(index, look).map(getItem))),
-      Promise.race([fontLoad.then(() => true), new Promise(resolve => window.setTimeout(() => resolve(false), 8000))]),
+      hydrateEnglishItemNames(gear.flatMap((items) => items.filter((entry) => entry.source === "catalog").map((entry) => getItem(entry.itemId)))),
+      waitForExportCopyFonts([
+        { weight: state.titleWeight, family: titleFontConfig.family, text: look.title },
+        { weight: subtitleWeight, family: subtitleFontConfig.family, text: look.subtitle },
+      ]),
     ]);
     assertUnchanged();
-    gear = state.characters.map((_, index) => getCharacterItemIds(index, look).map(getItem).filter(Boolean).map(item => ({
-      name: getItemName(item, state.language), secondaryName: getSecondaryItemName(item, state.language),
-      slot: item.slot, slotName: getOutfitSlotName(item.slot, state.language),
-    })));
+    if (elements.board?.dataset.copyFontPending === "true") throw new Error(t("image.fontTimeout"));
+    gear = getCardGearByCharacter(look).map((items) => items.map((item) => ({ ...item, names: { ...item.names } })));
+    const exportCompositionPlan = compositionPlan || refreshCardCompositionPlan(look, layout).plan;
     if (!fontReady) throw new Error(t("image.fontTimeout"));
     assertUnchanged();
     fitBoardTitle();
     const copyLayout = captureExportCopy();
-    renderCardCopyPreview(copyLayout);
-    gear = captureExportGearInfo(gear, state, dimensions);
+    gear = captureExportGearInfo(gear, state, dimensions, exportCompositionPlan);
+    renderCardCopyPreview(copyLayout, gear, exportCompositionPlan);
     const images = await Promise.all(activeCharacters.map((character) => loadCanvasImage(resolveCharacterAsset(character, "hero"))));
     const backgroundSurfaceAsset = backgroundStyle.surfaceAssetFor(state.backgroundPattern);
     const backgroundImage = backgroundSurfaceAsset
@@ -3896,7 +4812,7 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
     const layoutBoardWidth = board.width / getCanvasViewScale();
     const placementScale = layoutBoardWidth > 0 ? dimensions.layoutWidth / layoutBoardWidth : 1;
     const outputBlob = await CardPng.render({ state, layout, dimensions, exportTheme,
-      background, textureInk, patternStars, images, backgroundImage, copyLayout, gear,
+      background, textureInk, patternStars, images, backgroundImage, copyLayout, gear, compositionPlan: exportCompositionPlan,
       placementScale, outlineColor: rgba(state.outline.color, 0.8), infoTextColor: infoTextTheme.foreground,
       infoTextMuted: infoTextTheme.muted, infoTextHalo: infoTextTheme.halo });
     assertUnchanged();
@@ -3913,11 +4829,13 @@ async function downloadComposition(event, snapshot = { ...state, characters: sta
     exportInProgress = false;
     exportButton.removeAttribute("aria-busy");
     setExportButtonLabel("export.label");
+    renderGearSheetControls();
   }
 }
 
 function resetStyles() {
   recordHistory();
+  getSelectedLook().cardComposition = Equipment.normalizeComposition({});
   state.background = "paper";
   state.customBackgroundColor = customBackgroundDefault;
   state.backgroundPattern = "none";
@@ -3977,6 +4895,7 @@ function setResetMenuOpen(open, { focusFirst = false } = {}) {
 
 function resetCardData() {
   const look = getSelectedLook();
+  closeExtraEntryEditor();
   invalidatePendingImageImports({ look });
   const defaults = defaultLookSnapshots.get(look.id) || createLookResetSnapshot(look, looks.indexOf(look));
   recordHistory();
@@ -3984,6 +4903,9 @@ function resetCardData() {
   look.title = defaults.title;
   look.subtitle = defaults.subtitle;
   look.outfits = cloneOutfits(defaults.outfits);
+  look.extraEquipment = Equipment.normalizeExtras(defaults.extraEquipment);
+  look.cardVisibility = Equipment.normalizeVisibility(defaults.cardVisibility);
+  look.cardComposition = Equipment.normalizeComposition(defaults.cardComposition);
   ensureLookOutfits(look);
   state.background = defaults.background;
   state.customBackgroundColor = normaliseHexColor(defaults.customBackgroundColor, customBackgroundDefault);
@@ -4067,9 +4989,13 @@ async function resetWorkspace() {
   }
   itemRecordCache.clear();
   itemSearch.clear();
+  extraItemSearch.clear();
   localizedItemNameRequests.clear();
   elements.itemSearch.value = "";
   clearCatalogResults();
+  if (elements.extraItemSearch) elements.extraItemSearch.value = "";
+  clearExtraCatalogResults();
+  closeExtraEntryEditor();
   $("#lookSearch").value = "";
   looks = [createBlankLook(1, "look-1")];
   deletedLooks.length = 0;
@@ -4191,6 +5117,49 @@ function openPanel(panelId) {
   if (nextPanel === "itemsPanel") ensureMobileControlVisible(elements.itemSearch);
 }
 
+function setCardCompositionField(field, value) {
+  const look = ensureLookEquipmentState(getSelectedLook());
+  const next = Equipment.normalizeComposition({ ...look.cardComposition, [field]: value });
+  if (JSON.stringify(next) === JSON.stringify(look.cardComposition)) return false;
+  look.cardComposition = next;
+  return true;
+}
+
+function scheduleCompositionRender() {
+  if (compositionRenderFrame) return;
+  compositionRenderFrame = window.requestAnimationFrame(() => {
+    compositionRenderFrame = 0;
+    renderStyles({ fitTitle: false });
+    renderEquipment();
+  });
+}
+
+function finishCompositionGapEdit() {
+  if (!compositionGapHistoryActive) return false;
+  compositionGapHistoryActive = false;
+  if (compositionRenderFrame) {
+    window.cancelAnimationFrame(compositionRenderFrame);
+    compositionRenderFrame = 0;
+  }
+  renderStyles({ fitTitle: false });
+  renderEquipment();
+  saveState();
+  return true;
+}
+
+function updateCompositionGap(value) {
+  const look = ensureLookEquipmentState(getSelectedLook());
+  const next = Equipment.normalizeComposition({ ...look.cardComposition, infoGap: value });
+  if (next.infoGap === look.cardComposition.infoGap) return false;
+  if (!compositionGapHistoryActive) {
+    recordHistory();
+    compositionGapHistoryActive = true;
+  }
+  look.cardComposition = next;
+  scheduleCompositionRender();
+  return true;
+}
+
 function initialiseInteractions() {
   window.addEventListener("pagehide", flushScheduledSaveState);
   window.addEventListener("resize", () => positionTextEditorFontMenu());
@@ -4216,6 +5185,7 @@ function initialiseInteractions() {
   $$('[data-cast-count]').forEach((button) => button.addEventListener("click", () => {
     const nextCount = Number(button.dataset.castCount);
     if (nextCount === state.characterCount) return;
+    closeExtraEntryEditor();
     recordHistory();
     state.characterCount = nextCount;
     if (state.selectedCharacter >= nextCount) state.selectedCharacter = nextCount - 1;
@@ -4223,7 +5193,45 @@ function initialiseInteractions() {
     saveState();
     showToast(t("toast.relayout", { count: nextCount }));
   }));
-  $("#multiInfoToggle").addEventListener("change", (event) => { recordHistory(); state.multiInfoEnabled = event.target.checked; renderStyles(); saveState(); });
+  $("#multiInfoToggle").addEventListener("change", (event) => {
+    recordHistory();
+    state.multiInfoEnabled = event.target.checked;
+    renderStyles();
+    renderEquipment();
+    saveState();
+  });
+  elements.compositionLayerControls?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-composition-layer]");
+    if (!button || button.disabled) return;
+    const next = button.dataset.compositionLayer;
+    const look = ensureLookEquipmentState(getSelectedLook());
+    if (look.cardComposition.layer === next) return;
+    recordHistory();
+    setCardCompositionField("layer", next);
+    renderStyles();
+    renderEquipment();
+    saveState();
+  });
+  elements.protectCardText?.addEventListener("change", (event) => {
+    const look = ensureLookEquipmentState(getSelectedLook());
+    const next = event.currentTarget.checked;
+    if (look.cardComposition.protectText === next) return;
+    recordHistory();
+    setCardCompositionField("protectText", next);
+    renderStyles();
+    renderEquipment();
+    saveState();
+  });
+  elements.infoGapRange?.addEventListener("input", (event) => {
+    updateCompositionGap(Number(event.currentTarget.value));
+  });
+  elements.infoGapRange?.addEventListener("change", finishCompositionGapEdit);
+  elements.infoGapRange?.addEventListener("pointerup", finishCompositionGapEdit);
+  elements.infoGapRange?.addEventListener("pointercancel", finishCompositionGapEdit);
+  elements.infoGapRange?.addEventListener("keyup", finishCompositionGapEdit);
+  elements.infoGapRange?.addEventListener("blur", finishCompositionGapEdit);
+  window.addEventListener("pointerup", finishCompositionGapEdit);
+  window.addEventListener("pointercancel", finishCompositionGapEdit);
   $$('button[data-info-mode]').forEach((button) => button.addEventListener("click", () => {
     if (button.disabled) return;
     recordHistory();
@@ -4695,8 +5703,51 @@ function initialiseInteractions() {
     }
   });
   $("#exportButton").addEventListener("click", downloadComposition);
+  elements.exportSelectedGearSheet?.addEventListener("click", () => { void downloadSelectedGearSheet(); });
+  elements.exportAllGearSheets?.addEventListener("click", () => { void downloadAllGearSheets(); });
   elements.saveRetryButton?.addEventListener("click", () => { void saveState({ immediate: true }); });
   $("#itemSearch").addEventListener("input", scheduleCatalogSearch);
+  elements.equipmentList.addEventListener("change", (event) => {
+    const checkbox = event.target.closest("input[data-core-visibility]");
+    if (checkbox) setCoreCardVisibility(checkbox.dataset.coreVisibility, checkbox.checked);
+  });
+  elements.extraEquipmentGroups?.addEventListener("click", (event) => {
+    const add = event.target.closest("[data-add-extra-group]");
+    if (add) {
+      openExtraEntryEditor({ groupId: add.dataset.addExtraGroup });
+      return;
+    }
+    const edit = event.target.closest("[data-edit-extra]");
+    if (edit) {
+      const entry = getSelectedLook().extraEquipment?.[state.selectedCharacter]?.find((item) => item.id === edit.dataset.editExtra);
+      if (entry) openExtraEntryEditor({ groupId: extraGroupForSlot(entry.slot)?.id, slot: entry.slot, entry });
+      return;
+    }
+    const remove = event.target.closest("[data-remove-extra]");
+    if (remove) removeExtraEntry(remove.dataset.removeExtra);
+  });
+  elements.extraEquipmentGroups?.addEventListener("change", (event) => {
+    const checkbox = event.target.closest("input[data-extra-visibility]");
+    if (checkbox) setExtraCardVisibility(checkbox.dataset.extraVisibility, checkbox.checked);
+  });
+  elements.extraEntryForm?.addEventListener("submit", saveExtraEntry);
+  $("#extraEntryCancelButton")?.addEventListener("click", () => closeExtraEntryEditor({ refocus: true }));
+  elements.extraEntryGroupSelect?.addEventListener("change", () => {
+    if (elements.extraItemSearch) elements.extraItemSearch.value = "";
+    clearExtraCatalogResults();
+    syncExtraEntrySlotOptions();
+  });
+  elements.extraEntrySlotSelect?.addEventListener("change", () => {
+    if (elements.extraItemSearch) elements.extraItemSearch.value = "";
+    clearExtraCatalogResults();
+    syncExtraCatalogSearchAvailability();
+  });
+  elements.extraItemSearch?.addEventListener("input", scheduleExtraCatalogSearch);
+  elements.extraCatalogResults?.addEventListener("click", (event) => {
+    const result = event.target.closest("[data-extra-item-id]");
+    if (!result || !elements.extraCatalogResults.contains(result)) return;
+    addCatalogExtraItem(result.dataset.extraItemId);
+  });
   elements.catalogResults.addEventListener("click", (event) => {
     const result = event.target.closest(".catalog-result");
     if (!result || !elements.catalogResults.contains(result)) return;

@@ -62,6 +62,12 @@ function request(path, { method = "GET", headers = {}, body = null } = {}) {
     response = await request("/api/items/search?q=", { headers: { Host: "[malformed" } });
     assert.equal(response.status, 200, "item search should use a fixed URL base, not an untrusted Host header");
 
+    response = await request(`/api/items/search?q=${encodeURIComponent("구식 구리 귀걸이")}&slot=earrings&language=ko`);
+    assert.equal(response.status, 200, "local server should accept accessory search slots");
+    const earrings = JSON.parse(response.body);
+    assert.equal(earrings.results[0]?.id, "1521", "local Korean snapshot search should return a real earring record");
+    assert.equal(earrings.results[0]?.slot, "earrings");
+
     response = await request("/api/background-removal", {
       method: "POST",
       headers: { "Content-Type": "image/png", "Content-Length": "4" },

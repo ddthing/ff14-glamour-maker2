@@ -461,13 +461,28 @@ function drawExportBackground(context, width, height, background, backgroundImag
   context.restore();
 }
 
-async function render({ state, dimensions, layout = null, exportTheme, background, textureInk = null, patternStars, images, backgroundImage = null, copyLayout, gear, outlineColor, placementScale = 1, infoTextColor = exportTheme.text, infoTextMuted = exportTheme.muted, infoTextHalo = exportTheme.infoShadow }) {
+async function render({ state, dimensions, layout = null, compositionPlan = null, exportTheme, background, textureInk = null, patternStars, images, backgroundImage = null, copyLayout, gear, outlineColor, placementScale = 1, infoTextColor = exportTheme.text, infoTextMuted = exportTheme.muted, infoTextHalo = exportTheme.infoShadow }) {
   const activeCharacters = state.characters.slice(0, state.characterCount);
   const resolvedLayout = layout || CardLayout.layoutFor({
     characterCount: state.characterCount,
     singleRatio: dimensions.layoutHeight > dimensions.layoutWidth ? "portrait" : "landscape",
     singleLayout: state.singleLayout,
     characters: activeCharacters,
+  });
+  // Older saved snapshots do not contain cardComposition. Keep them on the
+  // byte-stable legacy path while allowing export callers to omit an explicit
+  // planner result when they do use the new composition controls.
+  const resolvedCompositionPlan = compositionPlan || CardLayout.planComposition({
+    characterCount: state.characterCount,
+    singleRatio: resolvedLayout.ratio,
+    singleLayout: state.singleLayout,
+    characters: activeCharacters,
+    layout: resolvedLayout,
+    composition: state.cardComposition || {},
+    gearByCharacter: Array.isArray(gear) ? gear : [],
+    selectedCharacter: state.selectedCharacter,
+    multiInfoEnabled: state.multiInfoEnabled,
+    language: state.language,
   });
   const isPortrait = resolvedLayout.ratio === "portrait";
   const characterFrames = resolvedLayout.frames;
@@ -584,7 +599,14 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
       context.textBaseline = "top";
       lines.forEach((line, index) => context.fillText(line, x, top + lineHeight * index));
     };
-    const drawGearTile = (item, x, y, width, height, { textAlign = "left", noteIndex = 0 } = {}) => {
+    const drawGearTile = (item, x, y, width, height, {
+      textAlign = "left",
+      noteIndex = 0,
+      surfaceOnly = false,
+      copyOnly = false,
+      compositionItem = null,
+      copyBounds = null,
+    } = {}) => {
       const padding = Math.max(10, Math.round(width * 0.045));
       const secondaryName = item.secondaryName;
       const slotSize = Math.max(9, Math.min(13, Math.round(height * 0.13)));
@@ -601,7 +623,7 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
         else traceScrapbookNote(context, x, y, width, height);
       };
       context.save();
-      if (paperNoteTheme) {
+      if (!copyOnly && paperNoteTheme) {
         drawMaterialNote(
           context,
           backgroundImage,
@@ -620,7 +642,7 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
             Number(backgroundImage?.naturalHeight || backgroundImage?.height || 0),
           ),
         );
-      } else {
+      } else if (!copyOnly) {
         roundRect(x, y, width, height, exportTheme.radius);
         context.fillStyle = exportTheme.panel;
         context.fill();
@@ -628,7 +650,7 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
         context.lineWidth = 2;
         context.stroke();
       }
-      if (paperNoteTheme) {
+      if (!copyOnly && paperNoteTheme) {
         const tapeSpec = materialNote?.tape;
         const tapeLeft = tapeSpec ? tapeSpec.left / 100 : noteIndex % 3 === 1 ? 0.64 : noteIndex % 3 === 2 ? 0.52 : 0.16;
         const tapeWidthRatio = tapeSpec ? tapeSpec.width / 100 : noteIndex % 3 === 1 ? 0.21 : noteIndex % 3 === 2 ? 0.27 : 0.24;
@@ -669,9 +691,75 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
           }
         }
       }
+      if (surfaceOnly) {
+        context.restore();
+        return;
+      }
+      const protectedBounds = copyBounds || compositionItem?.copyBounds || null;
+      const darkCopy = background?.tone === "dark" || exportTheme.text === "#f7f3ed";
+      const copyInk = material?.ink || (darkCopy ? "#f7f3ed" : "#263238");
+      const copyMuted = material?.mutedInk || (darkCopy ? "rgba(247, 243, 237, .68)" : "rgba(38, 50, 56, .68)");
+      const copyEdge = collageTheme
+        ? "rgba(63, 57, 51, .2)"
+        : scrapbookTheme
+          ? "rgba(41, 70, 80, .22)"
+          : darkCopy ? "rgba(247, 243, 237, .24)" : "rgba(38, 50, 56, .18)";
+      if (compositionItem?.copy && resolvedCompositionPlan?.protectText && protectedBounds) {
+        const protectedSurface = collageTheme
+          ? "#f4e8d7"
+          : scrapbookTheme
+            ? "#f7f0e3"
+            : darkCopy ? "#1d2228" : "#fffaf4";
+        roundRect(
+          protectedBounds.x,
+          protectedBounds.y,
+          protectedBounds.width,
+          protectedBounds.height,
+          Math.max(2, Math.min(7, protectedBounds.height * 0.12)),
+        );
+        context.fillStyle = protectedSurface;
+        context.fill();
+        context.strokeStyle = copyEdge;
+        context.lineWidth = Math.max(0.5, Math.min(1.5, protectedBounds.height * 0.025));
+        context.stroke();
+      }
       const capturedCopy = item.preview;
       if (capturedCopy?.primaryCopy?.lines?.length) {
         CardCopy.draw(context, [capturedCopy.slotCopy, capturedCopy.primaryCopy, capturedCopy.secondaryCopy].filter(Boolean));
+      } else if (compositionItem?.copy && protectedBounds) {
+        const copyPlan = compositionItem.copy;
+        const textWidth = Math.max(1, protectedBounds.width);
+        const textX = textAlign === "right" ? protectedBounds.x + protectedBounds.width : protectedBounds.x;
+        const allLines = [];
+        context.font = `700 ${copyPlan.primarySize}px "Pretendard Variable", sans-serif`;
+        const primaryLines = wrapGearText(item.name || compositionItem.name, textWidth);
+        context.font = `500 ${copyPlan.secondarySize || 0}px "Pretendard Variable", sans-serif`;
+        const resolvedSecondaryName = item.secondaryName || compositionItem.secondaryName;
+        const resolvedSlotName = item.slotName || compositionItem.slotName;
+        const secondaryLines = resolvedSecondaryName ? wrapGearText(resolvedSecondaryName, textWidth) : [];
+        context.font = `600 ${copyPlan.slotSize || 0}px "Pretendard Variable", sans-serif`;
+        const slotLines = resolvedSlotName ? wrapGearText(resolvedSlotName, textWidth) : [];
+        const totalHeight = slotLines.length * copyPlan.slotLineHeight
+          + primaryLines.length * copyPlan.primaryLineHeight
+          + secondaryLines.length * copyPlan.secondaryLineHeight
+          + copyPlan.groupGap * ((slotLines.length ? 1 : 0) + (secondaryLines.length ? 1 : 0));
+        if (slotLines.length) {
+          allLines.push({ lines: slotLines, font: `600 ${copyPlan.slotSize}px "Pretendard Variable", sans-serif`, size: copyPlan.slotSize, height: copyPlan.slotLineHeight, color: copyMuted });
+        }
+        allLines.push({ lines: primaryLines, font: `700 ${copyPlan.primarySize}px "Pretendard Variable", sans-serif`, size: copyPlan.primarySize, height: copyPlan.primaryLineHeight, color: copyInk });
+        if (secondaryLines.length) {
+          allLines.push({ lines: secondaryLines, font: `500 ${copyPlan.secondarySize}px "Pretendard Variable", sans-serif`, size: copyPlan.secondarySize, height: copyPlan.secondaryLineHeight, color: copyMuted });
+        }
+        let currentTop = protectedBounds.y + Math.max(0, (protectedBounds.height - totalHeight) / 2);
+        allLines.forEach((group) => {
+          drawTopAlignedTextLines(group.lines, textX, currentTop, {
+            font: group.font,
+            fillStyle: group.color,
+            lineHeight: group.height,
+            textAlign,
+          });
+          currentTop += group.lines.length * group.height + copyPlan.groupGap;
+        });
       } else {
         const textWidth = Math.max(1, width - padding * 2);
         const copyTop = y + Math.round(height * 0.16);
@@ -719,11 +807,11 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
     const exportItems = gear[state.selectedCharacter] || [];
     const drawPortraitGear = () => CardLayout.portraitGearPositions({ singleLayout: state.singleLayout }).forEach((position, index) => {
       const item = exportItems[index];
-      if (item) drawGearTile(item, position.x, position.y, position.width, position.height, { noteIndex: index });
+      if (item && item.showOnCard !== false) drawGearTile(item, position.x, position.y, position.width, position.height, { noteIndex: index });
     });
     const drawLandscapeSoloGear = () => CardLayout.landscapeSoloGearPositions({ singleLayout: state.singleLayout }).forEach((position, index) => {
       const item = exportItems[index];
-      if (item) drawGearTile(item, position.x, position.y, position.width, position.height, { noteIndex: index });
+      if (item && item.showOnCard !== false) drawGearTile(item, position.x, position.y, position.width, position.height, { noteIndex: index });
     });
     const drawTwoPersonGear = () => {
       const rails = CardLayout.infoRails({ characterCount: state.characterCount });
@@ -731,6 +819,7 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
         const rail = rails[characterIndex];
         const items = gear[characterIndex] || [];
         items.forEach((item, itemIndex) => {
+          if (!item || item.showOnCard === false) return;
           drawGearTile(
             item,
             rail.x,
@@ -743,6 +832,33 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
       });
     };
 
+    const gearItemForPlan = (itemPlan) => {
+      const sourceItem = gear?.[itemPlan.characterIndex]?.[itemPlan.gearIndex] || {};
+      return {
+        ...sourceItem,
+        name: sourceItem.name || sourceItem.primaryName || itemPlan.name,
+        secondaryName: sourceItem.secondaryName || itemPlan.secondaryName,
+        slotName: sourceItem.slotName || sourceItem.slotLabel || itemPlan.slotName,
+      };
+    };
+    const drawPlannedGear = ({ surfacesOnly = false, copyOnly = false } = {}) => {
+      (resolvedCompositionPlan.items || []).forEach((itemPlan) => {
+        const item = gearItemForPlan(itemPlan);
+        drawGearTile(item, itemPlan.x, itemPlan.y, itemPlan.width, itemPlan.height, {
+          noteIndex: itemPlan.gearIndex,
+          textAlign: itemPlan.textAlign || "left",
+          surfaceOnly: surfacesOnly,
+          copyOnly,
+          compositionItem: itemPlan,
+          copyBounds: itemPlan.copyBounds,
+        });
+      });
+    };
+
+    if (resolvedCompositionPlan.isCustom && resolvedCompositionPlan.effectiveLayer === "person-front") {
+      drawPlannedGear({ surfacesOnly: true });
+    }
+
     characterFrames.forEach((frame, index) => {
       drawCharacter(images[index], activeCharacters[index], frame.x, frame.y, frame.width, frame.height);
     });
@@ -752,81 +868,90 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
       context.fillRect((index * 47) % layoutWidth, (index * 83) % layoutHeight, 1, 1);
     }
 
-    // The preview renders this same high-resolution copy layer. Keeping the
-    // text implementation behind one small interface prevents DOM and PNG
-    // glyphs from drifting apart again.
-    CardCopy.draw(context, copyLayout);
+    // Legacy cards retain the exact existing order. Custom plans draw their
+    // notes through the shared layout; `person-front` paints note material
+    // before the subjects and the protected copy plane after them.
+    if (resolvedCompositionPlan.isCustom) {
+      drawPlannedGear({ copyOnly: resolvedCompositionPlan.effectiveLayer === "person-front" });
+      CardCopy.draw(context, copyLayout);
+    } else {
+      // The preview renders this same high-resolution copy layer. Keeping the
+      // text implementation behind one small interface prevents DOM and PNG
+      // glyphs from drifting apart again.
+      CardCopy.draw(context, copyLayout);
 
-    if (state.characterCount === 1) {
-      if (isPortrait) {
-        drawPortraitGear();
-      } else {
-        drawLandscapeSoloGear();
-      }
-    } else if (state.characterCount === 2) {
-      drawTwoPersonGear();
-    } else if (state.multiInfoEnabled) {
-      const columnWidth = layoutWidth / state.characterCount;
-      context.textAlign = "center";
-      activeCharacters.forEach((character, characterIndex) => {
-        const items = gear[characterIndex] || [];
-        const centerX = columnWidth * characterIndex + columnWidth / 2;
-        const startY = 242;
-        context.fillStyle = infoTextMuted;
-        context.shadowColor = infoTextHalo;
-        context.shadowBlur = 10;
-        let itemY = startY;
-        items.forEach((item) => {
-          const secondaryName = item.secondaryName;
-          const preview = item.preview;
-          const textX = preview?.x ?? centerX;
-          if (preview?.primaryCopy?.lines?.length) {
-            CardCopy.draw(context, [preview.primaryCopy, preview.secondaryCopy].filter(Boolean));
-            const capturedLines = [
-              ...(preview.primaryCopy.lines || []),
-              ...(preview.secondaryCopy?.lines || []),
-            ];
-            const blockBottom = Math.max(...capturedLines.map((line) => line.y + line.height));
-            itemY = Math.max(itemY, blockBottom + 4);
-            return;
-          }
-          const textAlign = preview?.textAlign || "center";
-          const primaryFont = preview?.primaryFont || `650 ${state.characterCount === 5 ? 12 : 14}px \"Pretendard Variable\", sans-serif`;
-          const secondaryFont = preview?.secondaryFont || `500 ${state.characterCount === 5 ? 8 : 10}px \"Pretendard Variable\", sans-serif`;
-          const primarySize = preview?.primarySize || Number.parseFloat(primaryFont.match(/(\d+(?:\.\d+)?)px/u)?.[1] || "14");
-          const secondarySize = preview?.secondarySize || Number.parseFloat(secondaryFont.match(/(\d+(?:\.\d+)?)px/u)?.[1] || "10");
-          const lineWidth = preview?.width || (preview ? Math.max(24, columnWidth * 0.86) : columnWidth - 24);
-          const primaryLineHeight = primarySize * 1.14;
-          const secondaryLineHeight = secondarySize * 1.12;
-          context.font = primaryFont;
-          const primaryLines = CardGearCopyModule.wrapText(item.name, (text) => context.measureText(text).width, lineWidth);
-          const primaryY = preview?.primaryY ?? itemY;
-          drawTopAlignedTextLines(primaryLines, textX, primaryY, {
-            font: primaryFont,
-            fillStyle: infoTextColor,
-            lineHeight: primaryLineHeight,
-            textAlign,
-          });
-          let blockBottom = primaryY + primaryLines.length * primaryLineHeight;
-          if (secondaryName) {
-            const secondaryY = preview?.secondaryY ?? blockBottom + Math.max(2, primarySize * 0.18);
-            context.font = secondaryFont;
-            const secondaryLines = CardGearCopyModule.wrapText(secondaryName, (text) => context.measureText(text).width, lineWidth);
-            drawTopAlignedTextLines(secondaryLines, textX, secondaryY, {
-              font: secondaryFont,
-              fillStyle: infoTextMuted,
-              lineHeight: secondaryLineHeight,
+      if (state.characterCount === 1) {
+        if (isPortrait) {
+          drawPortraitGear();
+        } else {
+          drawLandscapeSoloGear();
+        }
+      } else if (state.characterCount === 2) {
+        drawTwoPersonGear();
+      } else if (state.multiInfoEnabled) {
+        const columnWidth = layoutWidth / state.characterCount;
+        context.textAlign = "center";
+        activeCharacters.forEach((character, characterIndex) => {
+          const items = gear[characterIndex] || [];
+          const centerX = columnWidth * characterIndex + columnWidth / 2;
+          const startY = 242;
+          context.fillStyle = infoTextMuted;
+          context.shadowColor = infoTextHalo;
+          context.shadowBlur = 10;
+          let itemY = startY;
+          items.forEach((item) => {
+            if (!item || item.showOnCard === false) return;
+            const secondaryName = item.secondaryName;
+            const preview = item.preview;
+            const textX = preview?.x ?? centerX;
+            if (preview?.primaryCopy?.lines?.length) {
+              CardCopy.draw(context, [preview.primaryCopy, preview.secondaryCopy].filter(Boolean));
+              const capturedLines = [
+                ...(preview.primaryCopy.lines || []),
+                ...(preview.secondaryCopy?.lines || []),
+              ];
+              const blockBottom = Math.max(...capturedLines.map((line) => line.y + line.height));
+              itemY = Math.max(itemY, blockBottom + 4);
+              return;
+            }
+            const textAlign = preview?.textAlign || "center";
+            const primaryFont = preview?.primaryFont || `650 ${state.characterCount === 5 ? 12 : 14}px \"Pretendard Variable\", sans-serif`;
+            const secondaryFont = preview?.secondaryFont || `500 ${state.characterCount === 5 ? 8 : 10}px \"Pretendard Variable\", sans-serif`;
+            const primarySize = preview?.primarySize || Number.parseFloat(primaryFont.match(/(\d+(?:\.\d+)?)px/u)?.[1] || "14");
+            const secondarySize = preview?.secondarySize || Number.parseFloat(secondaryFont.match(/(\d+(?:\.\d+)?)px/u)?.[1] || "10");
+            const lineWidth = preview?.width || (preview ? Math.max(24, columnWidth * 0.86) : columnWidth - 24);
+            const primaryLineHeight = primarySize * 1.14;
+            const secondaryLineHeight = secondarySize * 1.12;
+            context.font = primaryFont;
+            const primaryLines = CardGearCopyModule.wrapText(item.name, (text) => context.measureText(text).width, lineWidth);
+            const primaryY = preview?.primaryY ?? itemY;
+            drawTopAlignedTextLines(primaryLines, textX, primaryY, {
+              font: primaryFont,
+              fillStyle: infoTextColor,
+              lineHeight: primaryLineHeight,
               textAlign,
             });
-            blockBottom = secondaryY + secondaryLines.length * secondaryLineHeight;
-          }
-          itemY = Math.max(itemY, blockBottom + Math.max(4, primarySize * 0.35));
+            let blockBottom = primaryY + primaryLines.length * primaryLineHeight;
+            if (secondaryName) {
+              const secondaryY = preview?.secondaryY ?? blockBottom + Math.max(2, primarySize * 0.18);
+              context.font = secondaryFont;
+              const secondaryLines = CardGearCopyModule.wrapText(secondaryName, (text) => context.measureText(text).width, lineWidth);
+              drawTopAlignedTextLines(secondaryLines, textX, secondaryY, {
+                font: secondaryFont,
+                fillStyle: infoTextMuted,
+                lineHeight: secondaryLineHeight,
+                textAlign,
+              });
+              blockBottom = secondaryY + secondaryLines.length * secondaryLineHeight;
+            }
+            itemY = Math.max(itemY, blockBottom + Math.max(4, primarySize * 0.35));
+          });
         });
-      });
-      context.shadowColor = "transparent";
-      context.shadowBlur = 0;
-      context.textAlign = "left";
-      context.textBaseline = "alphabetic";
+        context.shadowColor = "transparent";
+        context.shadowBlur = 0;
+        context.textAlign = "left";
+        context.textBaseline = "alphabetic";
+      }
     }
 
     const canvasBlob = (type, quality) => new Promise((resolve, reject) => {

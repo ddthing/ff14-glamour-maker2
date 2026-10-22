@@ -9,7 +9,7 @@
 - `functions/api/items/search.js`: `/api/items/search` same-origin 검색 어댑터
 - `functions/api/background-removal.js`: `/api/background-removal` GPU 추론 프록시
 - `functions/_shared/item-search.mjs`: 한국어 인덱스/XIVAPI 정규화와 검색 점수화
-- `assets/data/items-ko-{slot}.json`: Pages 빌드가 `assets/data/items-ko.json` 원본 snapshot을 `head`, `body`, `hands`, `legs`, `feet`, `weapon` 부위별로 분할해 만드는 정적 인덱스
+- `assets/data/items-ko-{slot}.json`: Pages 빌드가 `assets/data/items-ko.json` 원본 snapshot을 `head`, `body`, `hands`, `legs`, `feet`, `weapon`, `earrings`, `necklace`, `bracelet`, `ring` 10개 부위별로 분할해 만드는 정적 인덱스
 - `assets/data/items-ko.manifest.json`: 원본 커밋 SHA, 레코드 수, 부위별 수, snapshot hash와 입력 감사 결과를 기록하는 배포 manifest
 
 Pages Function은 `env.ASSETS.fetch()`로 정적 인덱스를 읽고, 영문·일문만 XIVAPI에 서버 측 요청합니다. 브라우저에 외부 API 주소나 비밀값을 노출하지 않으며, 빈 인덱스나 외부 오류를 임의 샘플로 대체하지 않습니다.

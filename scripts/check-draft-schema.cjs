@@ -74,4 +74,36 @@ assert.equal(snapshot.imageFit, "cover");
 assert.deepEqual(snapshot.outfits, look.outfits);
 assert.deepEqual(snapshot.characters, look.editor.characters);
 assert.deepEqual(snapshot.catalogItems, [{ id: "100", slot: "head" }]);
+assert.deepEqual(snapshot.looks[0].extraEquipment, [[], [], [], [], []], "old drafts should gain default per-character extra arrays");
+assert.deepEqual(snapshot.extraEquipment, [[], [], [], [], []]);
+assert.deepEqual(snapshot.looks[0].cardVisibility[0], { head: true, body: true, hands: true, legs: true, feet: true });
+assert.deepEqual(snapshot.cardVisibility, snapshot.looks[0].cardVisibility);
+assert.deepEqual(snapshot.looks[0].cardComposition, { layer: "info-front", protectText: true, infoGap: 0 });
+assert.deepEqual(snapshot.cardComposition, snapshot.looks[0].cardComposition);
+assert.equal(look.extraEquipment, undefined, "draft normalization must not mutate caller-owned looks");
+snapshot.extraEquipment[0].push({ id: "extra-copy-check" });
+assert.deepEqual(snapshot.looks[0].extraEquipment[0], [], "legacy top-level mirrors and canonical nested looks should not alias");
+
+const rawExtra = {
+  id: "extra-ring-left",
+  slot: "ringLeft",
+  names: { ko: "반지", en: "Ring", ja: "指輪" },
+  itemId: null,
+  source: "manual",
+  showOnCard: true,
+};
+const enrichedLook = {
+  ...look,
+  extraEquipment: [[rawExtra]],
+  cardVisibility: [{ head: false, feet: false }],
+  cardComposition: { layer: "person-front", protectText: false, infoGap: 64 },
+};
+const enrichedSnapshot = DraftSchema.create({ looks: [enrichedLook], selectedLookId: enrichedLook.id });
+assert.equal(enrichedSnapshot.looks[0].extraEquipment[0][0].id, "extra-ring-left");
+assert.equal(enrichedSnapshot.looks[0].cardVisibility[0].head, false);
+assert.equal(enrichedSnapshot.looks[0].cardVisibility[0].feet, false);
+assert.deepEqual(enrichedSnapshot.cardComposition, { layer: "person-front", protectText: false, infoGap: 64 });
+enrichedSnapshot.looks[0].extraEquipment[0][0].names.en = "changed snapshot";
+assert.equal(enrichedLook.extraEquipment[0][0].names.en, "Ring", "draft serialization must deep-copy accessory names");
+assert.equal(enrichedSnapshot.extraEquipment[0][0].names.en, "Ring", "top-level and nested serialized equipment copies must remain independent");
 console.log("PASS: draft legacy mirrors are derived from the selected serialized look.");

@@ -13,6 +13,10 @@ const fs = require("node:fs");
     5: "hands",
     7: "legs",
     8: "feet",
+    9: "earrings",
+    10: "necklace",
+    11: "bracelet",
+    12: "ring",
     13: "weapon",
     14: "weapon",
     15: "body",
@@ -41,8 +45,11 @@ const fs = require("node:fs");
       [3352, "철제 중장 허벅지갑옷", 45291, 1, 18],
       [47285, "우주 조종사 비행복", 57288, 1, 23],
       [90001, "쉼표, 줄바꿈\n이름", 1, 1, 15],
-      [90002, "액세서리", 2, 1, 9],
-      [90003, "영혼", 3, 1, 17],
+      [90002, "시험용 귀걸이", 2, 1, 9],
+      [90003, "시험용 목걸이", 3, 1, 10],
+      [90004, "시험용 팔찌", 4, 1, 11],
+      [90005, "시험용 반지", 5, 1, 12],
+      [90006, "영혼", 6, 1, 17],
     ].map(([id, name, icon, level, category]) => csvRow({ id, name, icon, level, category })),
   ];
   const parsed = indexModule.parseKoreanItemIndex(rows.map((row) => Array.isArray(row) ? row.join(",") : row).join("\r\n"));
@@ -54,6 +61,10 @@ const fs = require("node:fs");
       { id: "3352", slot: "legs" },
       { id: "47285", slot: "body" },
       { id: "90001", slot: "body" },
+      { id: "90002", slot: "earrings" },
+      { id: "90003", slot: "necklace" },
+      { id: "90004", slot: "bracelet" },
+      { id: "90005", slot: "ring" },
     ],
     "supported special costume and leg categories must survive CSV parsing",
   );
@@ -85,6 +96,10 @@ const fs = require("node:fs");
     ["3352", "legs", "철제 중장 허벅지갑옷"],
     ["47285", "body", "우주 조종사 비행복"],
     ["52428", "head", "계승자의 두건"],
+    ["1521", "earrings", "구식 구리 귀걸이"],
+    ["1540", "necklace", "구식 구리 목장식"],
+    ["1557", "bracelet", "구식 구리 팔찌"],
+    ["1581", "ring", "구식 뼈 반지"],
   ];
   for (const [id, slot, name] of requiredRecords) {
     assert.deepEqual(
@@ -95,6 +110,9 @@ const fs = require("node:fs");
   }
   assert.equal(new Set(snapshot.map((record) => record.id)).size, snapshot.length, "snapshot item IDs must be unique");
   assert.ok(snapshot.every((record) => slots.supportedItemSlots.includes(record.slot)), "snapshot contains an unsupported slot");
+  for (const slot of slots.supportedItemSlots) {
+    assert.ok(snapshot.some((record) => record.slot === slot), `snapshot should contain source records for ${slot}`);
+  }
   console.log(`PASS: shared item-slot mapping, CSV coverage audit, special categories, and ${snapshot.length} snapshot records.`);
 })().catch((error) => {
   console.error(error);
