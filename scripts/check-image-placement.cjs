@@ -6,6 +6,61 @@ const fixturePng = Buffer.from(
   "base64",
 );
 
+async function measurePointerSequence(page, steps) {
+  return page.evaluate(async (sequence) => {
+    const wrap = elements.portraitWrap;
+    const originalRenderStyles = window.renderStyles;
+    const pointerMethods = ["setPointerCapture", "hasPointerCapture", "releasePointerCapture"];
+    const originalPointerMethods = new Map(pointerMethods.map((name) => [name, Object.getOwnPropertyDescriptor(wrap, name)]));
+    let renderCount = 0;
+    const observations = {};
+    window.renderStyles = (...args) => {
+      renderCount += 1;
+      return originalRenderStyles(...args);
+    };
+    wrap.setPointerCapture = () => {};
+    wrap.hasPointerCapture = () => true;
+    wrap.releasePointerCapture = () => {};
+    const dispatch = ({ type, pointerId, clientX, clientY }) => wrap.dispatchEvent(new PointerEvent(type, {
+      bubbles: true,
+      button: 0,
+      pointerId,
+      pointerType: "mouse",
+      clientX,
+      clientY,
+    }));
+    const before = { x: state.panX, y: state.panY };
+    try {
+      for (const step of sequence) {
+        if (step.frame) {
+          await new Promise((resolve) => requestAnimationFrame(resolve));
+          observations[step.label] = { renders: renderCount, x: state.panX, y: state.panY };
+        } else if (step.capture) {
+          observations[step.capture] = { renders: renderCount, x: state.panX, y: state.panY };
+        } else {
+          dispatch(step);
+        }
+      }
+      await flushScheduledSaveState();
+      const persisted = await draftStorage.readValue(draftStorageKey);
+      const savedCharacter = persisted?.looks?.find((look) => look.id === state.selectedLookId)?.editor?.characters?.[state.selectedCharacter];
+      return {
+        before,
+        after: { x: state.panX, y: state.panY },
+        saved: { x: savedCharacter?.panX, y: savedCharacter?.panY },
+        observations,
+      };
+    } finally {
+      window.renderStyles = originalRenderStyles;
+      for (const name of pointerMethods) {
+        const descriptor = originalPointerMethods.get(name);
+        if (descriptor) Object.defineProperty(wrap, name, descriptor);
+        else delete wrap[name];
+      }
+    }
+  }, steps);
+}
+
 (async () => {
   const browser = await chromium.launch({ headless: true, channel: "msedge" });
   try {
@@ -111,7 +166,7 @@ const fixturePng = Buffer.from(
     assert.equal(await page.locator("#imageEditorPreview").count(), 0, "placement mode should not render a duplicate preview");
     assert.equal(await page.locator("#canvasBoard").isVisible(), true);
     assert.equal(await page.locator(".inspector").isVisible(), false);
-    assert.equal(await page.locator("#languageSelect").isVisible(), false, "global language action should leave the focused placement mode");
+    assert.equal(await page.locator(".u267-gb").isVisible(), false, "global language action should leave the focused placement mode");
     assert.equal(await page.locator("#exportButton").isVisible(), false, "export action should leave the focused placement mode");
     assert.equal(await page.locator("#saveStatus").isVisible(), true, "save status should remain visible during placement");
     assert.equal(await page.locator(".character-figure.is-selected").count(), 1);
@@ -179,6 +234,57 @@ const fixturePng = Buffer.from(
     assert.deepEqual(mobile.rangeNames, ["선택한 이미지 크기", "이미지 가로 위치", "이미지 세로 위치"]);
     await page.screenshot({ path: "artifacts/ui-image-placement-mode-mobile.png", fullPage: false });
     await page.locator("#cancelImageEditorButton").click();
+
+    const multiPointerDrag = await measurePointerSequence(page, [
+      { type: "pointerdown", pointerId: 7, clientX: 100, clientY: 100 },
+      { type: "pointermove", pointerId: 7, clientX: 110, clientY: 115 },
+      { type: "pointerdown", pointerId: 8, clientX: 200, clientY: 200 },
+      { type: "pointermove", pointerId: 8, clientX: 800, clientY: 800 },
+      { type: "pointerup", pointerId: 8, clientX: 800, clientY: 800 },
+      { type: "pointermove", pointerId: 7, clientX: 130, clientY: 140 },
+      { type: "pointerup", pointerId: 7, clientX: 130, clientY: 140 },
+      { capture: "pointerUp" },
+      { frame: true, label: "nextFrame" },
+    ]);
+    assert.equal(multiPointerDrag.observations.pointerUp.renders, 1, `secondary pointer events should leave the active drag intact: ${JSON.stringify(multiPointerDrag)}`);
+    assert.equal(multiPointerDrag.observations.nextFrame.renders, 1, `unrelated pointerup must not leave a pending render: ${JSON.stringify(multiPointerDrag)}`);
+    assert.deepEqual(multiPointerDrag.after, { x: multiPointerDrag.before.x + 30, y: multiPointerDrag.before.y + 40 }, `secondary pointer changed or ended the active drag: ${JSON.stringify(multiPointerDrag)}`);
+    assert.deepEqual(multiPointerDrag.saved, multiPointerDrag.after, `the multi-pointer drag was not persisted: ${JSON.stringify(multiPointerDrag)}`);
+    await page.locator("#undoButton").click();
+    assert.deepEqual(await page.evaluate(() => ({ x: state.panX, y: state.panY })), multiPointerDrag.before, "the multi-pointer drag should remain one undo transaction");
+
+    const cancelledDrag = await measurePointerSequence(page, [
+      { type: "pointerdown", pointerId: 9, clientX: 50, clientY: 60 },
+      { type: "pointermove", pointerId: 9, clientX: 70, clientY: 95 },
+      { type: "pointercancel", pointerId: 9, clientX: 70, clientY: 95 },
+      { capture: "pointerCancel" },
+      { frame: true, label: "nextFrame" },
+    ]);
+    assert.equal(cancelledDrag.observations.pointerCancel.renders, 1, `pointercancel should synchronously flush its pending point: ${JSON.stringify(cancelledDrag)}`);
+    assert.equal(cancelledDrag.observations.nextFrame.renders, 1, `pointercancel should prevent a late frame replay: ${JSON.stringify(cancelledDrag)}`);
+    assert.deepEqual(cancelledDrag.after, { x: cancelledDrag.before.x + 20, y: cancelledDrag.before.y + 35 }, `pointercancel lost its latest coordinates: ${JSON.stringify(cancelledDrag)}`);
+    assert.deepEqual(cancelledDrag.saved, cancelledDrag.after, `pointercancel did not save the final coordinates: ${JSON.stringify(cancelledDrag)}`);
+    await page.locator("#undoButton").click();
+    assert.deepEqual(await page.evaluate(() => ({ x: state.panX, y: state.panY })), cancelledDrag.before, "the cancelled drag should remain one undo transaction");
+
+    const burstSteps = [{ type: "pointerdown", pointerId: 11, clientX: 100, clientY: 100 }];
+    for (let index = 1; index <= 12; index += 1) burstSteps.push({ type: "pointermove", pointerId: 11, clientX: 100 + index, clientY: 100 + (index * 2) });
+    burstSteps.push(
+      { frame: true, label: "burst" },
+      { type: "pointermove", pointerId: 11, clientX: 135, clientY: 150 },
+      { type: "pointerup", pointerId: 11, clientX: 135, clientY: 150 },
+      { capture: "pointerUp" },
+      { frame: true, label: "nextFrame" },
+    );
+    const dragRender = await measurePointerSequence(page, burstSteps);
+    assert.equal(dragRender.observations.burst.renders, 1, `12 pointer moves in one frame should paint once: ${JSON.stringify(dragRender)}`);
+    assert.equal(dragRender.observations.pointerUp.renders, 2, `pointerup should synchronously paint the latest final position: ${JSON.stringify(dragRender)}`);
+    assert.equal(dragRender.observations.nextFrame.renders, 2, `pointerup should prevent a late frame replay: ${JSON.stringify(dragRender)}`);
+    assert.deepEqual(dragRender.after, { x: dragRender.before.x + 35, y: dragRender.before.y + 50 }, `pointerup lost the final drag coordinates: ${JSON.stringify(dragRender)}`);
+    assert.deepEqual(dragRender.saved, dragRender.after, `the final drag coordinates were not persisted: ${JSON.stringify(dragRender)}`);
+    await page.locator("#undoButton").click();
+    const undoDrag = await page.evaluate(() => ({ x: state.panX, y: state.panY }));
+    assert.deepEqual(undoDrag, dragRender.before, `a coalesced drag should remain one undo transaction: ${JSON.stringify({ dragRender, undoDrag })}`);
 
     console.log(JSON.stringify({ status: "PASS", stars, maxStarWidth: Math.max(...starWidths), mobile }));
   } finally {

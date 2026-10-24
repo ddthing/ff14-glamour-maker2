@@ -8,16 +8,44 @@ const remoteFontPattern = "**/pretendardvariable-dynamic-subset.min.css";
   const browser = await chromium.launch({ headless: true, channel: "msedge" });
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    let releaseRemoteFont;
+    let remoteFontRequestSeen = false;
+    let remoteFontRequestFinished = false;
+    let finishRemoteFontRequest;
+    const remoteFontGate = new Promise((resolve) => { releaseRemoteFont = resolve; });
+    const remoteFontHandled = new Promise((resolve) => { finishRemoteFontRequest = resolve; });
     await page.route(remoteFontPattern, async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-      await route.fulfill({ status: 200, contentType: "text/css", body: "@font-face { font-family: DelayedPretendard; src: local sans-serif; }" });
+      remoteFontRequestSeen = true;
+      try {
+        await remoteFontGate;
+        await route.fulfill({ status: 200, contentType: "text/css", body: "@font-face { font-family: DelayedPretendard; src: local sans-serif; }" });
+      } finally {
+        remoteFontRequestFinished = true;
+        finishRemoteFontRequest();
+      }
     });
-    const startedAt = Date.now();
-    await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
-    const domContentLoadedMs = Date.now() - startedAt;
-    assert.ok(domContentLoadedMs < 800, `remote font blocked the app shell for ${domContentLoadedMs}ms`);
-    assert.equal(await page.locator("#canvasBoard").isVisible(), true, "app shell did not render while font was delayed");
-    await page.waitForSelector("#textEditorDock:not([hidden])");
+    let domContentLoadedMs = 0;
+    try {
+      const startedAt = Date.now();
+      const remoteFontRequest = page.waitForRequest(remoteFontPattern, { timeout: 5000 });
+      const navigation = page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 5000 })
+        .then(() => { domContentLoadedMs = Date.now() - startedAt; });
+      await Promise.all([
+        navigation,
+        remoteFontRequest,
+      ]);
+      assert.equal(remoteFontRequestSeen, true, "the delayed font fixture was not requested");
+      assert.equal(await page.locator("#canvasBoard").isVisible(), true, "app shell did not render while font was pending");
+      await page.waitForSelector("#textEditorDock:not([hidden])", { timeout: 5000 });
+      await page.locator("#itemsTab").click();
+      assert.equal(await page.locator("#itemsTab").getAttribute("aria-selected"), "true", "editor interaction waited for the font");
+      await page.locator("#styleTab").click();
+      assert.equal(await page.locator("#styleTab").getAttribute("aria-selected"), "true", "editor interaction stopped while the font was pending");
+      assert.equal(remoteFontRequestFinished, false, "font route should remain unresolved until the gate opens");
+    } finally {
+      releaseRemoteFont();
+      if (remoteFontRequestSeen) await remoteFontHandled;
+    }
 
     await page.evaluate(() => {
       window.__draftWriteCount = 0;
@@ -82,6 +110,31 @@ const remoteFontPattern = "**/pretendardvariable-dynamic-subset.min.css";
       return Boolean(elements.catalogResults.querySelector('[data-catalog-scope-sentinel="true"]'));
     });
     assert.equal(catalogScope, true, "style-only refresh should not rebuild an empty item catalog");
+    const textCapture = await page.evaluate(() => {
+      const copy = "Wrapped editorial copy stays exact across line breaks. ".repeat(3);
+      const element = document.createElement("span");
+      element.style.cssText = "position:fixed;left:-10000px;top:0;width:120px;font:16px/20px Arial,sans-serif;white-space:normal;";
+      element.textContent = copy;
+      document.body.append(element);
+      const originalCreateRange = document.createRange.bind(document);
+      const ownCreateRange = Object.getOwnPropertyDescriptor(document, "createRange");
+      let createRangeCalls = 0;
+      document.createRange = () => {
+        createRangeCalls += 1;
+        return originalCreateRange();
+      };
+      try {
+        const lines = captureExportTextLines(element, { top: 0, left: 0 }, 1, 1);
+        return { createRangeCalls, renderedCopy: lines.map((line) => line.text).join(""), lineCount: lines.length, characterCount: copy.length };
+      } finally {
+        if (ownCreateRange) Object.defineProperty(document, "createRange", ownCreateRange);
+        else delete document.createRange;
+        element.remove();
+      }
+    });
+    assert.equal(textCapture.createRangeCalls, 1, `copy preview should reuse one Range for ${textCapture.characterCount} characters, received ${textCapture.createRangeCalls}`);
+    assert.ok(textCapture.lineCount > 1, `copy fixture should exercise wrapped text: ${JSON.stringify(textCapture)}`);
+    assert.equal(textCapture.renderedCopy, "Wrapped editorial copy stays exact across line breaks. ".repeat(3), "reusing a Range must preserve every copy character and its line grouping");
     const largeDraft = await page.evaluate(async () => {
       while (looks.length < 250) {
         const index = looks.length + 1;
@@ -187,7 +240,7 @@ const remoteFontPattern = "**/pretendardvariable-dynamic-subset.min.css";
     assert.equal(flushedPendingSave.beforeFlush, 0, `deferred save should not start before the flush boundary: ${JSON.stringify(flushedPendingSave)}`);
     assert.equal(flushedPendingSave.duringFlush, 1, `flush should start a pending save immediately: ${JSON.stringify(flushedPendingSave)}`);
     assert.equal(flushedPendingSave.writeValueCalls, 1, `flush should not duplicate the pending save: ${JSON.stringify(flushedPendingSave)}`);
-    console.log(`PASS: delayed remote font keeps the app interactive (${domContentLoadedMs}ms) and rapid input batches draft writes (${draftWrites.count}).`);
+    console.log(`PASS: editor stayed interactive while the remote font was pending (DOMContentLoaded ${domContentLoadedMs}ms) and rapid input batches draft writes (${draftWrites.count}).`);
   } finally {
     await browser.close();
   }

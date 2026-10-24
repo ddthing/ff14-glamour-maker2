@@ -1,0 +1,72 @@
+/* Lucian UX/UI Prompt theme tokens · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/
+   Ported for #197, #267 and #219. Colors resolve in each editor surface; the card palette is independent. */
+.ux {
+  --ux-page: var(--background);
+  --ux-surface: var(--card);
+  --ux-surface-2: var(--muted);
+  --ux-surface-3: var(--surface-3);
+  --ux-ink: var(--foreground);
+  --ux-ink-2: var(--muted-foreground);
+  --ux-ink-3: var(--text-dim);
+  --ux-line: var(--border);
+  --ux-line-2: var(--line-strong);
+  --ux-accent: var(--primary);
+  --ux-accent-2: var(--primary);
+  --ux-accent-soft: color-mix(in oklch, var(--primary) 12%, transparent);
+  --ux-accent-ink: var(--primary-foreground);
+  --ux-mint: var(--primary);
+  --ux-warn: var(--primary);
+  --ux-danger: var(--destructive);
+  --ux-glass: color-mix(in oklch, var(--card) 58%, transparent);
+  --ux-glass-line: color-mix(in oklch, var(--border) 85%, transparent);
+  --ux-shadow: rgb(0 0 0 / .14);
+  --ux-shadow-strong: rgb(0 0 0 / .3);
+  --ux-grad: linear-gradient(120deg, var(--primary), var(--muted-foreground));
+  --ux-ease: cubic-bezier(.2,.8,.2,1);
+  --ux-spring: cubic-bezier(.34,1.45,.64,1);
+  font-family: var(--sans);
+  color: var(--ux-ink);
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -.01em;
+  -webkit-tap-highlight-color: transparent;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+.ux,.ux *,.ux *::before,.ux *::after { box-sizing: border-box; }
+:where(.ux) :is(button,input,textarea,select) { font: inherit; color: inherit; }
+:where(.ux) button { cursor: pointer; }
+.ux :focus-visible { outline: 2px solid var(--ux-accent); outline-offset: 3px; }
+.ux [hidden] { display: none !important; }
+html[data-editor-theme="dark"] .ux {
+  --ux-shadow: rgb(0 0 0 / .45);
+  --ux-shadow-strong: rgb(0 0 0 / .72);
+}
+.editor-tour-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+  font: 650 11px/1 var(--sans);
+  white-space: nowrap;
+}
+.editor-tour-trigger:hover { background: var(--muted); }
+.editor-tour-trigger-mark { width: 16px; flex: none; font-size: 15px; }
+.editor-tour-trigger:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+body.image-placement-mode #editorTourButton { display: none; }
+@media (max-width: 560px) {
+  .editor-tour-trigger { width: 36px; padding: 0; }
+  .editor-tour-trigger-label { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ux,.ux *,.ux *::before,.ux *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

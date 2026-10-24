@@ -1,0 +1,26 @@
+/* Lucian UX/UI Prompt #267 · MIT License (c) 2026 Seokwoooo · https://lucianlabs.dev/uxui-prompt/#267 */
+.u267.u267-picker{position:relative;display:inline-flex;align-items:center;width:auto;height:auto;overflow:visible;border-radius:0;background:none;box-shadow:none;color:var(--ux-ink);vertical-align:middle}
+.u267 .u267-nv{position:relative;inset:auto;z-index:3;display:flex;align-items:center;gap:0;font-size:11px;font-weight:750;color:var(--ux-ink-2)}
+.u267.u267-picker.is-open .u267-nv{z-index:30}
+body.image-placement-mode .u267.u267-picker{display:none}
+.u267 .u267-anchor{position:relative;display:inline-flex;align-items:center}
+.u267 .u267-gb{display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 9px;border:0;border-radius:10px;background:var(--ux-surface-2);box-shadow:inset 0 0 0 1px var(--ux-line);color:var(--ux-ink);font:inherit;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;transition:width .35s cubic-bezier(.3,1.3,.5,1)}
+.u267 .u267-gb svg{width:14px;height:14px;flex:none}
+.u267 .u267-gb:focus-visible,.u267 .u267-op:focus-visible{outline:2px solid var(--ux-accent);outline-offset:2px}
+.u267 .u267-dd{position:absolute;right:0;top:36px;z-index:20;width:150px;padding:5px;border-radius:14px;background:var(--ux-surface);box-shadow:0 0 0 1px var(--ux-line),0 16px 34px -14px var(--ux-shadow-strong);transform-origin:90% 0;transform:scale(.9) translateY(-4px);opacity:0;pointer-events:none;transition:transform .25s cubic-bezier(.3,1.5,.5,1),opacity .15s}
+.u267.is-open .u267-dd{transform:none;opacity:1;pointer-events:auto}
+.u267 .u267-op{display:flex;align-items:center;gap:8px;width:100%;height:34px;padding:0 9px;border:0;border-radius:9px;background:none;color:var(--ux-ink);font:inherit;font-size:12px;font-weight:750;cursor:pointer;text-align:left}
+.u267 .u267-op:hover{background:var(--ux-surface-2)}
+.u267 .u267-op em{font-style:normal;font-size:14px}
+.u267 .u267-op svg{margin-left:auto;width:13px;height:13px;color:var(--ux-accent);opacity:0}
+.u267 .u267-op.is-on svg{opacity:1}
+.u267 .u267-sw{display:inline-block;vertical-align:top;overflow:hidden}
+.u267 .u267-sw>span{display:block}
+.u267 .u267-sw.is-go>span{animation:u267-out .26s ease-in forwards}
+.u267 .u267-sw.is-in>span{animation:u267-in .38s cubic-bezier(.2,.9,.3,1.2)}
+.u267.u267-picker>.u267-native{position:absolute;top:0;left:0;display:block;width:1px;min-width:1px;height:1px;min-height:1px;margin:-1px;padding:0;overflow:hidden;border:0;clip:rect(0,0,0,0);clip-path:inset(50%);white-space:nowrap}
+.u267.u267-picker>.u267-native .language-select-label,.u267.u267-picker>.u267-native .language-select-wrap{position:absolute;width:1px;height:1px;overflow:hidden}
+.u267.u267-picker>.u267-native #languageSelect{position:absolute;width:1px;min-width:1px;height:1px;min-height:1px;padding:0;border:0;opacity:0}
+@keyframes u267-out{to{transform:translateY(-100%);opacity:0}}
+@keyframes u267-in{from{transform:translateY(100%);opacity:0}}
+@media (prefers-reduced-motion:reduce){.u267 .u267-sw>span{animation:none!important}}

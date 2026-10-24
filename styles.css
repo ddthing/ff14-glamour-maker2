@@ -193,6 +193,41 @@ button:active {
   outline-offset: 2px;
 }
 
+.editor-theme-toggle {
+  display: inline-flex;
+  min-width: 82px;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--foreground);
+  background: var(--background);
+  font: 650 11px/1 var(--sans);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.editor-theme-toggle:hover {
+  border-color: var(--line-strong);
+  background: var(--muted);
+}
+
+.editor-theme-toggle:active { transform: translateY(1px); }
+
+.editor-theme-toggle-mark {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  place-items: center;
+  font-size: 16px;
+  line-height: 1;
+}
+
 .ghost-button,
 .primary-button,
 .secondary-button,
@@ -1725,7 +1760,7 @@ button:active {
   font-weight: 650;
   box-shadow: 0 1px 2px rgb(0 0 0 / .08);
 }
-.primary-button:hover { background: oklch(.27 0 0); }
+.primary-button:hover { background: color-mix(in oklch, var(--primary) 88%, var(--background)); }
 
 .rail {
   border-right-color: var(--sidebar-border);
@@ -1901,7 +1936,7 @@ button:active {
   font-size: 12px;
 }
 .search-field input::placeholder { color: var(--muted-foreground); opacity: 1; }
-.search-field input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px oklch(.708 0 0 / .15); }
+.search-field input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 14%, transparent); }
 .add-look-button {
   height: 36px;
   border-color: var(--border);
@@ -1916,8 +1951,8 @@ button:active {
 .workspace { background: var(--muted); }
 .workspace-grid { grid-template-columns: minmax(520px, 1fr) 350px; }
 .canvas-column {
-  padding: 28px clamp(20px, 3vw, 44px) 26px;
-  background: color-mix(in oklch, var(--muted) 76%, var(--background));
+  padding: clamp(20px, 2.4vw, 32px) clamp(18px, 3vw, 44px) 30px;
+  background: color-mix(in oklch, var(--muted) 82%, var(--background));
   scrollbar-color: var(--line-strong) transparent;
 }
 .canvas-heading {
@@ -1941,11 +1976,13 @@ button:active {
 
 .stage-wrap { position: relative; max-width: 860px; margin: 0 auto; }
 .canvas-board.is-drop-target::after {
-  border-color: #fff;
-  color: #fff;
-  background: rgb(0 0 0 / .72);
+  border-color: var(--primary-foreground);
+  color: var(--primary-foreground);
+  background: color-mix(in oklch, var(--primary) 84%, transparent);
   content: "스크린샷을 여기에 놓으세요";
   font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 700;
   letter-spacing: 0;
 }
 .inspector {
@@ -2026,7 +2063,7 @@ button:active {
   font-family: var(--sans);
   font-size: 11px;
 }
-.cast-count-control button:hover { color: var(--foreground); background: oklch(.94 0 0); }
+.cast-count-control button:hover { color: var(--foreground); background: var(--muted); }
 .cast-count-control button.is-selected { color: var(--foreground); background: var(--background); box-shadow: 0 1px 2px rgb(0 0 0 / .1); }
 .cast-selector { gap: 6px; }
 .cast-selector button { border-color: var(--border); background: var(--muted); }
@@ -2037,7 +2074,7 @@ button:active {
 .equipment-row,
 .catalog-result { border-color: var(--border); border-radius: var(--radius-sm); background: var(--background); }
 .secondary-button { min-height: 38px; border-color: var(--border); color: var(--foreground); background: var(--secondary); }
-.secondary-button:hover { background: oklch(.94 0 0); }
+.secondary-button:hover { background: var(--muted); }
 .secondary-button.is-processing { color: var(--foreground); background: var(--muted); }
 .source-copy strong { color: var(--foreground); font-size: 12px; font-weight: 650; }
 .source-copy span { color: var(--muted-foreground); font-family: var(--sans); font-size: 9px; }
@@ -2082,7 +2119,7 @@ button:active {
   .ribbon-actions .add-look-button { height: 100%; border: 1px solid var(--border); }
   .rail { background: color-mix(in oklch, var(--background) 94%, transparent); }
   .rail-button.is-active { box-shadow: inset 0 3px 0 var(--primary); }
-  .canvas-column { padding: 22px 16px; }
+  .canvas-column { padding: 20px 18px 24px; }
   .inspector { border-top-color: var(--border); }
 }
 
@@ -2582,7 +2619,18 @@ body.image-placement-mode .canvas-board[data-ratio="portrait"] {
 }
 
 .cast-section .panel-selection-summary {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   color: var(--foreground);
+  background: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
 }
 
 .cast-section .cast-count-control {
@@ -2947,7 +2995,7 @@ body.image-placement-mode .canvas-board[data-ratio="portrait"] {
 
   .topbar-actions {
     align-items: center;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 6px;
     padding: 0;
   }
@@ -3253,4 +3301,43 @@ body::-webkit-scrollbar-thumb:hover,
 .image-editor-dialog-shell::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover);
   background-clip: padding-box;
+}
+
+/* Keep the `.dark` token scope on editor chrome. The look canvas remains on
+   the light token root so a UI theme change cannot recolor the card or PNG. */
+html[data-editor-theme="dark"] body {
+  color: var(--background);
+  background: var(--foreground);
+}
+
+html[data-editor-theme="dark"] .app-shell,
+html[data-editor-theme="dark"] .workspace,
+html[data-editor-theme="dark"] .canvas-column {
+  background: var(--foreground);
+}
+
+html[data-editor-theme="dark"] .canvas-column { color: var(--background); }
+html[data-editor-theme="dark"] .canvas-board { color: var(--foreground); }
+
+html[data-editor-theme="dark"] [data-theme-surface]:is(.topbar, .rail, .library-sidebar, .inspector) {
+  --muted-foreground: var(--chart-1);
+}
+
+@media (max-width: 560px) {
+  .editor-theme-toggle {
+    width: 36px;
+    min-width: 36px;
+    padding-inline: 0;
+  }
+
+  .editor-theme-toggle > span:not(.editor-theme-toggle-mark) { display: none; }
+}
+
+@media (max-width: 360px) {
+  .topbar-actions > #exportButton {
+    display: inline-flex;
+    flex: 1 0 100%;
+    align-items: center;
+    justify-content: center;
+  }
 }

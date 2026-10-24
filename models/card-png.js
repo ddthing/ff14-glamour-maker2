@@ -3,6 +3,9 @@
 const CardGearCopyModule = typeof module !== "undefined" && module.exports
   ? require("./card-gear-copy.js")
   : typeof CardGearCopy !== "undefined" ? CardGearCopy : globalThis.CardGearCopy;
+const CardMaterialsModule = typeof module !== "undefined" && module.exports
+  ? require("./card-materials.js")
+  : typeof CardMaterials !== "undefined" ? CardMaterials : globalThis.CardMaterials;
 const CardPng = (() => {
 function traceFivePointStar(context, radius) {
   const innerRadius = radius * 0.42;
@@ -295,29 +298,17 @@ function traceEightPointSparkle(context, radius) {
   context.closePath();
 }
 
-function traceArchivePaper(context, x, y, width, height, variant = 0) {
-  const edgeJitter = [0, 0.018, -0.012, 0.012, -0.008, 0.016, -0.014, 0.006];
-  const top = [0.035, 0.012, 0.028, 0.004, 0.024, 0.008, 0.03, 0.014];
-  const bottom = [0.978, 0.994, 0.982, 0.998, 0.976, 0.99, 0.98, 0.996];
-  const right = [0.98, 0.996, 0.984, 0.998, 0.978, 0.992, 0.982, 0.995];
-  const left = [0.02, 0.004, 0.018, 0.002, 0.022, 0.008, 0.018, 0.005];
-  const points = [];
-  for (let index = 0; index < 8; index += 1) {
-    const offset = (index + variant) % edgeJitter.length;
-    points.push([index / 7, top[index] + edgeJitter[offset]]);
-  }
-  for (let index = 7; index >= 0; index -= 1) {
-    const offset = (index + variant + 2) % edgeJitter.length;
-    points.push([right[index] + edgeJitter[offset], (index + 1) / 8]);
-  }
-  for (let index = 7; index >= 0; index -= 1) {
-    const offset = (index + variant + 4) % edgeJitter.length;
-    points.push([index / 7, bottom[index] + edgeJitter[offset]]);
-  }
-  for (let index = 0; index < 8; index += 1) {
-    const offset = (index + variant + 6) % edgeJitter.length;
-    points.push([left[index] + edgeJitter[offset], (7 - index) / 8]);
-  }
+function traceArchivePaper(context, x, y, width, height) {
+  // Keep this silhouette in lockstep with the archive note's CSS clip-path;
+  // the PNG and DOM preview should share the same quiet torn edge.
+  const points = [
+    [0, 0.04], [0.08, 0.01], [0.18, 0.03], [0.29, 0], [0.4, 0.03],
+    [0.5, 0.01], [0.61, 0.03], [0.72, 0], [0.84, 0.03], [1, 0.02],
+    [0.98, 0.2], [1, 0.38], [0.97, 0.55], [1, 0.74], [0.98, 0.98],
+    [0.86, 0.97], [0.74, 1], [0.62, 0.97], [0.5, 1], [0.38, 0.97],
+    [0.25, 1], [0.12, 0.97], [0.01, 1], [0.03, 0.82], [0, 0.64],
+    [0.02, 0.45], [0, 0.24],
+  ];
   context.beginPath();
   points.forEach(([pointX, pointY], index) => {
     const resolvedX = x + pointX * width;
@@ -337,7 +328,7 @@ function traceScrapbookTape(context, x, y, width, height) {
   context.closePath();
 }
 
-function drawMaterialNote(context, image, pathBuilder, x, y, width, height, tint, shadowColor, borderColor) {
+function drawMaterialNote(context, image, pathBuilder, x, y, width, height, tint, shadowColor, borderColor, sourceRect) {
   context.save();
   context.shadowColor = shadowColor;
   context.shadowBlur = Math.max(3, Math.round(width * 0.018));
@@ -353,11 +344,19 @@ function drawMaterialNote(context, image, pathBuilder, x, y, width, height, tint
   pathBuilder();
   context.clip();
   if (image) {
-    context.globalAlpha = 0.68;
-    drawCoverImage(context, image, x, y, width, height);
-    context.globalAlpha = 0.24;
-    context.fillStyle = tint;
+    context.globalCompositeOperation = "multiply";
+    if (sourceRect) {
+      context.drawImage(image, sourceRect.x, sourceRect.y, sourceRect.width, sourceRect.height, x, y, width, height);
+    } else {
+      drawCoverImage(context, image, x, y, width, height);
+    }
+    context.globalCompositeOperation = "soft-light";
+    const highlight = context.createLinearGradient(x, y, x, y + height * 0.34);
+    highlight.addColorStop(0, "rgba(255, 255, 255, .2)");
+    highlight.addColorStop(1, "rgba(255, 255, 255, 0)");
+    context.fillStyle = highlight;
     context.fillRect(x, y, width, height);
+    context.globalCompositeOperation = "source-over";
   }
   context.restore();
   context.save();
@@ -368,7 +367,7 @@ function drawMaterialNote(context, image, pathBuilder, x, y, width, height, tint
   context.restore();
 }
 
-function drawMaterialTape(context, x, y, width, height, color, rotation = 0) {
+function drawMaterialTape(context, image, x, y, width, height, color, rotation = 0) {
   context.save();
   context.translate(x + width / 2, y + height / 2);
   context.rotate(rotation);
@@ -376,18 +375,33 @@ function drawMaterialTape(context, x, y, width, height, color, rotation = 0) {
   traceScrapbookTape(context, x, y, width, height);
   context.fillStyle = color;
   context.fill();
-  context.strokeStyle = "rgba(78, 67, 55, .12)";
-  context.lineWidth = Math.max(0.5, width * 0.0015);
-  context.stroke();
-  context.strokeStyle = "rgba(255, 255, 255, .16)";
-  context.lineWidth = Math.max(0.5, height * 0.08);
-  for (let index = 1; index < 5; index += 1) {
-    const lineX = x + (width * index) / 5;
-    context.beginPath();
-    context.moveTo(lineX, y + height * 0.17);
-    context.lineTo(lineX + width * 0.015, y + height * 0.83);
-    context.stroke();
+  traceScrapbookTape(context, x, y, width, height);
+  context.clip();
+  const imageWidth = Number(image?.naturalWidth || image?.width || 0);
+  const imageHeight = Number(image?.naturalHeight || image?.height || 0);
+  const sourceRect = CardMaterialsModule?.tapeSourceRect(imageWidth, imageHeight);
+  if (image && sourceRect) {
+    context.globalCompositeOperation = "multiply";
+    context.drawImage(image, sourceRect.x, sourceRect.y, sourceRect.width, sourceRect.height, x, y, width, height);
+    context.globalCompositeOperation = "soft-light";
+    const highlight = context.createLinearGradient(x, y, x + width, y);
+    highlight.addColorStop(0, "rgba(255, 255, 255, .28)");
+    highlight.addColorStop(0.42, "rgba(255, 255, 255, 0)");
+    highlight.addColorStop(1, "rgba(79, 69, 58, .08)");
+    context.fillStyle = highlight;
+    context.fillRect(x, y, width, height);
   }
+  context.globalCompositeOperation = "source-over";
+  traceScrapbookTape(context, x, y, width, height);
+  context.strokeStyle = "rgba(82, 70, 56, .1)";
+  context.lineWidth = Math.max(0.5, width * 0.01);
+  context.stroke();
+  context.strokeStyle = "rgba(255, 255, 255, .32)";
+  context.lineWidth = Math.max(0.5, height * 0.08);
+  context.beginPath();
+  context.moveTo(x + width * 0.04, y + height * 0.12);
+  context.lineTo(x + width * 0.96, y + height * 0.04);
+  context.stroke();
   context.restore();
 }
 
@@ -447,13 +461,28 @@ function drawExportBackground(context, width, height, background, backgroundImag
   context.restore();
 }
 
-async function render({ state, dimensions, layout = null, exportTheme, background, textureInk = null, patternStars, images, backgroundImage = null, copyLayout, gear, outlineColor, placementScale = 1, infoTextColor = exportTheme.text, infoTextMuted = exportTheme.muted, infoTextHalo = exportTheme.infoShadow }) {
+async function render({ state, dimensions, layout = null, compositionPlan = null, exportTheme, background, textureInk = null, patternStars, images, backgroundImage = null, copyLayout, gear, outlineColor, placementScale = 1, infoTextColor = exportTheme.text, infoTextMuted = exportTheme.muted, infoTextHalo = exportTheme.infoShadow }) {
   const activeCharacters = state.characters.slice(0, state.characterCount);
   const resolvedLayout = layout || CardLayout.layoutFor({
     characterCount: state.characterCount,
     singleRatio: dimensions.layoutHeight > dimensions.layoutWidth ? "portrait" : "landscape",
     singleLayout: state.singleLayout,
     characters: activeCharacters,
+  });
+  // Older saved snapshots do not contain cardComposition. Keep them on the
+  // byte-stable legacy path while allowing export callers to omit an explicit
+  // planner result when they do use the new composition controls.
+  const resolvedCompositionPlan = compositionPlan || CardLayout.planComposition({
+    characterCount: state.characterCount,
+    singleRatio: resolvedLayout.ratio,
+    singleLayout: state.singleLayout,
+    characters: activeCharacters,
+    layout: resolvedLayout,
+    composition: state.cardComposition || {},
+    gearByCharacter: Array.isArray(gear) ? gear : [],
+    selectedCharacter: state.selectedCharacter,
+    multiInfoEnabled: state.multiInfoEnabled,
+    language: state.language,
   });
   const isPortrait = resolvedLayout.ratio === "portrait";
   const characterFrames = resolvedLayout.frames;
@@ -570,25 +599,15 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
       context.textBaseline = "top";
       lines.forEach((line, index) => context.fillText(line, x, top + lineHeight * index));
     };
-    const collageSlotColors = Object.freeze({
-      head: "#7d96a5",
-      body: "#a97778",
-      hands: "#8b9b86",
-      legs: "#b29467",
-      feet: "#817b98",
-      weapon: "#646b70",
-      offhand: "#646b70",
-    });
-    const scrapbookSlotColors = Object.freeze({
-      head: "#6f8790",
-      body: "#9c6e63",
-      hands: "#7f8d78",
-      legs: "#b18457",
-      feet: "#766b80",
-      weapon: "#4d5b5d",
-      offhand: "#4d5b5d",
-    });
-    const drawGearTile = (item, x, y, width, height, { textAlign = "left", noteIndex = 0 } = {}) => {
+    const drawGearTile = (item, x, y, width, height, {
+      textAlign = "left",
+      noteIndex = 0,
+      surfaceOnly = false,
+      copyOnly = false,
+      compositionItem = null,
+      copyBounds = null,
+      protectionBounds = null,
+    } = {}) => {
       const padding = Math.max(10, Math.round(width * 0.045));
       const secondaryName = item.secondaryName;
       const slotSize = Math.max(9, Math.min(13, Math.round(height * 0.13)));
@@ -598,19 +617,56 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
       const collageTheme = state.backgroundPattern === "collage";
       const scrapbookTheme = state.backgroundPattern === "scrapbook";
       const paperNoteTheme = collageTheme || scrapbookTheme;
-      const material = typeof CardMaterials !== "undefined" ? CardMaterials.get(state.backgroundPattern) : null;
-      const noteTints = material?.noteTints || (collageTheme
-        ? ["#f4e8d7", "#e7ddd0", "#e9d7d0", "#e0e5d9"]
-        : ["#f7f0e3", "#e7eef0", "#edf0e7", "#eef2f3"]);
-      const tapeTints = material?.tapeTints || (collageTheme
-        ? ["rgba(211, 181, 137, .78)", "rgba(165, 184, 181, .76)", "rgba(220, 193, 157, .74)"]
-        : ["rgba(198, 213, 217, .72)", "rgba(219, 196, 164, .68)", "rgba(190, 205, 193, .72)"]);
+      const material = CardMaterialsModule?.get(state.backgroundPattern);
+      const materialNote = CardMaterialsModule?.noteFor(state.backgroundPattern, noteIndex);
+      const darkCopy = background?.tone === "dark" || exportTheme.text === "#f7f3ed";
+      const copyInk = material?.ink || (darkCopy ? "#f7f3ed" : "#263238");
+      const copyMuted = material?.mutedInk || (darkCopy ? "rgba(247, 243, 237, .68)" : "rgba(38, 50, 56, .68)");
+      const copyEdge = collageTheme
+        ? "rgba(63, 57, 51, .2)"
+        : scrapbookTheme
+          ? "rgba(41, 70, 80, .22)"
+          : darkCopy ? "rgba(247, 243, 237, .24)" : "rgba(38, 50, 56, .18)";
+      const protectedSurface = collageTheme
+        ? "#f4e8d7"
+        : scrapbookTheme
+          ? "#f7f0e3"
+          : darkCopy ? "#1d2228" : "#fffaf4";
+      const plannedNote = Boolean(compositionItem);
+      const noteRadius = Math.max(0, Number(compositionItem?.noteRadius ?? exportTheme.radius) || 0);
       const pathBuilder = () => {
-        if (collageTheme) traceArchivePaper(context, x, y, width, height, noteIndex);
+        if (plannedNote) roundRect(x, y, width, height, noteRadius);
+        else if (collageTheme) traceArchivePaper(context, x, y, width, height);
         else traceScrapbookNote(context, x, y, width, height);
       };
+      const fillProtectedRegion = (bounds) => {
+        const regionRadius = Math.min(noteRadius, bounds.width / 2, bounds.height / 2);
+        context.save();
+        roundRect(bounds.x, bounds.y, bounds.width, bounds.height, regionRadius);
+        context.clip();
+        context.fillStyle = paperNoteTheme ? (materialNote?.tint || protectedSurface) : protectedSurface;
+        context.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+        context.restore();
+      };
       context.save();
-      if (paperNoteTheme) {
+      if (!copyOnly && plannedNote && paperNoteTheme) {
+        const tint = materialNote?.tint || protectedSurface;
+        roundRect(x, y, width, height, noteRadius);
+        context.fillStyle = tint;
+        context.fill();
+        roundRect(x, y, width, height, noteRadius);
+        context.strokeStyle = copyEdge;
+        context.lineWidth = 1;
+        context.stroke();
+      } else if (!copyOnly && plannedNote) {
+        roundRect(x, y, width, height, noteRadius);
+        context.fillStyle = protectedSurface;
+        context.fill();
+        roundRect(x, y, width, height, noteRadius);
+        context.strokeStyle = copyEdge;
+        context.lineWidth = 1;
+        context.stroke();
+      } else if (!copyOnly && paperNoteTheme) {
         drawMaterialNote(
           context,
           backgroundImage,
@@ -619,11 +675,17 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
           y,
           width,
           height,
-          noteTints[noteIndex % noteTints.length],
+          materialNote?.tint || (collageTheme ? "#f4e8d7" : "#f7f0e3"),
           collageTheme ? "rgba(67, 55, 43, .16)" : "rgba(48, 69, 75, .13)",
           collageTheme ? "rgba(67, 55, 43, .24)" : "rgba(48, 69, 75, .22)",
+          CardMaterialsModule?.noteSourceRect(
+            state.backgroundPattern,
+            noteIndex,
+            Number(backgroundImage?.naturalWidth || backgroundImage?.width || 0),
+            Number(backgroundImage?.naturalHeight || backgroundImage?.height || 0),
+          ),
         );
-      } else {
+      } else if (!copyOnly) {
         roundRect(x, y, width, height, exportTheme.radius);
         context.fillStyle = exportTheme.panel;
         context.fill();
@@ -631,21 +693,24 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
         context.lineWidth = 2;
         context.stroke();
       }
-      if (paperNoteTheme) {
-        const tapeLeft = noteIndex % 3 === 1 ? 0.64 : noteIndex % 3 === 2 ? 0.52 : 0.16;
-        const tapeWidthRatio = noteIndex % 3 === 1 ? 0.21 : noteIndex % 3 === 2 ? 0.27 : 0.24;
-        const tapeX = x + Math.round(width * tapeLeft);
-        const tapeY = y - Math.max(8, Math.round(height * 0.07));
-        const tapeWidth = Math.max(18, Math.round(width * tapeWidthRatio));
-        const tapeHeight = Math.max(5, Math.round(height * 0.12));
+      if (!copyOnly && paperNoteTheme && !plannedNote) {
+        const tapeSpec = materialNote?.tape;
+        const tapeLeft = tapeSpec ? tapeSpec.left / 100 : noteIndex % 3 === 1 ? 0.64 : noteIndex % 3 === 2 ? 0.52 : 0.16;
+        const tapeWidthRatio = tapeSpec ? tapeSpec.width / 100 : noteIndex % 3 === 1 ? 0.21 : noteIndex % 3 === 2 ? 0.27 : 0.24;
+        const tapeHeightRatio = tapeSpec ? tapeSpec.height / 100 : 0.12;
+        const tapeX = x + width * tapeLeft;
+        const tapeY = y - height * 0.07;
+        const tapeWidth = Math.max(18, width * tapeWidthRatio);
+        const tapeHeight = Math.max(5, height * tapeHeightRatio);
         drawMaterialTape(
           context,
+          backgroundImage,
           tapeX,
           tapeY,
           tapeWidth,
           tapeHeight,
-          tapeTints[noteIndex % tapeTints.length],
-          (noteIndex % 2 ? 1 : -1) * Math.PI / 180,
+          tapeSpec?.color || "rgba(198, 213, 217, .72)",
+          (tapeSpec?.rotation ?? (noteIndex % 2 ? 1 : -1)) * Math.PI / 180,
         );
         if (shouldDrawPatternStamp(state.backgroundPattern, isPortrait)) {
           if (collageTheme) {
@@ -669,9 +734,53 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
           }
         }
       }
+      if (surfaceOnly) {
+        context.restore();
+        return;
+      }
+      const glyphBounds = copyBounds || compositionItem?.copyBounds || null;
+      const safeBounds = protectionBounds || compositionItem?.protectionBounds || null;
+      if (plannedNote && compositionItem?.copy && resolvedCompositionPlan?.effectiveLayer === "person-front"
+        && resolvedCompositionPlan?.protectText && safeBounds) {
+        fillProtectedRegion(safeBounds);
+      }
       const capturedCopy = item.preview;
       if (capturedCopy?.primaryCopy?.lines?.length) {
         CardCopy.draw(context, [capturedCopy.slotCopy, capturedCopy.primaryCopy, capturedCopy.secondaryCopy].filter(Boolean));
+      } else if (compositionItem?.copy && glyphBounds) {
+        const copyPlan = compositionItem.copy;
+        const textWidth = Math.max(1, glyphBounds.width);
+        const glyphX = glyphBounds.x;
+        const allLines = [];
+        context.font = `700 ${copyPlan.primarySize}px "Pretendard Variable", sans-serif`;
+        const primaryLines = wrapGearText(item.name || compositionItem.name, textWidth);
+        context.font = `500 ${copyPlan.secondarySize || 0}px "Pretendard Variable", sans-serif`;
+        const resolvedSecondaryName = item.secondaryName || compositionItem.secondaryName;
+        const resolvedSlotName = item.slotName || compositionItem.slotName;
+        const secondaryLines = resolvedSecondaryName ? wrapGearText(resolvedSecondaryName, textWidth) : [];
+        context.font = `600 ${copyPlan.slotSize || 0}px "Pretendard Variable", sans-serif`;
+        const slotLines = resolvedSlotName ? wrapGearText(resolvedSlotName, textWidth) : [];
+        const totalHeight = slotLines.length * copyPlan.slotLineHeight
+          + primaryLines.length * copyPlan.primaryLineHeight
+          + secondaryLines.length * copyPlan.secondaryLineHeight
+          + copyPlan.groupGap * ((slotLines.length ? 1 : 0) + (secondaryLines.length ? 1 : 0));
+        if (slotLines.length) {
+          allLines.push({ lines: slotLines, font: `600 ${copyPlan.slotSize}px "Pretendard Variable", sans-serif`, size: copyPlan.slotSize, height: copyPlan.slotLineHeight, color: copyMuted });
+        }
+        allLines.push({ lines: primaryLines, font: `700 ${copyPlan.primarySize}px "Pretendard Variable", sans-serif`, size: copyPlan.primarySize, height: copyPlan.primaryLineHeight, color: copyInk });
+        if (secondaryLines.length) {
+          allLines.push({ lines: secondaryLines, font: `500 ${copyPlan.secondarySize}px "Pretendard Variable", sans-serif`, size: copyPlan.secondarySize, height: copyPlan.secondaryLineHeight, color: copyMuted });
+        }
+        let currentTop = glyphBounds.y;
+        allLines.forEach((group) => {
+          drawTopAlignedTextLines(group.lines, glyphX, currentTop, {
+            font: group.font,
+            fillStyle: group.color,
+            lineHeight: group.height,
+            textAlign,
+          });
+          currentTop += group.lines.length * group.height + copyPlan.groupGap;
+        });
       } else {
         const textWidth = Math.max(1, width - padding * 2);
         const copyTop = y + Math.round(height * 0.16);
@@ -719,11 +828,11 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
     const exportItems = gear[state.selectedCharacter] || [];
     const drawPortraitGear = () => CardLayout.portraitGearPositions({ singleLayout: state.singleLayout }).forEach((position, index) => {
       const item = exportItems[index];
-      if (item) drawGearTile(item, position.x, position.y, position.width, position.height, { noteIndex: index });
+      if (item && item.showOnCard !== false) drawGearTile(item, position.x, position.y, position.width, position.height, { noteIndex: index });
     });
     const drawLandscapeSoloGear = () => CardLayout.landscapeSoloGearPositions({ singleLayout: state.singleLayout }).forEach((position, index) => {
       const item = exportItems[index];
-      if (item) drawGearTile(item, position.x, position.y, position.width, position.height, { noteIndex: index });
+      if (item && item.showOnCard !== false) drawGearTile(item, position.x, position.y, position.width, position.height, { noteIndex: index });
     });
     const drawTwoPersonGear = () => {
       const rails = CardLayout.infoRails({ characterCount: state.characterCount });
@@ -731,6 +840,7 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
         const rail = rails[characterIndex];
         const items = gear[characterIndex] || [];
         items.forEach((item, itemIndex) => {
+          if (!item || item.showOnCard === false) return;
           drawGearTile(
             item,
             rail.x,
@@ -743,6 +853,34 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
       });
     };
 
+    const gearItemForPlan = (itemPlan) => {
+      const sourceItem = gear?.[itemPlan.characterIndex]?.[itemPlan.gearIndex] || {};
+      return {
+        ...sourceItem,
+        name: sourceItem.name || sourceItem.primaryName || itemPlan.name,
+        secondaryName: sourceItem.secondaryName || itemPlan.secondaryName,
+        slotName: sourceItem.slotName || sourceItem.slotLabel || itemPlan.slotName,
+      };
+    };
+    const drawPlannedGear = ({ surfacesOnly = false, copyOnly = false } = {}) => {
+      (resolvedCompositionPlan.items || []).forEach((itemPlan) => {
+        const item = gearItemForPlan(itemPlan);
+        drawGearTile(item, itemPlan.x, itemPlan.y, itemPlan.width, itemPlan.height, {
+          noteIndex: itemPlan.gearIndex,
+          textAlign: "left",
+          surfaceOnly: surfacesOnly,
+          copyOnly,
+          compositionItem: itemPlan,
+          copyBounds: itemPlan.copyBounds,
+          protectionBounds: itemPlan.protectionBounds,
+        });
+      });
+    };
+
+    if (resolvedCompositionPlan.isCustom && resolvedCompositionPlan.effectiveLayer === "person-front") {
+      drawPlannedGear({ surfacesOnly: true });
+    }
+
     characterFrames.forEach((frame, index) => {
       drawCharacter(images[index], activeCharacters[index], frame.x, frame.y, frame.width, frame.height);
     });
@@ -752,81 +890,90 @@ async function render({ state, dimensions, layout = null, exportTheme, backgroun
       context.fillRect((index * 47) % layoutWidth, (index * 83) % layoutHeight, 1, 1);
     }
 
-    // The preview renders this same high-resolution copy layer. Keeping the
-    // text implementation behind one small interface prevents DOM and PNG
-    // glyphs from drifting apart again.
-    CardCopy.draw(context, copyLayout);
+    // Legacy cards retain the exact existing order. Custom plans draw their
+    // notes through the shared layout; `person-front` paints note material
+    // before the subjects and the protected copy plane after them.
+    if (resolvedCompositionPlan.isCustom) {
+      drawPlannedGear({ copyOnly: resolvedCompositionPlan.effectiveLayer === "person-front" });
+      CardCopy.draw(context, copyLayout);
+    } else {
+      // The preview renders this same high-resolution copy layer. Keeping the
+      // text implementation behind one small interface prevents DOM and PNG
+      // glyphs from drifting apart again.
+      CardCopy.draw(context, copyLayout);
 
-    if (state.characterCount === 1) {
-      if (isPortrait) {
-        drawPortraitGear();
-      } else {
-        drawLandscapeSoloGear();
-      }
-    } else if (state.characterCount === 2) {
-      drawTwoPersonGear();
-    } else if (state.multiInfoEnabled) {
-      const columnWidth = layoutWidth / state.characterCount;
-      context.textAlign = "center";
-      activeCharacters.forEach((character, characterIndex) => {
-        const items = gear[characterIndex] || [];
-        const centerX = columnWidth * characterIndex + columnWidth / 2;
-        const startY = 242;
-        context.fillStyle = infoTextMuted;
-        context.shadowColor = infoTextHalo;
-        context.shadowBlur = 10;
-        let itemY = startY;
-        items.forEach((item) => {
-          const secondaryName = item.secondaryName;
-          const preview = item.preview;
-          const textX = preview?.x ?? centerX;
-          if (preview?.primaryCopy?.lines?.length) {
-            CardCopy.draw(context, [preview.primaryCopy, preview.secondaryCopy].filter(Boolean));
-            const capturedLines = [
-              ...(preview.primaryCopy.lines || []),
-              ...(preview.secondaryCopy?.lines || []),
-            ];
-            const blockBottom = Math.max(...capturedLines.map((line) => line.y + line.height));
-            itemY = Math.max(itemY, blockBottom + 4);
-            return;
-          }
-          const textAlign = preview?.textAlign || "center";
-          const primaryFont = preview?.primaryFont || `650 ${state.characterCount === 5 ? 12 : 14}px \"Pretendard Variable\", sans-serif`;
-          const secondaryFont = preview?.secondaryFont || `500 ${state.characterCount === 5 ? 8 : 10}px \"Pretendard Variable\", sans-serif`;
-          const primarySize = preview?.primarySize || Number.parseFloat(primaryFont.match(/(\d+(?:\.\d+)?)px/u)?.[1] || "14");
-          const secondarySize = preview?.secondarySize || Number.parseFloat(secondaryFont.match(/(\d+(?:\.\d+)?)px/u)?.[1] || "10");
-          const lineWidth = preview?.width || (preview ? Math.max(24, columnWidth * 0.86) : columnWidth - 24);
-          const primaryLineHeight = primarySize * 1.14;
-          const secondaryLineHeight = secondarySize * 1.12;
-          context.font = primaryFont;
-          const primaryLines = CardGearCopyModule.wrapText(item.name, (text) => context.measureText(text).width, lineWidth);
-          const primaryY = preview?.primaryY ?? itemY;
-          drawTopAlignedTextLines(primaryLines, textX, primaryY, {
-            font: primaryFont,
-            fillStyle: infoTextColor,
-            lineHeight: primaryLineHeight,
-            textAlign,
-          });
-          let blockBottom = primaryY + primaryLines.length * primaryLineHeight;
-          if (secondaryName) {
-            const secondaryY = preview?.secondaryY ?? blockBottom + Math.max(2, primarySize * 0.18);
-            context.font = secondaryFont;
-            const secondaryLines = CardGearCopyModule.wrapText(secondaryName, (text) => context.measureText(text).width, lineWidth);
-            drawTopAlignedTextLines(secondaryLines, textX, secondaryY, {
-              font: secondaryFont,
-              fillStyle: infoTextMuted,
-              lineHeight: secondaryLineHeight,
+      if (state.characterCount === 1) {
+        if (isPortrait) {
+          drawPortraitGear();
+        } else {
+          drawLandscapeSoloGear();
+        }
+      } else if (state.characterCount === 2) {
+        drawTwoPersonGear();
+      } else if (state.multiInfoEnabled) {
+        const columnWidth = layoutWidth / state.characterCount;
+        context.textAlign = "center";
+        activeCharacters.forEach((character, characterIndex) => {
+          const items = gear[characterIndex] || [];
+          const centerX = columnWidth * characterIndex + columnWidth / 2;
+          const startY = 242;
+          context.fillStyle = infoTextMuted;
+          context.shadowColor = infoTextHalo;
+          context.shadowBlur = 10;
+          let itemY = startY;
+          items.forEach((item) => {
+            if (!item || item.showOnCard === false) return;
+            const secondaryName = item.secondaryName;
+            const preview = item.preview;
+            const textX = preview?.x ?? centerX;
+            if (preview?.primaryCopy?.lines?.length) {
+              CardCopy.draw(context, [preview.primaryCopy, preview.secondaryCopy].filter(Boolean));
+              const capturedLines = [
+                ...(preview.primaryCopy.lines || []),
+                ...(preview.secondaryCopy?.lines || []),
+              ];
+              const blockBottom = Math.max(...capturedLines.map((line) => line.y + line.height));
+              itemY = Math.max(itemY, blockBottom + 4);
+              return;
+            }
+            const textAlign = preview?.textAlign || "center";
+            const primaryFont = preview?.primaryFont || `650 ${state.characterCount === 5 ? 12 : 14}px \"Pretendard Variable\", sans-serif`;
+            const secondaryFont = preview?.secondaryFont || `500 ${state.characterCount === 5 ? 8 : 10}px \"Pretendard Variable\", sans-serif`;
+            const primarySize = preview?.primarySize || Number.parseFloat(primaryFont.match(/(\d+(?:\.\d+)?)px/u)?.[1] || "14");
+            const secondarySize = preview?.secondarySize || Number.parseFloat(secondaryFont.match(/(\d+(?:\.\d+)?)px/u)?.[1] || "10");
+            const lineWidth = preview?.width || (preview ? Math.max(24, columnWidth * 0.86) : columnWidth - 24);
+            const primaryLineHeight = primarySize * 1.14;
+            const secondaryLineHeight = secondarySize * 1.12;
+            context.font = primaryFont;
+            const primaryLines = CardGearCopyModule.wrapText(item.name, (text) => context.measureText(text).width, lineWidth);
+            const primaryY = preview?.primaryY ?? itemY;
+            drawTopAlignedTextLines(primaryLines, textX, primaryY, {
+              font: primaryFont,
+              fillStyle: infoTextColor,
+              lineHeight: primaryLineHeight,
               textAlign,
             });
-            blockBottom = secondaryY + secondaryLines.length * secondaryLineHeight;
-          }
-          itemY = Math.max(itemY, blockBottom + Math.max(4, primarySize * 0.35));
+            let blockBottom = primaryY + primaryLines.length * primaryLineHeight;
+            if (secondaryName) {
+              const secondaryY = preview?.secondaryY ?? blockBottom + Math.max(2, primarySize * 0.18);
+              context.font = secondaryFont;
+              const secondaryLines = CardGearCopyModule.wrapText(secondaryName, (text) => context.measureText(text).width, lineWidth);
+              drawTopAlignedTextLines(secondaryLines, textX, secondaryY, {
+                font: secondaryFont,
+                fillStyle: infoTextMuted,
+                lineHeight: secondaryLineHeight,
+                textAlign,
+              });
+              blockBottom = secondaryY + secondaryLines.length * secondaryLineHeight;
+            }
+            itemY = Math.max(itemY, blockBottom + Math.max(4, primarySize * 0.35));
+          });
         });
-      });
-      context.shadowColor = "transparent";
-      context.shadowBlur = 0;
-      context.textAlign = "left";
-      context.textBaseline = "alphabetic";
+        context.shadowColor = "transparent";
+        context.shadowBlur = 0;
+        context.textAlign = "left";
+        context.textBaseline = "alphabetic";
+      }
     }
 
     const canvasBlob = (type, quality) => new Promise((resolve, reject) => {

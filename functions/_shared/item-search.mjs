@@ -10,6 +10,10 @@ const itemSlotLabels = {
   legs: { ko: "다리", en: "Legs", ja: "脚" },
   feet: { ko: "발", en: "Feet", ja: "足" },
   weapon: { ko: "무기", en: "Weapon", ja: "武器" },
+  earrings: { ko: "귀걸이", en: "Earrings", ja: "耳飾り" },
+  necklace: { ko: "목걸이", en: "Necklace", ja: "首飾り" },
+  bracelet: { ko: "팔찌", en: "Bracelet", ja: "腕輪" },
+  ring: { ko: "반지", en: "Ring", ja: "指輪" },
 };
 
 export const supportedLanguages = ["ko", "en", "ja"];
@@ -106,7 +110,7 @@ export function isSupportedIconUrl(value) {
 }
 
 // The Pages Function reuses the same immutable index for the lifetime of an
-// isolate. Normalising 23k records for every keystroke made search cost scale
+// isolate. Normalising the entire catalog for every keystroke made search cost scale
 // with the catalog instead of the query. WeakMap keeps this cache scoped to
 // the exact index instance without retaining replaced/test indexes forever.
 const normalizedKoreanIndexCache = new WeakMap();

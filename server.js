@@ -43,7 +43,6 @@ const contentTypes = {
 const koreanItemCsvUrl = "https://raw.githubusercontent.com/Ra-Workspace/ffxiv-datamining-ko/master/csv/Item.csv";
 const koreanItemSnapshotPath = path.join(root, "assets", "data", "items-ko.json");
 const koreanItemSnapshotBasePath = path.join(root, "assets", "data", "items-ko");
-const koreanIndexSlots = ["head", "body", "hands", "legs", "feet", "weapon"];
 const itemSearchCache = new Map();
 const itemSearchInflight = new Map();
 const koreanItemIndexPromises = new Map();
@@ -53,7 +52,6 @@ const itemSearchStaleTtlMs = 24 * 60 * 60 * 1000;
 const itemSearchCacheHeaders = {
   "Cache-Control": "public, max-age=0, s-maxage=300, stale-while-revalidate=86400",
 };
-const supportedItemSlots = new Set(["head", "body", "hands", "legs", "feet", "weapon"]);
 
 function sendJson(response, statusCode, payload, headers = {}) {
   const body = JSON.stringify(payload);
@@ -73,7 +71,9 @@ function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
 }
 
 async function loadKoreanItemIndex(slot = "") {
-  const cacheKey = supportedItemSlots.has(slot) ? slot : "all";
+  const searchModule = await itemSearchModulePromise;
+  const supportedSlots = searchModule.supportedSlots;
+  const cacheKey = supportedSlots.includes(slot) ? slot : "all";
   const cached = koreanItemIndexPromises.get(cacheKey);
   if (cached) return cached;
 
@@ -82,7 +82,7 @@ async function loadKoreanItemIndex(slot = "") {
       const slotPath = `${koreanItemSnapshotBasePath}-${cacheKey}.json`;
       if (fs.existsSync(slotPath)) return readKoreanItemSnapshot(slotPath);
     } else {
-      const partitionedPaths = koreanIndexSlots.map((part) => `${koreanItemSnapshotBasePath}-${part}.json`);
+      const partitionedPaths = supportedSlots.map((part) => `${koreanItemSnapshotBasePath}-${part}.json`);
       if (partitionedPaths.every((snapshotPath) => fs.existsSync(snapshotPath))) {
         const partitions = await Promise.all(partitionedPaths.map((snapshotPath) => readKoreanItemSnapshot(snapshotPath)));
         return partitions.flat();
@@ -114,12 +114,12 @@ async function loadKoreanItemIndex(slot = "") {
 function readKoreanItemSnapshot(snapshotPath = koreanItemSnapshotPath) {
   const cached = koreanItemSnapshotPromises.get(snapshotPath);
   if (cached) return cached;
-  const promise = fs.promises.readFile(snapshotPath, "utf8").then((contents) => {
+  const promise = Promise.all([fs.promises.readFile(snapshotPath, "utf8"), itemSearchModulePromise]).then(([contents, searchModule]) => {
     const records = JSON.parse(contents);
     if (!Array.isArray(records) || !records.length) throw new Error("한국어 아이템 snapshot이 비어 있습니다.");
     const index = records.map((record) => {
       const name = String(record?.names?.ko || "").trim();
-      if (!record?.id || !name || !supportedItemSlots.has(record.slot)) return null;
+      if (!record?.id || !name || !searchModule.supportedSlots.includes(record.slot)) return null;
       return {
         ...record,
         id: String(record.id),
@@ -612,9 +612,9 @@ const server = http.createServer(async (request, response) => {
     "/support/": "support/index.html",
   };
   const relativePath = requestPath === "/" ? "index.html" : (Object.hasOwn(cleanPagePaths, requestPath) ? cleanPagePaths[requestPath] : requestPath.replace(/^\/+/, ""));
-  const publicFile = ["index.html", "app.js", "styles.css", "robots.txt", "sitemap.xml", "site.webmanifest", "google96c42eb007c2a9a8.html", "models/look-editor.js", "models/look-book.js", "models/image-assets.js", "models/image-validation.js", "models/draft-storage.js", "models/draft-schema.js", "models/i18n.js", "models/public-pages.js", "models/item-records.js", "models/item-search.js", "models/crop-plan.js", "models/card-layout.js", "models/card-copy.js", "models/color-contrast.js", "models/card-materials.js", "models/card-gear-copy.js", "models/card-png.js", "models/editor-navigation.js", "models/editor-history.js", "models/title-typography.js", "models/background-removal.js", "terms/index.html", "privacy/index.html", "guide/index.html", "contact/index.html", "support/index.html"].includes(relativePath)
+  const publicFile = ["index.html", "app.js", "styles.css", "robots.txt", "sitemap.xml", "site.webmanifest", "google96c42eb007c2a9a8.html", "models/look-editor.js", "models/look-book.js", "models/image-assets.js", "models/image-validation.js", "models/draft-storage.js", "models/draft-schema.js", "models/i18n.js", "models/public-pages.js", "models/item-records.js", "models/item-search.js", "models/crop-plan.js", "models/card-layout.js", "models/card-copy.js", "models/card-gear-copy.js", "models/color-contrast.js", "models/card-materials.js", "models/card-png.js", "models/editor-navigation.js", "models/editor-history.js", "models/editor-theme.js", "models/title-typography.js", "models/background-removal.js", "terms/index.html", "privacy/index.html", "guide/index.html", "contact/index.html", "support/index.html"].includes(relativePath)
     || /^(styles\/[^/]+\.css|assets\/(data|fonts|icons|themes)\/(?:[^/]+\/)*[^/]+\.(json|ttf|woff2?|svg|png|jpe?g|webp))$/.test(relativePath);
-  const isAdditionalPublicModel = ["models/background-style.js", "models/draft-autosave.js", "models/look-record.js"].includes(relativePath);
+  const isAdditionalPublicModel = ["models/background-style.js", "models/draft-autosave.js", "models/look-record.js", "models/lucian-language.js", "models/lucian-tour.js", "models/equipment.js", "models/card-composition.js", "models/gear-sheet.js", "models/zip-store.js", "models/equipment-sheet-export.js"].includes(relativePath);
   const filePath = path.resolve(root, relativePath);
   const isInsideRoot = filePath === root || filePath.startsWith(`${root}${path.sep}`);
 

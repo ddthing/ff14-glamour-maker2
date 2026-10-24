@@ -37,16 +37,22 @@
         href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
       />
     </noscript>
-    <link rel="stylesheet" href="styles/tokens.css?v=20260908-shared-tokens-1" />
-    <link rel="stylesheet" href="styles.css?v=20260910-brand-mark-2" />
-    <link rel="stylesheet" href="styles/card-composer.css?v=20260909-remove-gear-label-lines-1" />
-    <link rel="stylesheet" href="styles/editor-controls.css?v=20260909-remove-font-size-dock-1" />
-    <link rel="stylesheet" href="styles/card-readability.css?v=20260910-full-item-names-1" />
+    <script src="models/editor-theme.js?v=20261022-editor-theme-3"></script>
+    <link rel="stylesheet" href="styles/tokens.css?v=20261022-editor-theme-3" />
+    <link rel="stylesheet" href="styles.css?v=20261022-editor-polish-3" />
+    <link rel="stylesheet" href="styles/card-composer.css?v=20261024-slim-notes-1" />
+    <link rel="stylesheet" href="styles/editor-controls.css?v=20261022-editor-onboarding-1" />
+    <link rel="stylesheet" href="styles/card-readability.css?v=20261024-slim-notes-1" />
+    <link rel="stylesheet" href="styles/lucian-base.css?v=20261022-lucian-3" />
+    <link rel="stylesheet" href="styles/lucian-language.css?v=20261022-lucian-3" />
+    <link rel="stylesheet" href="styles/lucian-tour.css?v=20261022-lucian-3" />
+    <link rel="stylesheet" href="styles/lucian-theme-transition.css?v=20261022-lucian-3" />
+    <link rel="stylesheet" href="styles/equipment-controls.css?v=20261022-equipment-1" />
   </head>
   <body>
     <a class="skip-link" data-i18n="skip.editor" href="#canvas">편집 영역으로 건너뛰기</a>
     <div class="app-shell">
-      <header class="topbar">
+      <header class="topbar" data-theme-surface>
         <a class="wordmark" href="#canvas" data-i18n-aria-label="project.home" aria-label="투영세트메이커 02 · 룩북 홈">
           <span class="wordmark-mark" aria-hidden="true"></span><span class="wordmark-copy"><strong data-i18n="project.name">투영세트메이커</strong><small data-i18n="project.tagline">02 · 룩북</small></span>
         </a>
@@ -56,6 +62,14 @@
             <button class="topbar-history-button" id="undoButton" type="button" data-i18n-aria-label="canvas.undo" data-i18n-title="canvas.undo" aria-label="되돌리기" title="되돌리기" aria-keyshortcuts="Control+Z Meta+Z"><span class="sr-only" data-i18n="canvas.undo">되돌리기</span></button>
             <button class="topbar-history-button is-muted" id="redoButton" type="button" data-i18n-aria-label="canvas.redo" data-i18n-title="canvas.redo" aria-label="다시 실행" title="다시 실행" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z"><span class="sr-only" data-i18n="canvas.redo">다시 실행</span></button>
           </div>
+          <button class="editor-tour-trigger" id="editorTourButton" type="button" aria-haspopup="dialog" aria-label="편집기 사용법" title="편집기 사용법">
+            <span class="editor-tour-trigger-mark" aria-hidden="true">?</span>
+            <span class="editor-tour-trigger-label">사용법</span>
+          </button>
+          <button class="editor-theme-toggle" id="editorThemeToggle" type="button" aria-pressed="false" aria-label="화면 테마: 라이트. 어두운 화면으로 전환" title="어두운 화면으로 전환">
+            <span class="editor-theme-toggle-mark" id="editorThemeToggleMark" aria-hidden="true">☀</span>
+            <span id="editorThemeCurrent">라이트</span>
+          </button>
           <label class="language-select-control" for="languageSelect">
             <span class="language-select-label" data-i18n="language.label">언어</span>
             <span class="language-select-wrap">
@@ -70,7 +84,7 @@
         </div>
       </header>
 
-      <aside class="rail" data-i18n-aria-label="mode.aria" aria-label="작업 모드">
+      <aside class="rail" data-theme-surface data-i18n-aria-label="mode.aria" aria-label="작업 모드">
         <div class="rail-nav rail-mode-nav" role="tablist" data-i18n-aria-label="mode.aria" aria-label="작업 모드" aria-orientation="vertical">
           <button class="rail-button rail-mode-button mode-tab is-active" id="styleTab" data-panel="stylePanel" role="tab" aria-selected="true" aria-controls="stylePanel" type="button">
             <span class="tool-key" aria-hidden="true">01</span><small data-i18n="mode.style">꾸미기</small>
@@ -107,7 +121,7 @@
         </div>
       </aside>
 
-      <aside class="library-sidebar" id="lookLibrary" aria-label="LOOK BOOK">
+      <aside class="library-sidebar" id="lookLibrary" data-theme-surface aria-label="LOOK BOOK">
         <div class="collection-lockup">
           <strong>LOOK BOOK</strong>
         </div>
@@ -131,7 +145,7 @@
         <div class="workspace-grid">
           <section class="canvas-column" data-i18n-aria-label="canvas.aria" aria-label="룩 캔버스">
             <div class="stage-wrap">
-              <div class="text-editor-dock" id="textEditorDock" role="region" data-i18n-aria-label="copy.dock" aria-label="텍스트 빠른 편집" hidden>
+              <div class="text-editor-dock" id="textEditorDock" data-theme-surface role="region" data-i18n-aria-label="copy.dock" aria-label="텍스트 빠른 편집" hidden>
                 <div class="text-editor-dock-target">
                   <span class="text-editor-dock-target-mark" aria-hidden="true">T</span>
                   <div class="text-editor-dock-target-copy">
@@ -170,7 +184,7 @@
                   </div>
                 </div>
               </div>
-              <div class="text-editor-dock-popover" id="textEditorMoreMenu" role="dialog" aria-labelledby="textEditorOutlineTitle" hidden>
+              <div class="text-editor-dock-popover" id="textEditorMoreMenu" data-theme-surface role="dialog" aria-labelledby="textEditorOutlineTitle" hidden>
                 <div class="text-editor-dock-popover-head">
                   <div>
                     <span class="text-editor-dock-eyebrow" data-i18n="copy.dockKicker">텍스트 선택됨</span>
@@ -213,7 +227,7 @@
                   <small class="board-copyright" id="boardCopyright" data-i18n="card.copyright">© SQUARE ENIX</small>
                 </div>
               </div>
-              <div class="canvas-view-bar" id="canvasViewBar" role="group" data-i18n-aria-label="canvas.viewBar" aria-label="카드 보기 조절">
+              <div class="canvas-view-bar" id="canvasViewBar" data-theme-surface role="group" data-i18n-aria-label="canvas.viewBar" aria-label="카드 보기 조절">
                 <div class="canvas-view-context">
                   <svg class="ui-icon canvas-view-context-mark" aria-hidden="true" focusable="false"><use href="assets/icons/ui.svg#canvas-view"></use></svg>
                   <span data-i18n="canvas.viewLabel">카드 보기</span>
@@ -246,7 +260,7 @@
             </div>
           </section>
 
-          <aside class="inspector" data-i18n-aria-label="inspector.aria" aria-label="편집 속성">
+          <aside class="inspector" data-theme-surface data-i18n-aria-label="inspector.aria" aria-label="편집 속성">
             <div class="inspector-header">
               <div class="inspector-title-row">
                 <div><span data-i18n="inspector.detail">상세 편집</span><h1 id="inspectorTitle" data-i18n="mode.style">꾸미기</h1></div>
@@ -410,6 +424,28 @@
                   <div class="card-display-copy"><span data-i18n="background.info">장비 정보</span></div><details class="control-help"><summary data-i18n-aria-label="help.open" aria-label="도움말"><span class="control-help-icon" aria-hidden="true">?</span></summary><div class="control-help-popover"><p data-i18n="background.infoHint">3인 이상 카드에서 아이템 이름을 모두 보여줍니다.</p></div></details>
                   <label class="compact-switch card-display-switch"><input id="multiInfoToggle" type="checkbox" checked data-i18n-aria-label="background.displayAria" aria-label="카드에 장비 정보 표시" /><span></span><b data-i18n="background.display">표시</b></label>
                 </div>
+                <section class="card-composition-controls" id="cardCompositionControls" aria-labelledby="cardCompositionTitle">
+                  <div class="card-composition-heading"><h3 id="cardCompositionTitle" data-i18n="composition.title">카드 정보 배치</h3></div>
+                  <div class="card-composition-field">
+                    <span class="control-label" data-i18n="composition.layer">레이어</span>
+                    <div class="compact-segments composition-layer-controls" id="compositionLayerControls" role="group" data-i18n-aria-label="composition.layerAria" aria-label="카드 정보 레이어">
+                      <button class="is-selected" data-composition-layer="info-front" type="button" aria-pressed="true" data-i18n="composition.infoFront">정보 앞</button>
+                      <button data-composition-layer="person-front" type="button" aria-pressed="false" data-i18n="composition.personFront">인물 앞</button>
+                    </div>
+                  </div>
+                  <label class="compact-switch composition-protect-toggle">
+                    <input id="protectCardText" type="checkbox" checked data-i18n-aria-label="composition.protectText" aria-label="글자 보호" />
+                    <span></span><b data-i18n="composition.protectText">글자 보호</b>
+                  </label>
+                  <p class="compact-control-hint" id="compositionProtectHint" data-i18n="composition.protectHint">장비 이름이 캐릭터에 가리지 않도록 유지합니다.</p>
+                  <label class="card-composition-gap" for="infoGapRange">
+                    <span class="card-composition-gap-head"><span data-i18n="composition.infoGap">정보 간격</span><output id="infoGapValue" for="infoGapRange" aria-live="polite">0 px</output></span>
+                    <input id="infoGapRange" type="range" min="0" max="64" step="1" value="0" data-i18n-aria-label="composition.infoGapAria" aria-label="정보와 인물 사이 간격" />
+                  </label>
+                  <p class="compact-control-hint composition-layer-hint" id="compositionLayerHint" role="status" aria-live="polite" hidden></p>
+                  <p class="compact-control-hint composition-focus-hint" id="compositionFocusHint" role="status" aria-live="polite" hidden></p>
+                  <p class="compact-control-hint composition-count-hint" id="compositionCountHint" aria-live="polite"></p>
+                </section>
                 <div class="compact-option-row" id="singleRatioRow"><span data-i18n="background.ratio">1인 비율</span><div class="compact-segments" role="group" data-i18n-aria-label="background.ratioAria" aria-label="1인 카드 비율"><button class="is-selected" data-single-ratio="portrait" data-i18n="background.portrait" type="button">세로 4:5</button><button data-single-ratio="landscape" data-i18n="background.landscape" type="button">가로 16:9</button></div></div>
                 <div class="compact-option-row" id="singleLayoutRow"><span data-i18n="background.layout">1인 배치</span><div class="compact-segments" role="group" data-i18n-aria-label="background.layoutAria" aria-label="1인 카드 배치"><button class="is-selected" data-single-layout="info-left" data-i18n="background.infoLeft" type="button">정보 왼쪽</button><button data-single-layout="info-right" data-i18n="background.infoRight" type="button">정보 오른쪽</button></div></div>
                 <div class="background-art-panel" id="backgroundArtPanel">
@@ -489,7 +525,18 @@
 
             <div class="inspector-panel is-hidden" id="itemsPanel" role="tabpanel" aria-labelledby="itemsTab" hidden>
               <section class="inspector-section items-intro-section">
-                <div class="items-summary"><h2 id="itemsSummaryTitle" aria-live="polite" aria-atomic="true">캐릭터 01</h2></div>
+                <div class="items-summary gear-sheet-summary">
+                  <div class="gear-sheet-summary-head"><h2 id="itemsSummaryTitle" aria-live="polite" aria-atomic="true">캐릭터 01</h2></div>
+                  <div class="gear-sheet-tools">
+                    <div class="gear-sheet-actions" role="group" data-i18n-aria-label="sheet.actions" aria-label="장비 시트 내보내기">
+                    <button class="secondary-button gear-sheet-action" id="exportSelectedGearSheet" type="button" data-i18n="sheet.selected">선택 캐릭터 장비 시트</button>
+                    <button class="secondary-button gear-sheet-action" id="exportAllGearSheets" type="button" data-i18n="sheet.allActive">전체 캐릭터 ZIP</button>
+                    </div>
+                    <p class="gear-sheet-hint" data-i18n="sheet.selectedHint">한 장은 PNG, 여러 장은 ZIP으로 저장합니다.</p>
+                    <p class="gear-sheet-hint" id="gearSheetAllHint" aria-live="polite"></p>
+                    <p class="gear-sheet-status" id="gearSheetStatus" role="status" aria-live="polite" aria-atomic="true"></p>
+                  </div>
+                </div>
               </section>
               <section class="inspector-section item-character-section">
                 <div class="item-character-selector" id="itemCharacterSelector" role="group" data-i18n-aria-label="item.selector" aria-label="장비를 편집할 캐릭터"></div>
@@ -503,13 +550,55 @@
                 <div class="section-kicker"><span data-i18n="item.section">장비</span></div>
                 <div class="equipment-list" id="equipmentList"></div>
               </section>
+              <section class="inspector-section extra-equipment-section" id="extraEquipmentSection" aria-labelledby="extraEquipmentTitle">
+                <div class="panel-section-head">
+                  <div class="panel-section-head-copy"><span class="panel-eyebrow" data-i18n="equipment.eyebrow">확장 장비</span><h2 id="extraEquipmentTitle" data-i18n="equipment.extraTitle">추가 장비</h2></div>
+                  <span class="equipment-entry-count" id="extraEquipmentCount" aria-live="polite" aria-atomic="true">0 / 32</span>
+                </div>
+                <div class="extra-equipment-groups" id="extraEquipmentGroups"></div>
+                <details class="extra-entry-editor" id="extraEntryEditor">
+                  <summary id="extraEntryEditorSummary" data-i18n="equipment.add">추가 장비 등록</summary>
+                  <form id="extraEntryForm" novalidate>
+                    <label class="extra-entry-field" for="extraEntryGroupSelect">
+                      <span data-i18n="equipment.groupLabel">분류</span>
+                      <select id="extraEntryGroupSelect" required aria-describedby="extraEntryNameHint"></select>
+                    </label>
+                    <label class="extra-entry-field" for="extraEntrySlotSelect">
+                      <span data-i18n="equipment.slotLabel">슬롯</span>
+                      <select id="extraEntrySlotSelect" required></select>
+                    </label>
+                    <label class="extra-entry-field" for="extraEntryNameInput">
+                      <span id="extraEntryNameLabel" data-i18n="equipment.manualName">이름</span>
+                      <input id="extraEntryNameInput" type="text" maxlength="160" autocomplete="off" required data-i18n-placeholder="equipment.manualNamePlaceholder" placeholder="장비 이름 입력" />
+                    </label>
+                    <p class="extra-entry-hint" id="extraEntryNameHint" data-i18n="equipment.manualNameHint">현재 언어의 이름으로 저장합니다.</p>
+                    <details class="extra-entry-more" id="extraEntryMore">
+                      <summary data-i18n="equipment.multilingual">다국어 이름과 메모</summary>
+                      <label class="extra-entry-field" for="extraEntryEnglishInput"><span data-i18n="equipment.nameEnglish">영어 이름</span><input id="extraEntryEnglishInput" type="text" maxlength="160" autocomplete="off" /></label>
+                      <label class="extra-entry-field" for="extraEntryJapaneseInput"><span data-i18n="equipment.nameJapanese">일본어 이름</span><input id="extraEntryJapaneseInput" type="text" maxlength="160" autocomplete="off" /></label>
+                      <label class="extra-entry-field" for="extraEntryNoteInput"><span data-i18n="equipment.note">메모</span><input id="extraEntryNoteInput" type="text" maxlength="160" autocomplete="off" data-i18n-placeholder="equipment.notePlaceholder" placeholder="선택 입력" /></label>
+                    </details>
+                    <div class="extra-catalog-search" id="extraCatalogSearchGroup">
+                      <label class="search-field" for="extraItemSearch"><span class="field-label" data-i18n="equipment.catalogSearch">카탈로그 검색</span><input id="extraItemSearch" type="search" autocomplete="off" data-i18n-placeholder="equipment.catalogSearchPlaceholder" placeholder="아이템 이름 또는 ID" /></label>
+                      <p class="extra-entry-hint" id="extraCatalogHint" data-i18n="equipment.catalogSearchHint">검색 결과를 선택해 원본 아이템 ID를 연결할 수 있습니다.</p>
+                      <p id="extraCatalogStatus" class="sr-only" role="status" aria-atomic="true"></p>
+                      <div class="catalog-results extra-catalog-results" id="extraCatalogResults"></div>
+                    </div>
+                    <div class="extra-entry-actions">
+                      <button class="primary-button" id="extraEntrySaveButton" type="submit" data-i18n="equipment.add">등록</button>
+                      <button class="secondary-button" id="extraEntryCancelButton" type="button" data-i18n="equipment.cancel">취소</button>
+                    </div>
+                  </form>
+                </details>
+                <p class="extra-equipment-status" id="extraEquipmentStatus" role="status" aria-live="polite" aria-atomic="true"></p>
+              </section>
             </div>
           </aside>
         </div>
       </main>
     </div>
 
-    <div class="image-editor-dialog image-editor-modebar" id="imageEditorDialog" role="region" aria-labelledby="imageEditorTitle" aria-describedby="imageEditorDescription" hidden>
+    <div class="image-editor-dialog image-editor-modebar" id="imageEditorDialog" data-theme-surface role="region" aria-labelledby="imageEditorTitle" aria-describedby="imageEditorDescription" hidden>
       <div class="image-editor-dialog-shell">
         <header class="image-editor-dialog-header">
           <div><span class="dialog-kicker" data-i18n="imageEditor.kicker">카드에서 직접 편집</span><h2 id="imageEditorTitle" data-i18n="imageEditor.title">크기와 위치 맞추기</h2><p id="imageEditorDescription" data-i18n="imageEditor.description">선택한 캐릭터만 강조됩니다. 카드에서 드래그하거나 방향키로 이동하세요.</p></div>
@@ -536,12 +625,12 @@
       </div>
     </div>
 
-    <dialog id="deleteWorkspaceDialog" class="delete-workspace-dialog" aria-labelledby="deleteWorkspaceTitle" aria-describedby="deleteWorkspaceDescription">
+    <dialog id="deleteWorkspaceDialog" class="delete-workspace-dialog" data-theme-surface aria-labelledby="deleteWorkspaceTitle" aria-describedby="deleteWorkspaceDescription">
       <h2 id="deleteWorkspaceTitle" data-i18n="dialog.deleteTitle">이 브라우저의 작업을 모두 삭제할까요?</h2>
       <p id="deleteWorkspaceDescription" data-i18n="dialog.deleteDescription">LOOK BOOK, 원본 사진, 배경 제거 이미지를 모두 삭제합니다. 삭제한 데이터는 되돌릴 수 없습니다.</p>
       <div class="delete-workspace-actions"><button id="cancelWorkspaceDelete" data-i18n="dialog.deleteCancel" type="button" autofocus>취소</button><button id="confirmWorkspaceDelete" data-i18n="dialog.deleteConfirm" type="button">모두 삭제</button></div>
     </dialog>
-    <dialog id="lookManagerDialog" class="look-manager-dialog" aria-labelledby="lookManagerTitle">
+    <dialog id="lookManagerDialog" class="look-manager-dialog" data-theme-surface aria-labelledby="lookManagerTitle">
       <header><h2 id="lookManagerTitle" data-i18n="manager.title">룩 관리</h2><button id="closeLookManager" type="button" data-i18n-aria-label="manager.close" aria-label="룩 관리 닫기">×</button></header>
       <form id="renameLookForm">
         <label for="lookNameInput" data-i18n="manager.name">룩 이름</label>
@@ -553,30 +642,37 @@
       <footer><button id="restoreDeletedLookButton" data-i18n="manager.restore" type="button" disabled>삭제 취소</button><span id="lookManagerStatus" role="status" aria-live="polite"></span></footer>
     </dialog>
     <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden />
-    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="toast" id="toast" data-theme-surface role="status" aria-live="polite"></div>
     <script defer src="models/look-editor.js?v=20260906-redesign-1"></script>
     <script defer src="models/look-book.js?v=20260906-management-1"></script>
-    <script defer src="models/look-record.js?v=20260911-look-record-1"></script>
+    <script defer src="models/equipment.js?v=20261022-equipment-1"></script>
+    <script defer src="models/look-record.js?v=20261022-equipment-1"></script>
     <script defer src="models/image-assets.js?v=20260907-project-name-1"></script>
     <script defer src="models/image-validation.js?v=20260908-source-preserving-1"></script>
     <script defer src="models/draft-storage.js?v=20260908-draft-storage-3"></script>
     <script defer src="models/draft-autosave.js?v=20260911-draft-autosave-1"></script>
-    <script defer src="models/draft-schema.js?v=20260910-draft-canonical-1"></script>
-    <script defer src="models/i18n.js?v=20260909-remove-font-size-dock-1"></script>
-    <script defer src="models/item-records.js?v=20260908-item-records-1"></script>
+    <script defer src="models/draft-schema.js?v=20261022-equipment-1"></script>
+    <script defer src="models/i18n.js?v=20261022-equipment-1"></script>
+    <script defer src="models/item-records.js?v=20261022-equipment-1"></script>
     <script defer src="models/item-search.js?v=20260908-language-aware-search-1"></script>
     <script defer src="models/crop-plan.js?v=20260908-crop-plan-1"></script>
-    <script defer src="models/card-layout.js?v=20260908-gear-layout-2"></script>
+    <script defer src="models/card-layout.js?v=20261022-equipment-1"></script>
+    <script defer src="models/card-composition.js?v=20261024-slim-notes-1"></script>
     <script defer src="models/card-copy.js?v=20260909-floating-text-toolbar-1"></script>
     <script defer src="models/color-contrast.js?v=20260907-silhouette-contrast-1"></script>
-    <script defer src="models/card-materials.js?v=20260908-material-kit-1"></script>
+    <script defer src="models/card-materials.js?v=20261022-card-materials-1"></script>
     <script defer src="models/card-gear-copy.js?v=20260910-full-item-names-1"></script>
-    <script defer src="models/card-png.js?v=20260910-full-item-names-1"></script>
+    <script defer src="models/card-png.js?v=20261024-slim-notes-1"></script>
+    <script defer src="models/gear-sheet.js?v=20261022-equipment-1"></script>
+    <script defer src="models/zip-store.js?v=20261022-equipment-1"></script>
+    <script defer src="models/equipment-sheet-export.js?v=20261022-equipment-1"></script>
     <script defer src="models/editor-navigation.js?v=20260906-navigation-1"></script>
     <script defer src="models/editor-history.js?v=20260911-editor-history-1"></script>
     <script defer src="models/title-typography.js?v=20260908-title-fonts-1"></script>
     <script defer src="models/background-style.js?v=20260911-background-style-1"></script>
     <script defer src="models/background-removal.js?v=20260907-browser-birefnet-3"></script>
-    <script defer src="app.js?v=20260911-editor-history-1"></script>
+    <script defer src="app.js?v=20261024-slim-notes-1"></script>
+    <script defer src="models/lucian-language.js?v=20261022-lucian-3"></script>
+    <script defer src="models/lucian-tour.js?v=20261022-lucian-3"></script>
   </body>
 </html>

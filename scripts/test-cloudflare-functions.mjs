@@ -39,6 +39,28 @@ try {
     "body",
     "special costume categories must remain searchable when the API omits nested slot fields",
   );
+  const accessoryCategories = [
+    [9, "earrings", "귀걸이", "Earrings"],
+    [10, "necklace", "목걸이", "Necklace"],
+    [11, "bracelet", "팔찌", "Bracelet"],
+    [12, "ring", "반지", "Ring"],
+  ];
+  accessoryCategories.forEach(([category, slot, koreanLabel, englishLabel]) => {
+    const item = normaliseXivItem({
+      row_id: String(category),
+      fields: {
+        Name: "Test accessory",
+        LevelItem: { value: 1 },
+        EquipSlotCategory: { value: category },
+      },
+    }, "en");
+    assert.equal(item.slot, slot, `EquipSlotCategory ${category} should map to ${slot}`);
+    assert.equal(item.meta.en, `${englishLabel} · i1`);
+    assert.equal(normaliseXivItem({
+      row_id: String(category),
+      fields: { Name: "테스트 액세서리", LevelItem: 1, EquipSlotCategory: { value: category } },
+    }, "ko").meta.ko, `${koreanLabel} · i1`);
+  });
   assert.equal(
     searchKoreanItems([
       { id: "32799", slot: "body", names: { ko: "송아지 가죽 라이더 재킷" }, itemLevel: 1 },
@@ -120,6 +142,33 @@ try {
   const localizedKoreanPayload = await localizedKoreanResponse.json();
   assert.equal(localizedKoreanPayload.language, "ko");
   assert.equal(localizedKoreanPayload.results[0].id, "15479", "a Korean body query should return 아기돼지 의상 even when the page is English");
+
+  const accessoryRecords = [
+    ["earrings", "1521", "구식 구리 귀걸이"],
+    ["necklace", "1540", "구식 구리 목장식"],
+    ["bracelet", "1557", "구식 구리 팔찌"],
+    ["ring", "1581", "구식 뼈 반지"],
+  ];
+  for (const [slot, id, name] of accessoryRecords) {
+    let requestedAsset = "";
+    const response = await onRequestGet({
+      request: new Request(`https://tuyeong-set-maker2.example/api/items/search?q=${encodeURIComponent(name)}&slot=${slot}&language=ko`),
+      env: {
+        ASSETS: {
+          fetch: async (url) => {
+            requestedAsset = String(url);
+            return new Response(JSON.stringify([{ id, slot, names: { ko: name }, itemLevel: 1 }]), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          },
+        },
+      },
+    });
+    assert.equal(response.status, 200, `${slot} snapshot search should succeed`);
+    assert.equal((await response.json()).results[0].id, id, `${slot} search should return its matching item`);
+    assert.ok(requestedAsset.endsWith(`/assets/data/items-ko-${slot}.json`), `${slot} search should fetch its partition`);
+  }
 
   let response = await onRequestPost({ request: request(), env: {} });
   assert.equal(response.status, 503);

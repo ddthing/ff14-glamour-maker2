@@ -3,6 +3,9 @@
  * The app keeps cache/state coordination; this module owns the field shape,
  * defaulting, and compatibility rules shared by load and save paths.
  */
+const LookRecordEquipmentModule = typeof module !== "undefined" && module.exports
+  ? require("./equipment.js")
+  : globalThis.Equipment;
 const LookRecord = (() => {
   function create({
     createBlankLook,
@@ -11,6 +14,7 @@ const LookRecord = (() => {
     backgroundStyle,
     colors,
     outfits,
+    equipment = LookRecordEquipmentModule,
   } = {}) {
     if (typeof createBlankLook !== "function") throw new TypeError("LookRecord needs a blank-look factory.");
     if (!editor?.create || !editor?.normalize || !editor?.serializeCharacter) {
@@ -27,12 +31,14 @@ const LookRecord = (() => {
     if (!outfits?.create || !outfits?.clone || !outfits?.ensure || !outfits?.get) {
       throw new TypeError("LookRecord needs an outfit policy.");
     }
+    if (!equipment?.ensureLook) throw new TypeError("LookRecord needs an equipment policy.");
 
     function normalizeFont(fontKey) {
       return title.fonts[fontKey] ? fontKey : title.defaultFont;
     }
 
     function normalizeSaved(value, index) {
+      const normalizedEquipment = equipment.ensureLook(value);
       const id = typeof value?.id === "string" && value.id.trim()
         ? value.id.trim().slice(0, 80)
         : `look-${index + 1}`;
@@ -59,6 +65,9 @@ const LookRecord = (() => {
       look.outline = colors.normalizeOutline(value?.outline, "#f1dfbb", 8);
       look.titleOutline = colors.normalizeOutline(value?.titleOutline, "#ffffff", 6);
       look.outfits = Array.isArray(value?.outfits) ? outfits.clone(value.outfits) : outfits.create([]);
+      look.extraEquipment = normalizedEquipment.extraEquipment;
+      look.cardVisibility = normalizedEquipment.cardVisibility;
+      look.cardComposition = normalizedEquipment.cardComposition;
       look.editor = value?.editor ? editor.normalize(value.editor) : null;
       outfits.ensure(look);
       return look;
@@ -67,11 +76,15 @@ const LookRecord = (() => {
     function serialize(look) {
       const normalizedEditor = editor.normalize(look.editor || editor.create());
       const backgroundFields = backgroundStyle.normaliseBackgroundFields(look);
+      const normalizedEquipment = equipment.ensureLook(look);
       return {
         id: String(look.id),
         title: typeof look.title === "string" ? look.title : "새로운 룩",
         subtitle: typeof look.subtitle === "string" ? look.subtitle : "",
         outfits: outfits.clone(outfits.get(look)),
+        extraEquipment: normalizedEquipment.extraEquipment,
+        cardVisibility: normalizedEquipment.cardVisibility,
+        cardComposition: normalizedEquipment.cardComposition,
         ...backgroundFields,
         titleFont: normalizeFont(look.titleFont),
         titleWeight: title.normalizeWeight(look.titleFont || title.defaultFont, look.titleWeight ?? title.defaultWeight),

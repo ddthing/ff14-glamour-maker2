@@ -1135,41 +1135,6 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
   pointer-events: none;
 }
 
-.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-tile-tape {
-  --scrapbook-tape-left: 16%;
-  --scrapbook-tape-width: 24%;
-  display: block;
-  position: absolute;
-  top: -7%;
-  left: var(--scrapbook-tape-left);
-  z-index: 2;
-  width: var(--scrapbook-tape-width);
-  height: 12%;
-  clip-path: polygon(1% 8%, 98% 0, 100% 91%, 3% 100%);
-  background: rgb(215 187 141 / .72);
-  transform: rotate(-1deg);
-  content: "";
-  pointer-events: none;
-}
-
-.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item:nth-child(even) .gear-tile-tape {
-  --scrapbook-tape-left: auto;
-  --scrapbook-tape-right: 15%;
-  --scrapbook-tape-width: 21%;
-  right: var(--scrapbook-tape-right);
-  left: auto;
-  background: rgb(194 205 195 / .78);
-  transform: rotate(1deg);
-}
-
-.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item:nth-child(3n) .gear-tile-tape {
-  --scrapbook-tape-left: 52%;
-  --scrapbook-tape-width: 27%;
-  left: 52%;
-  background: rgb(205 174 145 / .72);
-  transform: rotate(-1.4deg);
-}
-
 .canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item:nth-child(2n) .gear-note-surface {
   background:
     linear-gradient(90deg, var(--scrapbook-slot-color, #6f8790) 0 var(--scrapbook-stripe-width), transparent var(--scrapbook-stripe-width) 100%),
@@ -1277,26 +1242,27 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
   filter: drop-shadow(4px 7px 0 rgb(48 69 75 / .13)) drop-shadow(0 12px 18px rgb(48 69 75 / .08));
 }
 
-.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item:nth-child(1) { --material-note-tint: #f4e8d7; --material-position: 12% 12%; }
-.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item:nth-child(2) { --material-note-tint: #e7ddd0; --material-position: 82% 18%; }
-.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item:nth-child(3) { --material-note-tint: #e9d7d0; --material-position: 20% 82%; }
-.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item:nth-child(4) { --material-note-tint: #e0e5d9; --material-position: 75% 76%; }
-.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item:nth-child(5) { --material-note-tint: #f1e2ca; --material-position: 50% 50%; }
+.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item:nth-child(1) { --material-note-tint: #f4e8d7; --material-position: 12% 12%; --material-tape-left: 37%; --material-tape-width: 25%; --material-tape-height: 10%; --material-tape-rotation: -1deg; --material-tape-color: rgb(211 181 137 / .76); }
+.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item:nth-child(2) { --material-note-tint: #e7ddd0; --material-position: 82% 18%; --material-tape-left: 64%; --material-tape-width: 21%; --material-tape-height: 12%; --material-tape-rotation: 1deg; --material-tape-color: rgb(165 184 181 / .72); }
+.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item:nth-child(3) { --material-note-tint: #e9d7d0; --material-position: 20% 82%; --material-tape-left: 52%; --material-tape-width: 27%; --material-tape-height: 12%; --material-tape-rotation: -1.4deg; --material-tape-color: rgb(220 193 157 / .74); }
+.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item:nth-child(4) { --material-note-tint: #e0e5d9; --material-position: 75% 76%; --material-tape-left: 64%; --material-tape-width: 21%; --material-tape-height: 12%; --material-tape-rotation: 1deg; --material-tape-color: rgb(165 184 181 / .72); }
+.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item:nth-child(5) { --material-note-tint: #f1e2ca; --material-position: 50% 50%; --material-tape-left: 37%; --material-tape-width: 25%; --material-tape-height: 10%; --material-tape-rotation: -1deg; --material-tape-color: rgb(211 181 137 / .76); }
 
-.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item:nth-child(1) { --material-note-tint: #f7f0e3; --material-position: 50% 12%; }
-.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item:nth-child(2) { --material-note-tint: #e7eef0; --material-position: 84% 22%; }
-.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item:nth-child(3) { --material-note-tint: #edf0e7; --material-position: 18% 78%; }
-.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item:nth-child(4) { --material-note-tint: #eef2f3; --material-position: 76% 74%; }
-.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item:nth-child(5) { --material-note-tint: #f4eee4; --material-position: 50% 52%; }
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item:nth-child(1) { --material-note-tint: #f7f0e3; --material-position: 50% 12%; --material-tape-left: 16%; --material-tape-width: 24%; --material-tape-height: 12%; --material-tape-rotation: -1deg; --material-tape-color: rgb(198 213 217 / .66); }
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item:nth-child(2) { --material-note-tint: #e7eef0; --material-position: 84% 22%; --material-tape-left: 64%; --material-tape-width: 21%; --material-tape-height: 12%; --material-tape-rotation: 1deg; --material-tape-color: rgb(190 205 193 / .72); }
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item:nth-child(3) { --material-note-tint: #edf0e7; --material-position: 18% 78%; --material-tape-left: 52%; --material-tape-width: 27%; --material-tape-height: 12%; --material-tape-rotation: -1.4deg; --material-tape-color: rgb(219 196 164 / .66); }
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item:nth-child(4) { --material-note-tint: #eef2f3; --material-position: 76% 74%; --material-tape-left: 64%; --material-tape-width: 21%; --material-tape-height: 12%; --material-tape-rotation: 1deg; --material-tape-color: rgb(190 205 193 / .72); }
+.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item:nth-child(5) { --material-note-tint: #f4eee4; --material-position: 50% 52%; --material-tape-left: 16%; --material-tape-width: 24%; --material-tape-height: 12%; --material-tape-rotation: -1deg; --material-tape-color: rgb(198 213 217 / .66); }
 
 .canvas-board[data-background-pattern="collage"] .board-gear-tiles .gear-tile-tape,
 .canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-tile-tape {
   display: block;
   position: absolute;
   top: -7%;
-  left: 16%;
-  width: 24%;
-  height: 12%;
+  right: auto;
+  left: var(--material-tape-left, 16%);
+  width: var(--material-tape-width, 24%);
+  height: var(--material-tape-height, 12%);
   clip-path: polygon(1% 8%, 98% 0, 100% 91%, 3% 100%);
   z-index: 2;
   border: 1px solid rgb(82 70 56 / .1);
@@ -1306,49 +1272,9 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
   background-position: 0 0, center;
   background-size: 100% 100%, 260% 260%;
   background-blend-mode: soft-light, multiply;
+  background-color: var(--material-tape-color, rgb(198 213 217 / .66));
   box-shadow: inset 0 1px 0 rgb(255 255 255 / .32);
-}
-
-.canvas-board[data-background-pattern="collage"] .board-gear-tiles .gear-tile-tape {
-  left: 37%;
-  width: 25%;
-  height: 10%;
-  background-color: rgb(211 181 137 / .76);
-  transform: rotate(-1deg);
-}
-
-.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .gear-tile-tape {
-  background-color: rgb(198 213 217 / .66);
-}
-
-.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item:nth-child(even) .gear-tile-tape {
-  right: 15%;
-  left: auto;
-  width: 21%;
-  transform: rotate(1deg);
-  background-color: rgb(165 184 181 / .72);
-}
-
-.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item:nth-child(even) .gear-tile-tape {
-  right: 15%;
-  left: auto;
-  width: 21%;
-  transform: rotate(1deg);
-  background-color: rgb(190 205 193 / .72);
-}
-
-.canvas-board[data-background-pattern="scrapbook"] .board-gear-tiles .board-gear-item:nth-child(3n) .gear-tile-tape {
-  left: 52%;
-  width: 27%;
-  background-color: rgb(219 196 164 / .66);
-  transform: rotate(-1.4deg);
-}
-
-.canvas-board[data-background-pattern="collage"] .board-gear-tiles .board-gear-item:nth-child(3n) .gear-tile-tape {
-  left: 52%;
-  width: 27%;
-  background-color: rgb(220 193 157 / .74);
-  transform: rotate(-1.4deg);
+  transform: rotate(var(--material-tape-rotation, -1deg));
 }
 
 .canvas-board[data-background-pattern="collage"] .board-gear-tiles .gear-note-stamp,
@@ -1486,4 +1412,220 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
 .canvas-board .multi-info-item > small:has(.gear-name-translation) {
   opacity: .8;
   letter-spacing: 0;
+}
+
+/* Protected copy is always an opaque, theme-aware plane. This is the same
+   surface painted by CardPng when a person sits above the note material. */
+.canvas-board {
+  --card-copy-protected-surface: #fffaf4;
+  --card-copy-protected-ink: #263238;
+  --card-copy-protected-muted: rgb(38 50 56 / .68);
+  --card-copy-protected-edge: rgb(38 50 56 / .18);
+}
+
+.canvas-board[data-background-tone="dark"] {
+  --card-copy-protected-surface: #1d2228;
+  --card-copy-protected-ink: #f7f3ed;
+  --card-copy-protected-muted: rgb(247 243 237 / .68);
+  --card-copy-protected-edge: rgb(247 243 237 / .24);
+}
+
+.canvas-board[data-background-pattern="collage"] {
+  --card-copy-protected-surface: #f4e8d7;
+  --card-copy-protected-ink: #3f3933;
+  --card-copy-protected-muted: rgb(63 57 51 / .64);
+  --card-copy-protected-edge: rgb(63 57 51 / .2);
+}
+
+.canvas-board[data-background-pattern="scrapbook"] {
+  --card-copy-protected-surface: #f7f0e3;
+  --card-copy-protected-ink: #294650;
+  --card-copy-protected-muted: rgb(41 70 80 / .62);
+  --card-copy-protected-edge: rgb(41 70 80 / .22);
+}
+
+.canvas-board[data-composition-custom="true"] #boardGearList .gear-tile-copy {
+  outline: none;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--card-copy-protected-ink);
+  align-content: start;
+  justify-items: start;
+  text-align: left;
+}
+
+.canvas-board[data-composition-custom="true"][data-copy-protection="false"] #boardGearList .gear-tile-copy {
+  background: transparent;
+}
+
+.canvas-board[data-composition-custom="true"] #boardGearList .gear-tile-copy > .gear-slot-label {
+  color: var(--card-copy-protected-muted);
+  font-family: var(--sans);
+  font-weight: 600;
+}
+
+.canvas-board[data-composition-custom="true"] #boardGearList .gear-tile-copy > strong {
+  color: var(--card-copy-protected-ink);
+  font-family: var(--sans);
+  font-weight: 700;
+}
+
+.canvas-board[data-composition-custom="true"] #boardGearList .gear-tile-copy > .gear-item-secondary {
+  color: var(--card-copy-protected-muted);
+  font-family: var(--sans);
+  font-weight: 500;
+}
+
+.canvas-board[data-gear-copy-rendered="true"][data-composition-custom="true"] #boardGearList .gear-tile-copy {
+  filter: opacity(0);
+}
+
+/* Custom plans use one quiet rounded surface per note. The button itself is
+   only the hit target; its note surface owns the sole perimeter. */
+.canvas-board[data-composition-custom="true"] #boardGearList .board-gear-item,
+.canvas-board[data-composition-custom="true"] #boardGearSurfaceLayer .board-gear-surface-item {
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: none;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.canvas-board[data-composition-custom="true"] #boardGearList .board-gear-item:focus-visible {
+  outline: 2px solid var(--primary) !important;
+  outline-offset: 2px;
+}
+
+.canvas-board[data-composition-custom="true"] #boardGearList .gear-note-surface,
+.canvas-board[data-composition-custom="true"] #boardGearSurfaceLayer .gear-note-surface {
+  display: block !important;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  box-sizing: border-box;
+  border: var(--card-plan-unit-scale, 1px) solid var(--card-copy-protected-edge);
+  border-radius: calc(var(--plan-note-radius, 8) * var(--card-plan-unit-scale, 1px)) !important;
+  clip-path: none !important;
+  filter: none !important;
+  background-color: var(--material-note-tint, var(--card-copy-protected-surface));
+  background-image: none !important;
+  box-shadow: none !important;
+  pointer-events: none;
+}
+
+.canvas-board[data-composition-custom="true"][data-composition-layer="person-front"] #boardGearList .gear-note-surface {
+  display: none !important;
+}
+
+.canvas-board[data-composition-custom="true"][data-composition-layer="person-front"] #boardGearSurfaceLayer .gear-note-surface {
+  display: block !important;
+}
+
+.canvas-board[data-composition-custom="true"] #boardGearList .gear-tile-tape,
+.canvas-board[data-composition-custom="true"] #boardGearList .gear-note-stamp,
+.canvas-board[data-composition-custom="true"] #boardGearSurfaceLayer .gear-tile-tape,
+.canvas-board[data-composition-custom="true"] #boardGearSurfaceLayer .gear-note-stamp {
+  display: none !important;
+}
+
+.canvas-board[data-composition-custom="true"] #boardGearList .gear-note-protection {
+  display: none;
+  position: absolute;
+  left: var(--plan-protection-left, 0%);
+  top: var(--plan-protection-top, 0%);
+  width: var(--plan-protection-width, 100%);
+  height: var(--plan-protection-height, 100%);
+  z-index: 1;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: calc(var(--plan-note-radius, 8) * var(--card-plan-unit-scale, 1px));
+  background-color: var(--material-note-tint, var(--card-copy-protected-surface));
+  pointer-events: none;
+}
+
+.canvas-board[data-composition-custom="true"][data-composition-layer="person-front"][data-copy-protection="true"] #boardGearList .gear-note-protection {
+  display: block;
+}
+
+.canvas-board[data-gear-copy-rendered="true"][data-composition-custom="true"] #boardGearList .gear-note-protection {
+  display: none !important;
+}
+
+.canvas-board[data-composition-custom="true"] #boardGearList .gear-tile-copy {
+  position: absolute;
+  z-index: 2;
+  padding: 0;
+  text-align: left;
+}
+
+.canvas-board[data-composition-custom="true"] #boardGearList .gear-tile-copy > .gear-slot-label,
+.canvas-board[data-composition-custom="true"] #boardGearList .gear-tile-copy > strong,
+.canvas-board[data-composition-custom="true"] #boardGearList .gear-tile-copy > .gear-item-secondary {
+  text-align: left;
+}
+
+/* When the preview card itself is small, fixed title/subtitle minima consume
+   the space above the first information row. Scale the header to the card's
+   width, keep both copy fields in normal flow, and let long values wrap. */
+@container (max-width: 480px) {
+  .canvas-board[data-ratio][data-cast] .board-editorial-header {
+    padding: .8cqw 3cqw 0 !important;
+  }
+
+  .canvas-board[data-ratio][data-cast] .board-editorial-header .board-title-block {
+    --card-title-line-slot: clamp(7px, 5.7cqw, 12px);
+    --card-subtitle-line-slot: clamp(4px, 3.2cqw, 7px);
+    --card-title-gap: clamp(.5px, .6cqw, 1.5px);
+    --card-title-glyph-safe: clamp(.25px, .2cqw, .75px);
+    grid-template-rows: auto auto;
+    row-gap: var(--card-title-gap);
+    height: auto;
+  }
+
+  .canvas-board[data-ratio][data-cast] .board-editorial-header .board-title-block > strong {
+    height: auto;
+    padding-inline: var(--card-title-glyph-safe);
+    font-size: clamp(6px, 5.2cqw, 11px);
+    line-height: 1;
+  }
+
+  .canvas-board[data-ratio][data-cast] .board-editorial-header .caption-description {
+    display: block !important;
+    height: auto !important;
+    min-height: 0;
+    max-width: 100%;
+    margin: 0 !important;
+    overflow: visible !important;
+    font-size: clamp(3px, 2.7cqw, 6px) !important;
+    line-height: 1.1;
+    text-overflow: clip;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+  }
+
+  .canvas-board[data-ratio][data-cast] .board-copyright {
+    font-size: clamp(4px, 3.2cqw, 8px);
+  }
+
+  /* Solo portrait cards have a taller gap before their first note row, so
+     retain a slightly larger title and subtitle there. */
+  .canvas-board[data-ratio="portrait"][data-cast="1"] .board-editorial-header {
+    padding: 2cqw 5cqw 0 !important;
+  }
+
+  .canvas-board[data-ratio="portrait"][data-cast="1"] .board-editorial-header .board-title-block {
+    --card-title-line-slot: clamp(10px, 9cqw, 18px);
+    --card-subtitle-line-slot: clamp(6px, 5cqw, 10px);
+    --card-title-gap: clamp(1px, .8cqw, 2px);
+    --card-title-glyph-safe: clamp(.5px, .25cqw, 1px);
+  }
+
+  .canvas-board[data-ratio="portrait"][data-cast="1"] .board-editorial-header .board-title-block > strong {
+    font-size: clamp(8px, 7cqw, 14px);
+  }
+
+  .canvas-board[data-ratio="portrait"][data-cast="1"] .board-editorial-header .caption-description {
+    font-size: clamp(4px, 4cqw, 8px) !important;
+  }
 }

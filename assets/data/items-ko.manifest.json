@@ -8,23 +8,27 @@
     "url": "https://raw.githubusercontent.com/Ra-Workspace/ffxiv-datamining-ko/66eceba69eb2398958bdb133b241a69c13672b6c/csv/Item.csv",
     "revisionUrl": "https://github.com/Ra-Workspace/ffxiv-datamining-ko/commit/66eceba69eb2398958bdb133b241a69c13672b6c"
   },
-  "generatedAt": "2026-09-08T10:12:57.190Z",
-  "total": 24203,
+  "generatedAt": "2026-10-22T14:34:50.917Z",
+  "total": 29312,
   "slots": {
     "head": 3307,
     "body": 3415,
     "hands": 2793,
     "legs": 2951,
     "feet": 2949,
-    "weapon": 8788
+    "weapon": 8788,
+    "earrings": 1318,
+    "necklace": 1250,
+    "bracelet": 1246,
+    "ring": 1295
   },
-  "dataSha256": "1c4bf4cb645f1842f32bea3187dd12e99d19033e9c70e883b58df4da482ab308",
+  "dataSha256": "e32dac897072389a5f862e96d12b2af281236c2f2d0a61bb032a77ea4ec90ac5",
   "audit": {
     "sourceRows": 52804,
     "namedRows": 51235,
-    "indexedRecords": 24203,
+    "indexedRecords": 29312,
     "invalidIdRows": 4,
     "emptyNameRows": 1565,
-    "ignoredRows": 27032
+    "ignoredRows": 21923
   }
 }

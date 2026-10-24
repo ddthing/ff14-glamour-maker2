@@ -126,6 +126,40 @@ assert.equal(normalized.editor.characterCount, 2);
 assert.equal(normalized.editor.selectedCharacter, 1);
 assert.equal(normalized.outfits.length, 5);
 assert.equal(normalized.outfits[0].body, null);
+assert.equal(normalized.extraEquipment.length, 5, "older saved looks should gain five empty extra-equipment arrays");
+assert.deepEqual(normalized.extraEquipment, [[], [], [], [], []]);
+assert.equal(normalized.cardVisibility.length, 5, "older saved looks should gain five core visibility maps");
+assert.deepEqual(normalized.cardVisibility[0], { head: true, body: true, hands: true, legs: true, feet: true });
+assert.deepEqual(normalized.cardComposition, { layer: "info-front", protectText: true, infoGap: 0 });
+
+const inertName = '<script>data only</script> Éorzéa';
+const rawExtra = {
+  id: "extra-facewear-1",
+  slot: "facewear",
+  names: { ko: inertName, en: "Facewear", ja: "フェイスウェア" },
+  itemId: 999001,
+  source: "manual",
+  showOnCard: false,
+  note: "safe metadata",
+};
+const rawEquipmentLook = {
+  id: "equipment-look",
+  outfits: createOutfits(["100", "200", "300", "400", "500"]),
+  extraEquipment: [[rawExtra]],
+  cardVisibility: [{ head: false }],
+  cardComposition: { layer: "person-front", protectText: false, infoGap: 44 },
+};
+const normalizedEquipmentLook = record.normalizeSaved(rawEquipmentLook, 2);
+assert.equal(normalizedEquipmentLook.extraEquipment[0][0].itemId, null, "manual entries must not persist fake catalog IDs");
+assert.equal(normalizedEquipmentLook.extraEquipment[0][0].names.ko, inertName);
+assert.equal(normalizedEquipmentLook.extraEquipment[0][0].showOnCard, false);
+assert.equal(normalizedEquipmentLook.outfits.length, 5);
+assert.deepEqual(normalizedEquipmentLook.outfits[0], { head: "100", body: "200", hands: "300", legs: "400", feet: "500" }, "the original five core numeric slots remain authoritative through equipment normalization");
+assert.equal(normalizedEquipmentLook.cardVisibility[0].head, false);
+assert.equal(normalizedEquipmentLook.cardVisibility[0].body, true);
+assert.deepEqual(normalizedEquipmentLook.cardComposition, { layer: "person-front", protectText: false, infoGap: 44 });
+normalizedEquipmentLook.extraEquipment[0][0].names.ko = "changed copy";
+assert.equal(rawEquipmentLook.extraEquipment[0][0].names.ko, inertName, "restored looks must own deep equipment copies");
 
 const serialized = record.serialize({
   id: "runtime-look",
@@ -148,6 +182,13 @@ assert.equal(serialized.customBackgroundColor, "#f7f5f0");
 assert.equal(serialized.editor.characters[0].src, undefined);
 assert.equal(serialized.editor.characters[0].assetKey, "asset-1");
 assert.equal(serialized.outfits.length, 5);
+assert.equal(serialized.extraEquipment.length, 5, "serialization should include normalized per-character equipment extras");
+assert.equal(serialized.cardVisibility.length, 5);
+assert.deepEqual(serialized.cardComposition, { layer: "info-front", protectText: true, infoGap: 0 });
+const equipmentSerialization = record.serialize(normalizedEquipmentLook);
+assert.equal(equipmentSerialization.extraEquipment[0][0].names.ko, "changed copy");
+equipmentSerialization.extraEquipment[0][0].names.ko = "serialized mutation";
+assert.equal(normalizedEquipmentLook.extraEquipment[0][0].names.ko, "changed copy", "serialized equipment fields must not alias runtime state");
 assert.equal(record.normalizeSaved(null, 1).id, "look-2");
 
 console.log("PASS: look record serialization and restoration share one normalized persisted shape without runtime image URLs.");

@@ -21,6 +21,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
         ".primary-button",
         ".topbar-history-button",
         "#languageSelect",
+        ".u267-gb",
+        "#editorTourButton",
         "#titleFontSelect",
         "#cardTitleInput",
         "#cardSubtitleInput",

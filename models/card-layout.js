@@ -59,6 +59,35 @@ const CardLayout = (() => {
     };
   }
 
+  // Resolve the planner only when called. In the browser CardLayout is loaded
+  // immediately before CardComposition, so a top-level global capture would
+  // retain `undefined`; lazy lookup also keeps the pure modules acyclic.
+  function planComposition(options = {}) {
+    const state = options.state || options;
+    const characterCount = normaliseCharacterCount(options.characterCount ?? state.characterCount);
+    const singleRatio = options.singleRatio || state.singleRatio || "portrait";
+    const singleLayout = options.singleLayout || state.singleLayout || "info-left";
+    const characters = options.characters || state.characters || [];
+    const layout = options.layout || layoutFor({ characterCount, singleRatio, singleLayout, characters });
+    const planner = typeof module !== "undefined" && module.exports
+      ? require("./card-composition.js")
+      : globalThis.CardComposition;
+    if (typeof planner?.plan !== "function") throw new TypeError("CardComposition must be loaded before planning card notes.");
+    return planner.plan({
+      ...options,
+      characterCount,
+      singleRatio,
+      singleLayout,
+      characters,
+      layout,
+      composition: options.composition || state.cardComposition || state.composition || {},
+      gearByCharacter: options.gearByCharacter || options.gear || state.gearByCharacter || [],
+      selectedCharacter: options.selectedCharacter ?? state.selectedCharacter ?? 0,
+      multiInfoEnabled: options.multiInfoEnabled ?? state.multiInfoEnabled ?? false,
+      language: options.language || state.language || "ko",
+    });
+  }
+
   function portraitGearPositions({ singleLayout = "info-left" } = {}) {
     const { layoutWidth } = dimensions.portrait;
     return portraitGearLayout.map((position) => (
@@ -158,7 +187,7 @@ const CardLayout = (() => {
     ].map((value) => `${value}%`).join(" ");
   }
 
-  return { ratioFor, dimensionsFor, layoutFor, characterFrames, imageRectFor, portraitGearPositions, landscapeSoloGearPositions, infoRails, boundsFor, cssInsetFor, cssInsetForLayout, gearSlotOrder };
+  return { ratioFor, dimensionsFor, layoutFor, planComposition, characterFrames, imageRectFor, portraitGearPositions, landscapeSoloGearPositions, infoRails, boundsFor, cssInsetFor, cssInsetForLayout, gearSlotOrder };
 })();
 
 if (typeof module !== "undefined") module.exports = CardLayout;

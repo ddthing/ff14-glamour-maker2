@@ -4,6 +4,7 @@
    UI code from deciding which catalog fields are safe to retain. */
 const ItemRecords = (() => {
   const languages = ["ko", "en", "ja"];
+  const persistedOutfitSlots = ["head", "body", "hands", "legs", "feet"];
 
   function create({ slots = [] } = {}) {
     const validSlots = new Set(slots.filter((slot) => typeof slot === "string" && slot));
@@ -56,15 +57,30 @@ const ItemRecords = (() => {
       });
     }
 
+    function numericCatalogId(value) {
+      if (typeof value === "number") return Number.isSafeInteger(value) && value > 0 ? String(value) : "";
+      if (typeof value !== "string" || !/^\d{1,16}$/.test(value)) return "";
+      const numeric = Number(value);
+      return Number.isSafeInteger(numeric) && numeric > 0 ? String(numeric) : "";
+    }
+
     function persistedRecords(looks = []) {
       const referencedIds = new Set();
       for (const look of looks) {
         // Looks are normalized before they enter the collection. This read
         // path intentionally does not clone or repair an outfit.
         for (const outfit of Array.isArray(look?.outfits) ? look.outfits : []) {
-          for (const slot of validSlots) {
-            const itemId = String(outfit?.[slot] ?? "");
-            if (/^\d+$/.test(itemId)) referencedIds.add(itemId);
+          for (const slot of persistedOutfitSlots) {
+            if (!validSlots.has(slot)) continue;
+            const itemId = numericCatalogId(outfit?.[slot]);
+            if (itemId) referencedIds.add(itemId);
+          }
+        }
+        for (const entries of Array.isArray(look?.extraEquipment) ? look.extraEquipment.slice(0, 5) : []) {
+          for (const entry of Array.isArray(entries) ? entries.slice(0, 32) : []) {
+            if (entry?.source !== "catalog") continue;
+            const itemId = numericCatalogId(entry.itemId);
+            if (itemId) referencedIds.add(itemId);
           }
         }
       }

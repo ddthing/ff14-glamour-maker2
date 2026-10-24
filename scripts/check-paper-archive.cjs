@@ -99,6 +99,9 @@ const fixturePng = Buffer.from(
     const download = await downloadPromise;
     await download.saveAs("artifacts/collage-card-export.png");
     await page.waitForFunction(() => !document.querySelector("#exportButton").hasAttribute("aria-busy"));
+    // Capture the preview before the layout checks below change the solo ratio.
+    // This keeps the review artifact comparable to the portrait PNG just saved.
+    await page.locator("#canvasBoard").screenshot({ path: "artifacts/collage-board.png" });
     const exportAsset = await page.evaluate(() => window.__collageRender);
     assert.deepEqual(exportAsset, { hasBackgroundImage: true, width: 1024, height: 1536 }, "PNG export must load the optimized archive material");
     const gearBounds = await page.evaluate(() => {
@@ -222,7 +225,6 @@ const fixturePng = Buffer.from(
     await page.evaluate(() => {
       CanvasRenderingContext2D.prototype.drawImage = window.__collageOriginalDrawImage;
     });
-    await page.locator("#canvasBoard").screenshot({ path: "artifacts/collage-board.png" });
     await page.reload();
     await page.waitForSelector("#canvasBoard");
     assert.equal(await page.locator('#backgroundArtPanel button[data-pattern="collage"]').getAttribute("aria-checked"), "true");
