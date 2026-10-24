@@ -129,10 +129,25 @@ const CardComposition = (() => {
     return Math.max(1, totalLines);
   }
 
-  function copyMetrics(entry, bounds) {
-    const widthKey = Math.round(bounds.width * 100) / 100;
-    const heightKey = Math.round(bounds.height * 100) / 100;
-    const key = JSON.stringify([entry.name, entry.secondaryName, entry.slotName, widthKey, heightKey]);
+  function copyMetrics(entry, width, {
+    paddingX,
+    paddingY,
+    maxContentHeight = Number.POSITIVE_INFINITY,
+    preferredPrimarySize = null,
+  } = {}) {
+    const widthKey = Math.round(width * 100) / 100;
+    const maxHeightKey = Number.isFinite(maxContentHeight) ? Math.round(maxContentHeight * 100) / 100 : "inf";
+    const primarySizeKey = Number.isFinite(preferredPrimarySize) ? Math.round(preferredPrimarySize * 100) / 100 : "auto";
+    const key = JSON.stringify([
+      entry.name,
+      entry.secondaryName,
+      entry.slotName,
+      widthKey,
+      paddingX,
+      paddingY,
+      maxHeightKey,
+      primarySizeKey,
+    ]);
     let metrics = copyMetricsCache.get(key);
     if (metrics) {
       copyMetricsCacheHits += 1;
@@ -140,13 +155,14 @@ const CardComposition = (() => {
       copyMetricsCache.set(key, metrics);
     } else {
       copyMetricsCacheMisses += 1;
-      const padding = Math.max(3, Math.min(8, Math.round(Math.min(bounds.width, bounds.height) * 0.07)));
-      const copyWidth = Math.max(1, bounds.width - padding * 2);
-      const copyHeight = Math.max(1, bounds.height - padding * 2);
-      const base = numberInRange(Math.min(copyWidth * 0.075, copyHeight * 0.24), 4, 24, 9);
-      const groupGap = Math.max(1, Math.min(4, copyHeight * 0.055));
+      const copyWidth = Math.max(1, width - paddingX * 2);
+      const copyHeight = Math.max(1, Number(maxContentHeight) || Number.POSITIVE_INFINITY);
+      const base = Number.isFinite(preferredPrimarySize)
+        ? numberInRange(preferredPrimarySize, MIN_PRIMARY_SIZE, 24, 9)
+        : numberInRange(copyWidth * 0.16, 4, 24, 9);
+      const groupGap = Math.max(1, Math.min(4, copyWidth * 0.018));
       let selected = null;
-      for (let primarySize = base; primarySize >= MIN_PRIMARY_SIZE; primarySize -= 0.25) {
+      for (let primarySize = base; primarySize >= MIN_PRIMARY_SIZE - 0.001; primarySize = Math.max(MIN_PRIMARY_SIZE, primarySize - 0.25)) {
         const secondarySize = entry.secondaryName ? primarySize * 0.72 : 0;
         const slotSize = entry.slotName ? primarySize * 0.7 : 0;
         const primaryLines = estimatedLineCount(entry.name, primarySize, copyWidth);
@@ -163,7 +179,6 @@ const CardComposition = (() => {
           + secondaryLocaleGap
           + groupGap * ((slotLines ? 1 : 0) + (secondaryLines ? 1 : 0));
         selected = {
-          padding,
           slotSize,
           primarySize,
           secondarySize,
@@ -175,21 +190,39 @@ const CardComposition = (() => {
           estimatedSecondaryLines: secondaryLines,
           secondaryLocaleGap,
           estimatedSlotLines: slotLines,
+          estimatedContentHeight: totalHeight,
           fits: totalHeight <= copyHeight + 0.01,
         };
         if (selected.fits) break;
+        if (primarySize <= MIN_PRIMARY_SIZE) break;
       }
-      metrics = { padding, copy: selected || { padding, primarySize: MIN_PRIMARY_SIZE, secondarySize: 0, slotSize: 0, fits: false } };
+      const compatiblePadding = Math.min(paddingX, paddingY);
+      const fallback = {
+        padding: compatiblePadding,
+        paddingX,
+        paddingY,
+        primarySize: MIN_PRIMARY_SIZE,
+        secondarySize: entry.secondaryName ? MIN_PRIMARY_SIZE * 0.72 : 0,
+        slotSize: entry.slotName ? MIN_PRIMARY_SIZE * 0.7 : 0,
+        slotLineHeight: entry.slotName ? MIN_PRIMARY_SIZE * 0.7 * 1.05 : 0,
+        primaryLineHeight: MIN_PRIMARY_SIZE * 1.12,
+        secondaryLineHeight: entry.secondaryName ? MIN_PRIMARY_SIZE * 0.72 * 1.1 : 0,
+        groupGap: 1,
+        estimatedPrimaryLines: 1,
+        estimatedSecondaryLines: entry.secondaryName ? 1 : 0,
+        secondaryLocaleGap: 0,
+        estimatedSlotLines: entry.slotName ? 1 : 0,
+        estimatedContentHeight: 1,
+        fits: false,
+      };
+      metrics = {
+        contentHeight: selected?.estimatedContentHeight || fallback.estimatedContentHeight,
+        copy: { ...(selected || fallback), padding: compatiblePadding, paddingX, paddingY },
+      };
       copyMetricsCache.set(key, metrics);
       while (copyMetricsCache.size > COPY_METRICS_CACHE_LIMIT) copyMetricsCache.delete(copyMetricsCache.keys().next().value);
     }
-    const copyBounds = {
-      x: bounds.x + metrics.padding,
-      y: bounds.y + metrics.padding,
-      width: Math.max(1, bounds.width - metrics.padding * 2),
-      height: Math.max(1, bounds.height - metrics.padding * 2),
-    };
-    return { copyBounds, copy: { ...metrics.copy } };
+    return { contentHeight: metrics.contentHeight, copy: { ...metrics.copy } };
   }
 
   function clearCopyMetricsCache() {
@@ -236,61 +269,138 @@ const CardComposition = (() => {
     return samples ? score / samples : 0;
   }
 
-  function placeGrid(entries, region, { columns, gap, characterIndex, railSide = null, focus = false, occupancy = null, frame = null } = {}) {
-    if (!entries.length) return [];
+  function notePadding(width, columns) {
+    if (columns === 1 && width >= 170) return { x: 22, y: 16 };
+    return {
+      x: Math.max(3, Math.min(22, Math.round(width * 0.065))),
+      y: Math.max(3, Math.min(16, Math.round(width * 0.06))),
+    };
+  }
+
+  function prepareGrid(entries, region, {
+    columns,
+    gap,
+    characterIndex,
+    railSide = null,
+    focus = false,
+    occupancy = null,
+    frame = null,
+  } = {}) {
     const resolvedColumns = Math.max(1, Math.min(4, Math.floor(columns) || 1));
     const resolvedGap = Math.max(2, Number(gap) || 0);
     const rows = Math.ceil(entries.length / resolvedColumns);
-    const tileWidth = Math.max(1, (region.width - resolvedGap * (resolvedColumns - 1)) / resolvedColumns);
-    const tileHeight = Math.max(1, (region.height - resolvedGap * (rows - 1)) / rows);
-    const slots = entries.map((_, index) => {
+    const cellWidth = Math.max(1, (region.width - resolvedGap * (resolvedColumns - 1)) / resolvedColumns);
+    const specs = entries.map((entry, index) => {
       const column = index % resolvedColumns;
       const row = Math.floor(index / resolvedColumns);
-      const bounds = {
-        x: region.x + column * (tileWidth + resolvedGap),
-        y: region.y + row * (tileHeight + resolvedGap),
-        width: tileWidth,
-        height: tileHeight,
-      };
+      const padding = notePadding(cellWidth, resolvedColumns);
+      const width = cellWidth;
+      const x = region.x + column * (cellWidth + resolvedGap);
+      const copy = copyMetrics(entry, width, {
+        paddingX: padding.x,
+        paddingY: padding.y,
+        preferredPrimarySize: width >= 170 && resolvedColumns === 1 ? 24 : null,
+      });
+      const height = Math.ceil(copy.contentHeight) + padding.y * 2;
       return {
-        ...bounds,
+        entry,
+        index,
         column,
         row,
-        surfaceOcclusionScore: occupancyScore(bounds, frame, occupancy),
+        x,
+        width,
+        height,
+        padding,
+        copy,
       };
     });
-    if (occupancy && frame) {
-      slots.sort((first, second) => (first.surfaceOcclusionScore ?? 0) - (second.surfaceOcclusionScore ?? 0)
-        || first.row - second.row
-        || first.column - second.column);
+    const rowHeights = Array.from({ length: rows }, (_, row) => Math.max(1, ...specs.filter((spec) => spec.row === row).map((spec) => spec.height)));
+    return { entries, region, columns: resolvedColumns, gap: resolvedGap, rows, cellWidth, specs, rowHeights, characterIndex, railSide, focus, occupancy, frame };
+  }
+
+  function constrainGridRows(grid, maxHeightPerRow) {
+    const maxHeight = Math.max(1, maxHeightPerRow);
+    const specs = grid.specs.map((spec) => {
+      const maxContentHeight = Math.max(1, maxHeight - spec.padding.y * 2);
+      const copy = copyMetrics(spec.entry, spec.width, {
+        paddingX: spec.padding.x,
+        paddingY: spec.padding.y,
+        maxContentHeight,
+        preferredPrimarySize: spec.width >= 170 && grid.columns === 1 ? 24 : null,
+      });
+      return { ...spec, copy, height: Math.ceil(copy.contentHeight) + spec.padding.y * 2 };
+    });
+    const heights = Array.from({ length: grid.rows }, (_, row) => Math.min(maxHeight, Math.max(1, ...specs.filter((spec) => spec.row === row).map((spec) => spec.height))));
+    return { ...grid, specs, rowHeights: heights };
+  }
+
+  function placeGridGroups(groups, { gap, occupancyByCharacter = [] } = {}) {
+    const active = groups.filter((group) => group.entries.length);
+    if (!active.length) return [];
+    const rows = Math.max(...active.map((group) => Math.ceil(group.entries.length / group.columns)));
+    const noteGap = Math.max(2, Number(gap) || 0);
+    const railHeight = Math.min(...active.map((group) => group.region.height));
+    let grids = active.map((group) => prepareGrid(group.entries, group.region, {
+      ...group,
+      gap: noteGap,
+      occupancy: group.occupancy || occupancyByCharacter[group.characterIndex] || null,
+    }));
+    let sharedHeights = Array.from({ length: rows }, (_, row) => Math.max(1, ...grids.flatMap((grid) => [grid.rowHeights[row] || 0])));
+    const availableRowsHeight = Math.max(rows, railHeight - noteGap * Math.max(0, rows - 1));
+    if (sharedHeights.reduce((sum, height) => sum + height, 0) > availableRowsHeight + 0.01) {
+      const maxHeightPerRow = availableRowsHeight / rows;
+      grids = grids.map((grid) => constrainGridRows(grid, maxHeightPerRow));
+      sharedHeights = Array.from({ length: rows }, (_, row) => Math.min(maxHeightPerRow, Math.max(1, ...grids.flatMap((grid) => [grid.rowHeights[row] || 0]))));
     }
-    return entries.map((entry, index) => {
-      const slot = slots[index];
-      const bounds = { x: slot.x, y: slot.y, width: slot.width, height: slot.height };
-      const metrics = copyMetrics(entry, bounds);
+    const rowY = [];
+    let cursorY = Math.min(...active.map((group) => group.region.y));
+    for (let row = 0; row < rows; row += 1) {
+      rowY[row] = cursorY;
+      cursorY += sharedHeights[row] + noteGap;
+    }
+    return grids.flatMap((grid) => grid.specs.map((spec) => {
+      const y = rowY[spec.row];
+      const height = sharedHeights[spec.row];
+      const bounds = { x: spec.x, y, width: spec.width, height };
+      const copyBounds = {
+        x: bounds.x + spec.padding.x,
+        y: bounds.y + spec.padding.y,
+        width: Math.max(1, bounds.width - spec.padding.x * 2),
+        height: Math.max(1, Math.min(spec.copy.contentHeight + 1, bounds.height - spec.padding.y * 2)),
+      };
+      const protectionPaddingX = Math.max(2, Math.min(10, Math.round(bounds.width * 0.045)));
+      const protectionPaddingY = Math.max(2, Math.min(8, Math.round(bounds.height * 0.08)));
+      const protectionBounds = {
+        x: Math.max(bounds.x, copyBounds.x - protectionPaddingX),
+        y: Math.max(bounds.y, copyBounds.y - protectionPaddingY),
+        width: 0,
+        height: 0,
+      };
+      protectionBounds.width = Math.min(bounds.x + bounds.width, copyBounds.x + copyBounds.width + protectionPaddingX) - protectionBounds.x;
+      protectionBounds.height = Math.min(bounds.y + bounds.height, copyBounds.y + copyBounds.height + protectionPaddingY) - protectionBounds.y;
+      const noteRadius = Math.max(0, Math.min(10, bounds.width * 0.04, bounds.height * 0.12, bounds.width / 2, bounds.height / 2));
       return {
-        characterIndex,
-        gearIndex: entry.gearIndex,
-        itemId: entry.itemId,
-        slot: entry.slot,
-        extra: entry.extra,
-        slotName: entry.slotName,
-        name: entry.name,
-        secondaryName: entry.secondaryName,
-        x: slot.x,
-        y: slot.y,
-        width: slot.width,
-        height: slot.height,
-        copyBounds: metrics.copyBounds,
-        copy: metrics.copy,
-        column: slot.column,
-        row: slot.row,
-        railSide,
-        focus,
-        surfaceOcclusionScore: slot.surfaceOcclusionScore,
+        characterIndex: grid.characterIndex,
+        gearIndex: spec.entry.gearIndex,
+        itemId: spec.entry.itemId,
+        slot: spec.entry.slot,
+        extra: spec.entry.extra,
+        slotName: spec.entry.slotName,
+        name: spec.entry.name,
+        secondaryName: spec.entry.secondaryName,
+        ...bounds,
+        copyBounds,
+        protectionBounds,
+        copy: { ...spec.copy.copy },
+        noteRadius,
+        column: spec.column,
+        row: spec.row,
+        railSide: grid.railSide,
+        focus: grid.focus,
+        surfaceOcclusionScore: occupancyScore(bounds, grid.frame, grid.occupancy),
         textAlign: "left",
       };
-    });
+    }));
   }
 
   function rememberOccupancy(key, mask, source = null) {
@@ -399,8 +509,11 @@ const CardComposition = (() => {
     availableCharacters.forEach((entry) => itemBuckets[entry.characterIndex].push(entry));
     const items = [];
     const columnsByCharacter = Array.from({ length: count }, () => 0);
-    const gapBetweenNotes = Math.max(5, Math.min(14, 7 + Math.round(infoGap / 16)));
+    const maximumSelection = Math.max(0, ...itemBuckets.map((entries) => entries.length));
+    const baseNoteGap = maximumSelection > 32 ? 6 : maximumSelection > 16 ? 12 : 24;
+    const gapBetweenNotes = Math.max(5, Math.min(28, baseNoteGap + Math.round(infoGap / 16)));
     const occupancyByCharacter = Array.isArray(options.occupancyByCharacter) ? options.occupancyByCharacter : [];
+    const gridGroups = [];
 
     if (isCustom) {
       if (count === 1) {
@@ -410,19 +523,20 @@ const CardComposition = (() => {
           const leftEntries = soloItems.filter((_, index) => index % 2 === 0);
           const rightEntries = soloItems.filter((_, index) => index % 2 === 1);
           const sideGroups = [leftEntries, rightEntries];
+          const columns = adaptiveColumns(Math.max(...sideGroups.map((entries) => entries.length)), 8);
+          columnsByCharacter[0] = columns;
           sideGroups.forEach((entries, sideIndex) => {
             if (!entries.length) return;
             const region = regions[sideIndex];
-            const columns = adaptiveColumns(entries.length, 8);
-            columnsByCharacter[0] = Math.max(columnsByCharacter[0], columns);
-            items.push(...placeGrid(entries, region, {
+            gridGroups.push({
+              entries,
+              region,
               columns,
-              gap: gapBetweenNotes,
               characterIndex: 0,
               railSide: sideIndex === 0 ? "left" : "right",
               occupancy: effectiveLayer === "person-front" ? occupancyByCharacter[0] : null,
               frame: layout.frames?.[0] || null,
-            }));
+            });
           });
         }
       } else if (count === 2) {
@@ -430,12 +544,12 @@ const CardComposition = (() => {
         const legacyRail = {
           x: Math.round(layoutWidth * 0.06),
           width: 250 - infoGap,
-          y: 132,
+          y: 176,
           height: 482,
         };
+        const columns = adaptiveColumns(Math.max(...itemBuckets.map((entries) => entries.length)), 5);
         itemBuckets.forEach((entries, characterIndex) => {
           if (!entries.length) return;
-          const columns = adaptiveColumns(entries.length, 5);
           columnsByCharacter[characterIndex] = columns;
           const region = {
             x: characterIndex === 0 ? legacyRail.x : layoutWidth - legacyRail.x - legacyRail.width,
@@ -443,21 +557,22 @@ const CardComposition = (() => {
             width: Math.max(88, legacyRail.width),
             height: Math.min(legacyRail.height, layoutHeight - legacyRail.y - 18),
           };
-          items.push(...placeGrid(entries, region, {
+          gridGroups.push({
+            entries,
+            region,
             columns,
-            gap: gapBetweenNotes,
             characterIndex,
             railSide: characterIndex === 0 ? "left" : "right",
             occupancy: effectiveLayer === "person-front" ? occupancyByCharacter[characterIndex] : null,
             frame: layout.frames?.[characterIndex] || null,
-          }));
+          });
         });
       } else {
         const { layoutWidth, layoutHeight } = dimensions;
         const columnWidth = layoutWidth / count;
+        const columns = adaptiveColumns(Math.max(...itemBuckets.map((entries) => entries.length)), 5);
         itemBuckets.forEach((entries, characterIndex) => {
           if (!entries.length) return;
-          const columns = adaptiveColumns(entries.length, 5);
           columnsByCharacter[characterIndex] = columns;
           const horizontalInset = Math.min(infoGap, Math.max(0, columnWidth * 0.22));
           const region = {
@@ -466,19 +581,23 @@ const CardComposition = (() => {
             width: Math.max(1, columnWidth - 24 - horizontalInset * 2),
             height: Math.max(1, layoutHeight - 178),
           };
-          items.push(...placeGrid(entries, region, {
+          gridGroups.push({
+            entries,
+            region,
             columns,
-            gap: gapBetweenNotes,
             characterIndex,
             occupancy: effectiveLayer === "person-front" ? occupancyByCharacter[characterIndex] : null,
             frame: layout.frames?.[characterIndex] || null,
-          }));
+          });
         });
       }
     }
 
+    if (isCustom) items.push(...placeGridGroups(gridGroups, { gap: gapBetweenNotes, occupancyByCharacter }));
     items.sort((first, second) => first.characterIndex - second.characterIndex || first.gearIndex - second.gearIndex);
-    const protectedZones = protectText ? items.map(({ characterIndex, gearIndex, copyBounds }) => ({ characterIndex, gearIndex, ...copyBounds })) : [];
+    const protectedZones = protectText
+      ? items.map(({ characterIndex, gearIndex, protectionBounds }) => ({ characterIndex, gearIndex, ...(protectionBounds || {}) }))
+      : [];
     const omittedCharacterIndices = [];
 
     return {

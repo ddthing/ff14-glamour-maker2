@@ -80,9 +80,9 @@ const modelPaths = [
         panelBorder: "rgba(38,50,56,.18)",
         radius: 10,
       };
-      const render = async (compositionPlan) => {
+      const render = async (compositionPlan, backgroundPattern = state.backgroundPattern, gearData = gear) => {
         const blob = await CardPng.render({
-          state,
+          state: { ...state, backgroundPattern },
           dimensions: layout.dimensions,
           layout,
           compositionPlan,
@@ -91,7 +91,7 @@ const modelPaths = [
           patternStars: [],
           images: [redImage, redImage, redImage],
           copyLayout: [],
-          gear,
+          gear: gearData,
           outlineColor: "#ffffff",
         });
         const bitmap = await createImageBitmap(blob);
@@ -101,8 +101,24 @@ const modelPaths = [
         const context = canvas.getContext("2d", { willReadFrequently: true });
         context.drawImage(bitmap, 0, 0);
         const pixel = (x, y) => Array.from(context.getImageData(Math.round(x * 2), Math.round(y * 2), 1, 1).data);
+        const firstInkOffset = (bounds) => {
+          const left = Math.round(bounds.x * 2);
+          const top = Math.round(bounds.y * 2);
+          const width = Math.max(1, Math.ceil(bounds.width * 2));
+          const height = Math.max(1, Math.ceil(bounds.height * 2));
+          const data = context.getImageData(left, top, width, height).data;
+          for (let row = 0; row < height; row += 1) {
+            for (let column = 0; column < width; column += 1) {
+              const offset = (row * width + column) * 4;
+              if (data[offset] < 130 && data[offset + 1] < 150 && data[offset + 2] < 165 && data[offset + 3] > 240) {
+                return row / 2;
+              }
+            }
+          }
+          return null;
+        };
         bitmap.close();
-        return { blob, pixel };
+        return { blob, pixel, firstInkOffset };
       };
       const personFront = await render(plan);
       const maskCanvas = document.createElement("canvas");
@@ -128,11 +144,9 @@ const modelPaths = [
       const refreshedOccupancy = CardComposition.alphaOccupancyFor(maskImage, "composition-test-cutout");
       occupancySummary.clears = refreshedOccupancy !== occupancy;
       const sample = plan.items[0];
-      const backgroundPoint = {
-        x: Math.min(sample.x + sample.width - 4, sample.copyBounds.x + sample.copyBounds.width - 3),
-        y: Math.max(sample.y + sample.height - 4, sample.copyBounds.y + sample.copyBounds.height - 3),
-      };
-      const protectedPoint = { x: sample.copyBounds.x + 4, y: sample.copyBounds.y + 4 };
+      const protectionBounds = sample.protectionBounds;
+      const backgroundPoint = { x: protectionBounds.x - 1, y: protectionBounds.y + protectionBounds.height / 2 };
+      const protectedPoint = { x: protectionBounds.x + 2, y: protectionBounds.y + protectionBounds.height / 2 };
       const personPixel = personFront.pixel(backgroundPoint.x, backgroundPoint.y);
       const copyPixel = personFront.pixel(protectedPoint.x, protectedPoint.y);
       const infoFrontPlan = CardLayout.planComposition({
@@ -148,9 +162,77 @@ const modelPaths = [
         language: "ko",
       });
       const infoFront = await render(infoFrontPlan);
-      const infoPixel = infoFront.pixel(backgroundPoint.x, backgroundPoint.y);
       const infoPlanItem = infoFrontPlan.items[0];
-      const infoCopyPixel = infoFront.pixel(infoPlanItem.copyBounds.x + 4, infoPlanItem.copyBounds.y + 4);
+      const infoBackgroundPoint = {
+        x: infoPlanItem.protectionBounds.x - 1,
+        y: infoPlanItem.protectionBounds.y + infoPlanItem.protectionBounds.height / 2,
+      };
+      const infoPixel = infoFront.pixel(infoBackgroundPoint.x, infoBackgroundPoint.y);
+      const infoCopyPixel = infoFront.pixel(infoPlanItem.copyBounds.x - 1, infoPlanItem.copyBounds.y + infoPlanItem.copyBounds.height / 2);
+      const infoInteriorPixel = infoFront.pixel(
+        infoPlanItem.x + infoPlanItem.noteRadius + 2,
+        infoPlanItem.y + infoPlanItem.noteRadius + 2,
+      );
+      const infoCornerPixel = infoFront.pixel(infoPlanItem.x + 0.5, infoPlanItem.y + 0.5);
+      const infoEdgePixel = infoFront.pixel(infoPlanItem.x + infoPlanItem.width / 2, infoPlanItem.y);
+      const collageFront = await render(infoFrontPlan, "collage");
+      const scrapbookFront = await render(infoFrontPlan, "scrapbook");
+      const collageSurfacePixel = collageFront.pixel(
+        infoPlanItem.x + infoPlanItem.noteRadius + 2,
+        infoPlanItem.y + infoPlanItem.noteRadius + 2,
+      );
+      const scrapbookSurfacePixel = scrapbookFront.pixel(
+        infoPlanItem.x + infoPlanItem.noteRadius + 2,
+        infoPlanItem.y + infoPlanItem.noteRadius + 2,
+      );
+      const originBounds = {
+        x: infoPlanItem.x + 18,
+        y: infoPlanItem.y + 18,
+        width: infoPlanItem.width - 36,
+        height: infoPlanItem.height - 36,
+      };
+      const originPlanItem = {
+        ...infoPlanItem,
+        name: "Top",
+        slotName: "",
+        secondaryName: "",
+        copyBounds: originBounds,
+        copy: {
+          primarySize: 12,
+          primaryLineHeight: 14,
+          secondarySize: 0,
+          secondaryLineHeight: 0,
+          slotSize: 0,
+          slotLineHeight: 0,
+          groupGap: 0,
+        },
+      };
+      const originPlan = { ...infoFrontPlan, items: [originPlanItem] };
+      const originGear = gear.map((items, characterIndex) => characterIndex === 0
+        ? items.map((item, index) => index === 0 ? { ...item, name: "Top", slotName: "", secondaryName: "" } : item)
+        : items);
+      const originFront = await render(originPlan, state.backgroundPattern, originGear);
+      const firstGlyphInkOffset = originFront.firstInkOffset(originBounds);
+      const validPlanGeometry = plan.items.every((item) => {
+        const copy = item.copyBounds;
+        const protection = item.protectionBounds;
+        return Boolean(copy && protection && item.noteRadius > 0)
+          && copy.x >= item.x && copy.y >= item.y
+          && copy.x + copy.width <= item.x + item.width
+          && copy.y + copy.height <= item.y + item.height
+          && protection.x >= item.x && protection.y >= item.y
+          && protection.x + protection.width <= item.x + item.width
+          && protection.y + protection.height <= item.y + item.height
+          && protection.x <= copy.x && protection.y <= copy.y
+          && protection.x + protection.width >= copy.x + copy.width
+          && protection.y + protection.height >= copy.y + copy.height
+          && copy.x - protection.x >= 7 && copy.x - protection.x <= 10
+          && copy.y - protection.y >= 7 && copy.y - protection.y <= 9
+          && item.noteRadius <= Math.min(item.width / 2, item.height / 2);
+      });
+      const sampleZone = plan.protectedZones.find((zone) => zone.characterIndex === sample.characterIndex && zone.gearIndex === sample.gearIndex);
+      const protectedZoneMatches = sampleZone && sampleZone.x === protectionBounds.x && sampleZone.y === protectionBounds.y
+        && sampleZone.width === protectionBounds.width && sampleZone.height === protectionBounds.height;
       const legacyCharacter = { ...state.characters[0] };
       const legacyState = {
         ...state,
@@ -200,6 +282,14 @@ const modelPaths = [
         copyPixel,
         infoPixel,
         infoCopyPixel,
+        infoInteriorPixel,
+        infoCornerPixel,
+        infoEdgePixel,
+        collageSurfacePixel,
+        scrapbookSurfacePixel,
+        firstGlyphInkOffset,
+        validPlanGeometry,
+        protectedZoneMatches: Boolean(protectedZoneMatches),
         personBytes: personFront.blob.size,
         infoBytes: infoFront.blob.size,
         occupancySummary,
@@ -209,6 +299,8 @@ const modelPaths = [
 
     assert.equal(result.plan.effectiveLayer, "person-front");
     assert.equal(result.plan.items.length, 18, "each character's core and accessory entries must reach the PNG plan");
+    assert.ok(result.validPlanGeometry, "glyph and protection bounds stay inside each note with the planned breathing inset and shared logical radius");
+    assert.ok(result.protectedZoneMatches, "foreground occupancy uses the wider protection bounds rather than the glyph bounds");
     assert.deepEqual(result.occupancySummary, {
       width: 64,
       height: 96,
@@ -219,12 +311,24 @@ const modelPaths = [
       clears: true,
     }, "cutout alpha is downsampled once and reused from the bounded cache");
     assert.ok(result.personBytes > 1000 && result.infoBytes > 1000, "both layers export a complete PNG");
-    assert.ok(result.personPixel[0] > 180 && result.personPixel[1] < 90, `person-front must keep the subject above note material outside the copy box: ${result.personPixel}`);
-    assert.ok(result.copyPixel[0] > 180 && result.copyPixel[1] > 170 && result.copyPixel[2] > 150, `protected copy box must be opaque above the subject: ${result.copyPixel}`);
-    assert.ok(result.infoPixel[0] > 200 && result.infoPixel[1] > 190 && result.infoPixel[2] > 180, `info-front note surface must cover the subject: ${result.infoPixel}`);
-    assert.ok(result.infoCopyPixel[0] > 180 && result.infoCopyPixel[1] > 170, "info-front copy remains on its opaque protected surface");
+    assert.ok(result.personPixel[0] > 180 && result.personPixel[1] < 90, `person-front keeps the subject over note material outside the glyph protection inset: ${result.personPixel}`);
+    assert.ok(result.copyPixel[0] > 235 && result.copyPixel[1] > 225 && result.copyPixel[2] > 215, `protected glyph breathing area stays opaque above the subject: ${result.copyPixel}`);
+    assert.ok(result.infoPixel[0] > 235 && result.infoPixel[1] > 225 && result.infoPixel[2] > 215, `info-front note surface covers the subject: ${result.infoPixel}`);
+    assert.ok(result.infoInteriorPixel[0] > 245 && result.infoInteriorPixel[1] > 235, `note interior uses its quiet opaque fill: ${result.infoInteriorPixel}`);
+    assert.deepEqual(result.collageSurfacePixel.slice(0, 3), [244, 232, 215], "custom collage notes retain the existing archive-paper tint");
+    assert.deepEqual(result.scrapbookSurfacePixel.slice(0, 3), [247, 240, 227], "custom scrapbook notes retain the existing blue-paper tint");
+    assert.ok(result.firstGlyphInkOffset != null && result.firstGlyphInkOffset <= 4, `fallback PNG glyphs start at the planned top edge instead of vertical centering: ${result.firstGlyphInkOffset}`);
+    assert.ok(result.infoEdgePixel[0] < result.infoInteriorPixel[0] - 18, `note has one subtle perimeter at its outer edge: ${result.infoEdgePixel} vs ${result.infoInteriorPixel}`);
+    const innerEdgeDistance = Math.abs(result.infoCopyPixel[0] - result.infoInteriorPixel[0])
+      + Math.abs(result.infoCopyPixel[1] - result.infoInteriorPixel[1])
+      + Math.abs(result.infoCopyPixel[2] - result.infoInteriorPixel[2]);
+    assert.ok(innerEdgeDistance < 8, `glyph bounds have no nested protection outline: ${result.infoCopyPixel} vs ${result.infoInteriorPixel}`);
+    const cornerDistance = Math.abs(result.infoCornerPixel[0] - result.infoInteriorPixel[0])
+      + Math.abs(result.infoCornerPixel[1] - result.infoInteriorPixel[1])
+      + Math.abs(result.infoCornerPixel[2] - result.infoInteriorPixel[2]);
+    assert.ok(cornerDistance > 10, `rounded note corner leaves the underlying card visible: ${result.infoCornerPixel} vs ${result.infoInteriorPixel}`);
     assert.ok(result.hiddenLegacyPixel[0] > 180 && result.hiddenLegacyPixel[1] < 90, `a hidden legacy core item must stay hidden without shifting its neighbors: ${result.hiddenLegacyPixel}`);
-    console.log("PASS: CardPng uses the shared note plan, preserves person/info layer order, and protects copy pixels.");
+    console.log("PASS: CardPng keeps custom notes rounded and single-edged, preserves person/info layer order, and protects glyphs with planner clearance.");
   } finally {
     await browser.close();
   }

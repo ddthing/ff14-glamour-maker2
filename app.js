@@ -2060,7 +2060,10 @@ function fitBoardTitle() {
 
   if (naturalWidth > availableWidth) {
     const baseSize = Number.parseFloat(getComputedStyle(title).fontSize) || 24;
-    const readableFloor = Math.max(12, Math.min(18, availableWidth / 24));
+    // This is artwork inside a scaled card, not fixed-size editor chrome.
+    // A CSS-pixel floor would make long titles grow over the first note row
+    // when the preview narrows on a phone.
+    const readableFloor = Math.min(baseSize, Math.max(1, Math.min(18, availableWidth / 32)));
     const fittedSize = Math.max(readableFloor, baseSize * (availableWidth / naturalWidth));
     title.style.fontSize = `${fittedSize}px`;
     if (naturalWidth * (fittedSize / baseSize) > availableWidth + 1) title.dataset.titleFit = "wrap";
@@ -2068,10 +2071,17 @@ function fitBoardTitle() {
 }
 
 function scheduleBoardTitleFit() {
+  if (cardCopyRenderFrame) {
+    window.cancelAnimationFrame(cardCopyRenderFrame);
+    cardCopyRenderFrame = 0;
+  }
   if (boardTitleFitFrame) return;
   boardTitleFitFrame = window.requestAnimationFrame(() => {
     boardTitleFitFrame = 0;
     fitBoardTitle();
+    // Fit and capture belong to the same frame. A separately queued copy
+    // frame can otherwise preserve pre-resize glyph positions indefinitely.
+    renderCardCopyPreview();
   });
 }
 
@@ -2473,6 +2483,7 @@ function getBoardGearCompositionKey(plan = compositionPlan) {
     state.selectedCharacter,
     state.singleRatio,
     state.singleLayout,
+    state.backgroundPattern,
     state.multiInfoEnabled,
     plan.isCustom,
     plan.effectiveLayer,
@@ -2581,12 +2592,19 @@ function renderBoardGear() {
       const copyTop = ((copyBounds.y - planned.y) / planned.height) * 100;
       const copyWidth = (copyBounds.width / planned.width) * 100;
       const copyHeight = (copyBounds.height / planned.height) * 100;
-      style = ` style="left:${left}%;top:${top}%;width:${width}%;height:${height}%;--plan-slot-size:${copy.slotSize || 0};--plan-primary-size:${copy.primarySize || 0};--plan-secondary-size:${copy.secondarySize || 0};--plan-slot-line-height:${copy.slotLineHeight || 0};--plan-primary-line-height:${copy.primaryLineHeight || 0};--plan-secondary-line-height:${copy.secondaryLineHeight || 0};--plan-group-gap:${copy.groupGap || 0};--plan-copy-left:${copyLeft}%;--plan-copy-top:${copyTop}%;--plan-copy-width:${copyWidth}%;--plan-copy-height:${copyHeight}%"`;
+      const protection = planned.protectionBounds || copyBounds;
+      const protectionLeft = ((protection.x - planned.x) / planned.width) * 100;
+      const protectionTop = ((protection.y - planned.y) / planned.height) * 100;
+      const protectionWidth = (protection.width / planned.width) * 100;
+      const protectionHeight = (protection.height / planned.height) * 100;
+      const materialTint = CardMaterials.noteFor(state.backgroundPattern, planned.gearIndex)?.tint || "var(--card-copy-protected-surface)";
+      style = ` style="left:${left}%;top:${top}%;width:${width}%;height:${height}%;--plan-slot-size:${copy.slotSize || 0};--plan-primary-size:${copy.primarySize || 0};--plan-secondary-size:${copy.secondarySize || 0};--plan-slot-line-height:${copy.slotLineHeight || 0};--plan-primary-line-height:${copy.primaryLineHeight || 0};--plan-secondary-line-height:${copy.secondaryLineHeight || 0};--plan-group-gap:${copy.groupGap || 0};--plan-copy-left:${copyLeft}%;--plan-copy-top:${copyTop}%;--plan-copy-width:${copyWidth}%;--plan-copy-height:${copyHeight}%;--plan-protection-left:${protectionLeft}%;--plan-protection-top:${protectionTop}%;--plan-protection-width:${protectionWidth}%;--plan-protection-height:${protectionHeight}%;--plan-note-radius:${planned.noteRadius ?? 8};--material-note-tint:${materialTint}"`;
     }
     const extraAttrs = entry.extra ? ` data-extra-id="${escapeHtml(entry.id)}" data-extra-slot="${escapeHtml(slot)}"` : "";
     const itemIdAttr = entry.itemId != null ? ` data-item-id="${escapeHtml(entry.itemId)}"` : "";
     const button = `<button class="board-gear-item gear-slot-${escapeHtml(slot)}${entry.extra ? " is-extra" : ""}" data-character-index="${characterIndex}" data-gear-index="${index}" data-card-slot="${escapeHtml(slot)}"${extraAttrs}${itemIdAttr} type="button" aria-label="${escapeHtml(t("item.gearEdit", { number: characterNumber, slot: slotName, name: primaryName }))}"${style}>
       <span class="gear-note-surface" aria-hidden="true"></span><span class="gear-tile-tape" aria-hidden="true"></span><span class="gear-note-stamp" aria-hidden="true"></span>
+      ${planned ? '<span class="gear-note-protection" aria-hidden="true"></span>' : ""}
       <div class="gear-tile-copy"><span class="gear-slot-label">${characterLabel}${escapeHtml(slotName)}</span><strong data-full-name="${escapeHtml(primaryName)}" title="${escapeHtml(primaryName)}">${escapeHtml(primaryName)}</strong>${secondaryHtml}</div>
     </button>`;
     if (!isSplitLayer || !planned) return button;
@@ -2603,7 +2621,8 @@ function renderBoardGear() {
       const entry = gearByCharacter[planned.characterIndex]?.[planned.gearIndex];
       if (!entry) return "";
       const { layoutWidth, layoutHeight } = layout.dimensions;
-      return `<div class="board-gear-item board-gear-surface-item gear-slot-${escapeHtml(entry.slot)}" data-character-index="${planned.characterIndex}" data-gear-index="${planned.gearIndex}" style="left:${(planned.x / layoutWidth) * 100}%;top:${(planned.y / layoutHeight) * 100}%;width:${(planned.width / layoutWidth) * 100}%;height:${(planned.height / layoutHeight) * 100}%"><span class="gear-note-surface" aria-hidden="true"></span><span class="gear-tile-tape" aria-hidden="true"></span><span class="gear-note-stamp" aria-hidden="true"></span></div>`;
+      const materialTint = CardMaterials.noteFor(state.backgroundPattern, planned.gearIndex)?.tint || "var(--card-copy-protected-surface)";
+      return `<div class="board-gear-item board-gear-surface-item gear-slot-${escapeHtml(entry.slot)}" data-character-index="${planned.characterIndex}" data-gear-index="${planned.gearIndex}" style="left:${(planned.x / layoutWidth) * 100}%;top:${(planned.y / layoutHeight) * 100}%;width:${(planned.width / layoutWidth) * 100}%;height:${(planned.height / layoutHeight) * 100}%;--plan-note-radius:${planned.noteRadius ?? 8};--material-note-tint:${materialTint}"><span class="gear-note-surface" aria-hidden="true"></span><span class="gear-tile-tape" aria-hidden="true"></span><span class="gear-note-stamp" aria-hidden="true"></span></div>`;
     }).join("") : "";
   } else {
     surfaceLayer.innerHTML = "";
@@ -4351,6 +4370,12 @@ function captureExportTextLines(element, board, viewScale, scale, {
   return trim ? positionedLines.filter((line) => line.text) : positionedLines;
 }
 
+function resolveExportTextAlign(style, fallback = "left") {
+  if (style.textAlign === "start") return style.direction === "rtl" ? "right" : "left";
+  if (style.textAlign === "end") return style.direction === "rtl" ? "left" : "right";
+  return ["left", "center", "right"].includes(style.textAlign) ? style.textAlign : fallback;
+}
+
 function captureExportCopy() {
   const board = elements.board.getBoundingClientRect();
   const viewScale = getCanvasViewScale();
@@ -4361,7 +4386,7 @@ function captureExportCopy() {
     return element === elements.boardTitle || element === elements.boardCopyright || Boolean(element.textContent.trim());
   }).map(element => {
     const style = getComputedStyle(element);
-    const textAlign = ["left", "center", "right"].includes(style.textAlign) ? style.textAlign : "left";
+    const textAlign = resolveExportTextAlign(style);
     const uppercaseCopy = style.textTransform === "uppercase";
     const lines = captureExportTextLines(element, board, viewScale, scale, { textAlign, uppercase: uppercaseCopy });
     return { lines, textAlign, font: `${style.fontWeight} ${parseFloat(style.fontSize) * scale}px ${style.fontFamily}`,
@@ -4376,7 +4401,7 @@ function captureExportCopy() {
 function captureExportTextElement(element, board, viewScale, scale, fallbackAlign = "left") {
   if (!element) return null;
   const style = getComputedStyle(element);
-  const textAlign = ["left", "center", "right"].includes(style.textAlign) ? style.textAlign : fallbackAlign;
+  const textAlign = resolveExportTextAlign(style, fallbackAlign);
   const uppercaseCopy = style.textTransform === "uppercase";
   const lines = captureExportTextLines(element, board, viewScale, scale, {
     textAlign,
@@ -4408,9 +4433,7 @@ function captureExportGearInfo(gear, snapshot, dimensions, plan = compositionPla
   const layoutBoardWidth = board.width / viewScale;
   const scale = dimensions.layoutWidth / layoutBoardWidth;
   const notes = Array.from(elements.boardGearList?.querySelectorAll(":scope .board-gear-item") || []);
-  const fallbackAlign = snapshot.characterCount === 2
-    ? "left"
-    : snapshot.singleLayout === "info-right" ? "right" : "left";
+  const fallbackAlign = "left";
   return gear.map((items, characterIndex) => items.map((item, itemIndex) => {
     const note = notes.find((element) => Number(element.dataset.characterIndex) === characterIndex && Number(element.dataset.gearIndex) === itemIndex);
     const copy = note?.querySelector(":scope > .gear-tile-copy");
@@ -4456,7 +4479,7 @@ function captureExportLineupInfo(gear, snapshot, dimensions) {
     if (!column) return items;
     const domItems = Array.from(column.querySelectorAll(":scope .multi-info-item"));
     return items.map((item, itemIndex) => {
-      const domItem = domItems.find((element) => Number(element.dataset.gearIndex) === itemIndex) || domItems[itemIndex];
+      const domItem = domItems.find((element) => Number(element.dataset.gearIndex) === itemIndex);
       const primary = domItem?.querySelector(":scope > span");
       if (!primary) return item;
       const secondary = domItem.querySelector(":scope > small");
@@ -4499,26 +4522,19 @@ function drawProtectedGearCopyPanels(context, plan = compositionPlan) {
   if (!board?.width || !viewScale) return;
   (plan.items || []).forEach((itemPlan) => {
     const note = elements.boardGearList?.querySelector(`.board-gear-item[data-character-index="${itemPlan.characterIndex}"][data-gear-index="${itemPlan.gearIndex}"]`);
-    const copy = note?.querySelector(":scope > .gear-tile-copy");
-    if (!copy) return;
-    const style = getComputedStyle(copy);
+    const protection = note?.querySelector(":scope > .gear-note-protection");
+    if (!protection) return;
+    const style = getComputedStyle(protection);
     const surface = style.backgroundColor;
-    const bounds = itemPlan.copyBounds;
+    const bounds = itemPlan.protectionBounds || itemPlan.copyBounds;
     if (!bounds || !surface || surface === "transparent" || surface === "rgba(0, 0, 0, 0)") return;
-    const radius = Math.max(2, Math.min(7, bounds.height * 0.12));
+    const radius = Math.max(0, Math.min(itemPlan.noteRadius ?? 8, bounds.width / 2, bounds.height / 2));
     context.save();
     context.beginPath();
     if (typeof context.roundRect === "function") context.roundRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
     else context.rect(bounds.x, bounds.y, bounds.width, bounds.height);
     context.fillStyle = surface;
     context.fill();
-    const boardStyle = getComputedStyle(elements.board);
-    const edge = boardStyle.getPropertyValue("--card-copy-protected-edge").trim() || style.outlineColor || style.borderTopColor;
-    if (edge && edge !== "transparent" && edge !== "rgba(0, 0, 0, 0)") {
-      context.strokeStyle = edge;
-      context.lineWidth = Math.max(0.5, Math.min(1.5, bounds.height * 0.025));
-      context.stroke();
-    }
     context.restore();
   });
 }
@@ -4557,11 +4573,13 @@ function renderCardCopyPreview(copyLayout = null, gearLayout = null, plan = comp
   CardCopy.draw(context, drawProtectedGear ? [...layout, ...capturedGearCopyLayout(gear || [])] : layout);
   elements.board.dataset.copyRendered = "true";
   elements.board.dataset.gearCopyRendered = String(drawProtectedGear);
+  canvas.dataset.renderedBoardWidth = String(board.width);
+  canvas.dataset.renderedBoardHeight = String(board.height);
   return layout;
 }
 
 function scheduleCardCopyPreview() {
-  if (!(elements.boardCopyCanvas instanceof HTMLCanvasElement) || cardCopyRenderFrame) return;
+  if (!(elements.boardCopyCanvas instanceof HTMLCanvasElement) || cardCopyRenderFrame || boardTitleFitFrame) return;
   cardCopyRenderFrame = window.requestAnimationFrame(() => {
     cardCopyRenderFrame = 0;
     renderCardCopyPreview();
@@ -6070,7 +6088,10 @@ async function bootstrap() {
   initialiseInteractions();
   if (elements.board instanceof HTMLElement && "ResizeObserver" in window) {
     canvasViewResizeObserver?.disconnect();
-    canvasViewResizeObserver = new ResizeObserver(() => syncCanvasViewZoomControl());
+    canvasViewResizeObserver = new ResizeObserver(() => {
+      syncCanvasViewZoomControl();
+      scheduleBoardTitleFit();
+    });
     canvasViewResizeObserver.observe(elements.board);
   }
   const preview = document.querySelector(".canvas-column");

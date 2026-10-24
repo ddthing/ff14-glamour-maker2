@@ -42,6 +42,8 @@ const focusTargets = [
         }).filter(({ width, height }) => width < 24 || height < 24);
         const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
         const forcedColors = matchMedia("(forced-colors: active)").matches;
+        const titleInput = document.querySelector("#cardTitleInput");
+        const titleInputRect = titleInput?.getBoundingClientRect();
         return {
           label,
           reducedMotion,
@@ -49,9 +51,25 @@ const focusTargets = [
           overflow: document.documentElement.scrollWidth > innerWidth + 1,
           smallTargets,
           controlCount: controls.length,
+          titleEditor: {
+            visible: Boolean(titleInput && visible(titleInput)),
+            width: titleInputRect?.width || 0,
+            height: titleInputRect?.height || 0,
+            enabled: Boolean(titleInput && !titleInput.disabled),
+            matchesArtwork: titleInput?.value.trim() === document.querySelector("#boardTitle")?.textContent.trim(),
+          },
         };
       }, viewport.label);
-      const unhandledSmallTargets = snapshot.smallTargets.filter(({ id, className }) => id !== "boardSubtitle" && !className.split(/\s+/).includes("caption-description"));
+      // Text inside the scaled artwork must not grow over the composition to
+      // meet a chrome target size. Its equivalent inspector field stays large,
+      // visible and bound to the same title; keyboard focus is checked below.
+      if (snapshot.smallTargets.some(({ id }) => id === "boardTitle")) {
+        assert.ok(snapshot.titleEditor.visible && snapshot.titleEditor.enabled
+          && snapshot.titleEditor.width >= 24 && snapshot.titleEditor.height >= 24
+          && snapshot.titleEditor.matchesArtwork,
+        `scaled title needs an equivalent full-size editor at ${viewport.label}: ${JSON.stringify(snapshot.titleEditor)}`);
+      }
+      const unhandledSmallTargets = snapshot.smallTargets.filter(({ id, className }) => !["boardTitle", "boardSubtitle"].includes(id) && !className.split(/\s+/).includes("caption-description"));
       assert.deepEqual(unhandledSmallTargets, [], `interactive target below 24px at ${viewport.label}: ${JSON.stringify(unhandledSmallTargets)}`);
       snapshots.push(snapshot);
 

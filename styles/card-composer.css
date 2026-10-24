@@ -490,8 +490,7 @@
   margin: 0 !important;
   padding: 0 !important;
   border: 0 !important;
-  outline: 1px solid var(--recipe-edge, rgba(38, 50, 56, .18));
-  outline-offset: -1px;
+  outline: none;
   transform: none;
 }
 
@@ -503,8 +502,9 @@
   height: var(--plan-copy-height, 94%);
   box-sizing: border-box;
   display: grid;
-  align-content: center;
+  align-content: start;
   justify-items: start;
+  text-align: left;
   gap: calc(var(--plan-group-gap, 3) * var(--card-plan-unit-scale, 1));
   overflow: visible;
   padding: 0;
@@ -519,7 +519,7 @@
 
 .canvas-board[data-composition-layer="person-front"] #boardGearList .board-gear-item {
   border-color: transparent !important;
-  border-radius: 0 !important;
+  outline: none !important;
   background: transparent !important;
   box-shadow: none !important;
 }

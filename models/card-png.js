@@ -606,6 +606,7 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
       copyOnly = false,
       compositionItem = null,
       copyBounds = null,
+      protectionBounds = null,
     } = {}) => {
       const padding = Math.max(10, Math.round(width * 0.045));
       const secondaryName = item.secondaryName;
@@ -618,12 +619,54 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
       const paperNoteTheme = collageTheme || scrapbookTheme;
       const material = CardMaterialsModule?.get(state.backgroundPattern);
       const materialNote = CardMaterialsModule?.noteFor(state.backgroundPattern, noteIndex);
+      const darkCopy = background?.tone === "dark" || exportTheme.text === "#f7f3ed";
+      const copyInk = material?.ink || (darkCopy ? "#f7f3ed" : "#263238");
+      const copyMuted = material?.mutedInk || (darkCopy ? "rgba(247, 243, 237, .68)" : "rgba(38, 50, 56, .68)");
+      const copyEdge = collageTheme
+        ? "rgba(63, 57, 51, .2)"
+        : scrapbookTheme
+          ? "rgba(41, 70, 80, .22)"
+          : darkCopy ? "rgba(247, 243, 237, .24)" : "rgba(38, 50, 56, .18)";
+      const protectedSurface = collageTheme
+        ? "#f4e8d7"
+        : scrapbookTheme
+          ? "#f7f0e3"
+          : darkCopy ? "#1d2228" : "#fffaf4";
+      const plannedNote = Boolean(compositionItem);
+      const noteRadius = Math.max(0, Number(compositionItem?.noteRadius ?? exportTheme.radius) || 0);
       const pathBuilder = () => {
-        if (collageTheme) traceArchivePaper(context, x, y, width, height);
+        if (plannedNote) roundRect(x, y, width, height, noteRadius);
+        else if (collageTheme) traceArchivePaper(context, x, y, width, height);
         else traceScrapbookNote(context, x, y, width, height);
       };
+      const fillProtectedRegion = (bounds) => {
+        const regionRadius = Math.min(noteRadius, bounds.width / 2, bounds.height / 2);
+        context.save();
+        roundRect(bounds.x, bounds.y, bounds.width, bounds.height, regionRadius);
+        context.clip();
+        context.fillStyle = paperNoteTheme ? (materialNote?.tint || protectedSurface) : protectedSurface;
+        context.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+        context.restore();
+      };
       context.save();
-      if (!copyOnly && paperNoteTheme) {
+      if (!copyOnly && plannedNote && paperNoteTheme) {
+        const tint = materialNote?.tint || protectedSurface;
+        roundRect(x, y, width, height, noteRadius);
+        context.fillStyle = tint;
+        context.fill();
+        roundRect(x, y, width, height, noteRadius);
+        context.strokeStyle = copyEdge;
+        context.lineWidth = 1;
+        context.stroke();
+      } else if (!copyOnly && plannedNote) {
+        roundRect(x, y, width, height, noteRadius);
+        context.fillStyle = protectedSurface;
+        context.fill();
+        roundRect(x, y, width, height, noteRadius);
+        context.strokeStyle = copyEdge;
+        context.lineWidth = 1;
+        context.stroke();
+      } else if (!copyOnly && paperNoteTheme) {
         drawMaterialNote(
           context,
           backgroundImage,
@@ -650,7 +693,7 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
         context.lineWidth = 2;
         context.stroke();
       }
-      if (!copyOnly && paperNoteTheme) {
+      if (!copyOnly && paperNoteTheme && !plannedNote) {
         const tapeSpec = materialNote?.tape;
         const tapeLeft = tapeSpec ? tapeSpec.left / 100 : noteIndex % 3 === 1 ? 0.64 : noteIndex % 3 === 2 ? 0.52 : 0.16;
         const tapeWidthRatio = tapeSpec ? tapeSpec.width / 100 : noteIndex % 3 === 1 ? 0.21 : noteIndex % 3 === 2 ? 0.27 : 0.24;
@@ -695,41 +738,19 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
         context.restore();
         return;
       }
-      const protectedBounds = copyBounds || compositionItem?.copyBounds || null;
-      const darkCopy = background?.tone === "dark" || exportTheme.text === "#f7f3ed";
-      const copyInk = material?.ink || (darkCopy ? "#f7f3ed" : "#263238");
-      const copyMuted = material?.mutedInk || (darkCopy ? "rgba(247, 243, 237, .68)" : "rgba(38, 50, 56, .68)");
-      const copyEdge = collageTheme
-        ? "rgba(63, 57, 51, .2)"
-        : scrapbookTheme
-          ? "rgba(41, 70, 80, .22)"
-          : darkCopy ? "rgba(247, 243, 237, .24)" : "rgba(38, 50, 56, .18)";
-      if (compositionItem?.copy && resolvedCompositionPlan?.protectText && protectedBounds) {
-        const protectedSurface = collageTheme
-          ? "#f4e8d7"
-          : scrapbookTheme
-            ? "#f7f0e3"
-            : darkCopy ? "#1d2228" : "#fffaf4";
-        roundRect(
-          protectedBounds.x,
-          protectedBounds.y,
-          protectedBounds.width,
-          protectedBounds.height,
-          Math.max(2, Math.min(7, protectedBounds.height * 0.12)),
-        );
-        context.fillStyle = protectedSurface;
-        context.fill();
-        context.strokeStyle = copyEdge;
-        context.lineWidth = Math.max(0.5, Math.min(1.5, protectedBounds.height * 0.025));
-        context.stroke();
+      const glyphBounds = copyBounds || compositionItem?.copyBounds || null;
+      const safeBounds = protectionBounds || compositionItem?.protectionBounds || null;
+      if (plannedNote && compositionItem?.copy && resolvedCompositionPlan?.effectiveLayer === "person-front"
+        && resolvedCompositionPlan?.protectText && safeBounds) {
+        fillProtectedRegion(safeBounds);
       }
       const capturedCopy = item.preview;
       if (capturedCopy?.primaryCopy?.lines?.length) {
         CardCopy.draw(context, [capturedCopy.slotCopy, capturedCopy.primaryCopy, capturedCopy.secondaryCopy].filter(Boolean));
-      } else if (compositionItem?.copy && protectedBounds) {
+      } else if (compositionItem?.copy && glyphBounds) {
         const copyPlan = compositionItem.copy;
-        const textWidth = Math.max(1, protectedBounds.width);
-        const textX = textAlign === "right" ? protectedBounds.x + protectedBounds.width : protectedBounds.x;
+        const textWidth = Math.max(1, glyphBounds.width);
+        const glyphX = glyphBounds.x;
         const allLines = [];
         context.font = `700 ${copyPlan.primarySize}px "Pretendard Variable", sans-serif`;
         const primaryLines = wrapGearText(item.name || compositionItem.name, textWidth);
@@ -750,9 +771,9 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
         if (secondaryLines.length) {
           allLines.push({ lines: secondaryLines, font: `500 ${copyPlan.secondarySize}px "Pretendard Variable", sans-serif`, size: copyPlan.secondarySize, height: copyPlan.secondaryLineHeight, color: copyMuted });
         }
-        let currentTop = protectedBounds.y + Math.max(0, (protectedBounds.height - totalHeight) / 2);
+        let currentTop = glyphBounds.y;
         allLines.forEach((group) => {
-          drawTopAlignedTextLines(group.lines, textX, currentTop, {
+          drawTopAlignedTextLines(group.lines, glyphX, currentTop, {
             font: group.font,
             fillStyle: group.color,
             lineHeight: group.height,
@@ -846,11 +867,12 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
         const item = gearItemForPlan(itemPlan);
         drawGearTile(item, itemPlan.x, itemPlan.y, itemPlan.width, itemPlan.height, {
           noteIndex: itemPlan.gearIndex,
-          textAlign: itemPlan.textAlign || "left",
+          textAlign: "left",
           surfaceOnly: surfacesOnly,
           copyOnly,
           compositionItem: itemPlan,
           copyBounds: itemPlan.copyBounds,
+          protectionBounds: itemPlan.protectionBounds,
         });
       });
     };
