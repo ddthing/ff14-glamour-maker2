@@ -7,6 +7,69 @@ const CardMaterialsModule = typeof module !== "undefined" && module.exports
   ? require("./card-materials.js")
   : typeof CardMaterials !== "undefined" ? CardMaterials : globalThis.CardMaterials;
 const CardPng = (() => {
+function colorPairForCanvasGradient(context, color) {
+  const fallback = "#fffaf4";
+  const previousFillStyle = context.fillStyle;
+  context.fillStyle = fallback;
+  if (color) context.fillStyle = String(color);
+  const opaque = String(context.fillStyle || fallback);
+  context.fillStyle = previousFillStyle;
+
+  const hex = opaque.match(/^#([\da-f]{3,8})$/iu)?.[1];
+  let channels = null;
+  if (hex && [3, 4, 6, 8].includes(hex.length)) {
+    const expanded = hex.length <= 4
+      ? Array.from(hex, (part) => `${part}${part}`).join("")
+      : hex;
+    channels = [
+      Number.parseInt(expanded.slice(0, 2), 16),
+      Number.parseInt(expanded.slice(2, 4), 16),
+      Number.parseInt(expanded.slice(4, 6), 16),
+    ];
+  } else {
+    const rgb = opaque.match(/^rgba?\((.+)\)$/iu)?.[1];
+    if (rgb) {
+      const parts = rgb.trim().split(/[\s,/]+/u).filter(Boolean);
+      if (parts.length >= 3) {
+        channels = parts.slice(0, 3).map((part) => {
+          const numeric = Number.parseFloat(part);
+          return part.endsWith("%") ? Math.round(numeric * 2.55) : Math.round(numeric);
+        });
+      }
+    }
+  }
+  if (!channels || channels.some((part) => !Number.isFinite(part))) {
+    return { opaque, transparent: "rgba(255, 250, 244, 0)" };
+  }
+  const bounded = channels.map((part) => Math.max(0, Math.min(255, part)));
+  return {
+    opaque,
+    transparent: `rgba(${bounded[0]}, ${bounded[1]}, ${bounded[2]}, 0)`,
+  };
+}
+
+function drawCopyProtection(context, bounds, color) {
+  const x = Number(bounds?.x);
+  const y = Number(bounds?.y);
+  const width = Number(bounds?.width);
+  const height = Number(bounds?.height);
+  if (!context || ![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) return false;
+
+  const colors = colorPairForCanvasGradient(context, color);
+  context.save();
+  context.translate(x + width / 2, y + height / 2);
+  context.scale(width / 2, height / 2);
+  const gradient = context.createRadialGradient(0, 0, 0, 0, 0, 1);
+  gradient.addColorStop(0, colors.opaque);
+  gradient.addColorStop(0.5, colors.opaque);
+  gradient.addColorStop(1, colors.transparent);
+  context.globalAlpha *= 0.78;
+  context.fillStyle = gradient;
+  context.fillRect(-1, -1, 2, 2);
+  context.restore();
+  return true;
+}
+
 function traceFivePointStar(context, radius) {
   const innerRadius = radius * 0.42;
   context.beginPath();
@@ -515,7 +578,7 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
       });
       context.drawImage(image, imageRect.x, imageRect.y, imageRect.width, imageRect.height);
     };
-    const drawCharacter = (image, character, x, y, width, height) => {
+    const drawCharacter = (image, character, characterIndex, x, y, width, height) => {
       context.save();
       const informationMode = state.characterCount >= 3 && state.multiInfoEnabled;
       const silhouetteMode = informationMode && state.multiInfoMode === "silhouette" && character.cutout;
@@ -534,7 +597,15 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
         context.restore();
         return;
       }
-      const imageRect = CardLayout.imageRectFor({
+      const plannedImageRect = resolvedCompositionPlan?.imageRects?.[characterIndex];
+      const hasPlannedImageRect = plannedImageRect
+        && Number.isFinite(Number(plannedImageRect.x))
+        && Number.isFinite(Number(plannedImageRect.y))
+        && Number.isFinite(Number(plannedImageRect.width))
+        && Number.isFinite(Number(plannedImageRect.height))
+        && Number(plannedImageRect.width) > 0
+        && Number(plannedImageRect.height) > 0;
+      const imageRect = hasPlannedImageRect ? plannedImageRect : CardLayout.imageRectFor({
         frame: { x, y, width, height },
         naturalWidth: image.naturalWidth,
         naturalHeight: image.naturalHeight,
@@ -622,51 +693,24 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
       const darkCopy = background?.tone === "dark" || exportTheme.text === "#f7f3ed";
       const copyInk = material?.ink || (darkCopy ? "#f7f3ed" : "#263238");
       const copyMuted = material?.mutedInk || (darkCopy ? "rgba(247, 243, 237, .68)" : "rgba(38, 50, 56, .68)");
-      const copyEdge = collageTheme
-        ? "rgba(63, 57, 51, .2)"
-        : scrapbookTheme
-          ? "rgba(41, 70, 80, .22)"
-          : darkCopy ? "rgba(247, 243, 237, .24)" : "rgba(38, 50, 56, .18)";
       const protectedSurface = collageTheme
         ? "#f4e8d7"
         : scrapbookTheme
           ? "#f7f0e3"
           : darkCopy ? "#1d2228" : "#fffaf4";
       const plannedNote = Boolean(compositionItem);
-      const noteRadius = Math.max(0, Number(compositionItem?.noteRadius ?? exportTheme.radius) || 0);
+      const rawCopyOcclusionScore = compositionItem?.copyOcclusionScore;
+      const copyOcclusionScore = rawCopyOcclusionScore == null || rawCopyOcclusionScore === ""
+        ? Number.NaN
+        : Number(rawCopyOcclusionScore);
+      const copyOcclusionKnownClear = Number.isFinite(copyOcclusionScore) && copyOcclusionScore <= 0;
+      if (surfaceOnly) return;
       const pathBuilder = () => {
-        if (plannedNote) roundRect(x, y, width, height, noteRadius);
-        else if (collageTheme) traceArchivePaper(context, x, y, width, height);
+        if (collageTheme) traceArchivePaper(context, x, y, width, height);
         else traceScrapbookNote(context, x, y, width, height);
       };
-      const fillProtectedRegion = (bounds) => {
-        const regionRadius = Math.min(noteRadius, bounds.width / 2, bounds.height / 2);
-        context.save();
-        roundRect(bounds.x, bounds.y, bounds.width, bounds.height, regionRadius);
-        context.clip();
-        context.fillStyle = paperNoteTheme ? (materialNote?.tint || protectedSurface) : protectedSurface;
-        context.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-        context.restore();
-      };
       context.save();
-      if (!copyOnly && plannedNote && paperNoteTheme) {
-        const tint = materialNote?.tint || protectedSurface;
-        roundRect(x, y, width, height, noteRadius);
-        context.fillStyle = tint;
-        context.fill();
-        roundRect(x, y, width, height, noteRadius);
-        context.strokeStyle = copyEdge;
-        context.lineWidth = 1;
-        context.stroke();
-      } else if (!copyOnly && plannedNote) {
-        roundRect(x, y, width, height, noteRadius);
-        context.fillStyle = protectedSurface;
-        context.fill();
-        roundRect(x, y, width, height, noteRadius);
-        context.strokeStyle = copyEdge;
-        context.lineWidth = 1;
-        context.stroke();
-      } else if (!copyOnly && paperNoteTheme) {
+      if (!copyOnly && !plannedNote && paperNoteTheme) {
         drawMaterialNote(
           context,
           backgroundImage,
@@ -685,7 +729,7 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
             Number(backgroundImage?.naturalHeight || backgroundImage?.height || 0),
           ),
         );
-      } else if (!copyOnly) {
+      } else if (!copyOnly && !plannedNote) {
         roundRect(x, y, width, height, exportTheme.radius);
         context.fillStyle = exportTheme.panel;
         context.fill();
@@ -734,15 +778,11 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
           }
         }
       }
-      if (surfaceOnly) {
-        context.restore();
-        return;
-      }
       const glyphBounds = copyBounds || compositionItem?.copyBounds || null;
       const safeBounds = protectionBounds || compositionItem?.protectionBounds || null;
-      if (plannedNote && compositionItem?.copy && resolvedCompositionPlan?.effectiveLayer === "person-front"
-        && resolvedCompositionPlan?.protectText && safeBounds) {
-        fillProtectedRegion(safeBounds);
+      if (plannedNote && compositionItem?.copy && resolvedCompositionPlan?.protectText
+        && !copyOcclusionKnownClear && safeBounds) {
+        drawCopyProtection(context, safeBounds, materialNote?.tint || protectedSurface);
       }
       const capturedCopy = item.preview;
       if (capturedCopy?.primaryCopy?.lines?.length) {
@@ -882,7 +922,7 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
     }
 
     characterFrames.forEach((frame, index) => {
-      drawCharacter(images[index], activeCharacters[index], frame.x, frame.y, frame.width, frame.height);
+      drawCharacter(images[index], activeCharacters[index], index, frame.x, frame.y, frame.width, frame.height);
     });
 
     context.fillStyle = "rgba(255,255,255,.2)";
@@ -981,6 +1021,6 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
     });
     return canvasBlob("image/png");
 }
-return { render, shouldDrawPatternStamp };
+return { render, shouldDrawPatternStamp, drawCopyProtection };
 })();
 if (typeof module !== "undefined") module.exports = CardPng;

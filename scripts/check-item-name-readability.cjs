@@ -40,6 +40,23 @@ async function installFixture(page) {
   }, longItems);
 }
 
+async function enableCustomFooter(page, characterCount) {
+  await page.evaluate((count) => {
+    state.characterCount = count;
+    state.multiInfoEnabled = true;
+    state.characters.slice(0, count).forEach((character) => { character.cutout = true; });
+    const look = getSelectedLook();
+    look.cardComposition = { ...look.cardComposition, protectText: true };
+    renderAll();
+  }, characterCount);
+  const expectedCount = characterCount * longItems.length;
+  await page.waitForFunction((count) => {
+    const board = document.querySelector("#canvasBoard");
+    return board?.dataset.compositionCustom === "true"
+      && document.querySelectorAll("#boardGearList .board-gear-item .gear-tile-copy > strong").length === count;
+  }, expectedCount);
+}
+
 async function readCardNames(page, selector) {
   return page.evaluate((target) => [...document.querySelectorAll(target)].map((element) => {
     const style = getComputedStyle(element);
@@ -60,11 +77,14 @@ async function readCardNames(page, selector) {
 }
 
 function assertReadableNames(names, label) {
-  assert.ok(names.every(({ whiteSpace, textOverflow, overflowWrap, wordBreak }) => (
+  assert.ok(names.every(({ whiteSpace, textOverflow, overflowWrap, clientWidth, scrollWidth, clientHeight, scrollHeight }) => (
     whiteSpace !== "nowrap"
     && textOverflow !== "ellipsis"
-    && overflowWrap === "break-word"
-    && wordBreak === "keep-all"
+    && ["break-word", "anywhere"].includes(overflowWrap)
+    && clientWidth > 0
+    && scrollWidth <= clientWidth + 1
+    && clientHeight > 0
+    && scrollHeight <= clientHeight + 1
   )), `${label} must wrap complete names at readable boundaries: ${JSON.stringify(names)}`);
 }
 
@@ -108,20 +128,13 @@ function assertReadableNames(names, label) {
     assert.ok(longItems.every(([, , name]) => name.split(" ").filter(Boolean).every((word) => exportText.some((text) => text.includes(word)))), `PNG export lost a word from a full item name: ${JSON.stringify(exportText)}`);
     await page.evaluate(() => { CanvasRenderingContext2D.prototype.fillText = window.__itemNameOriginalFillText; });
 
-    await page.evaluate(() => {
-      state.characterCount = 2;
-      renderAll();
-    });
-    const twoPersonNames = await readCardNames(page, ".board-gear-rail .gear-tile-copy strong");
+    await enableCustomFooter(page, 2);
+    const twoPersonNames = await readCardNames(page, "#boardGearList .board-gear-item .gear-tile-copy > strong");
     assert.equal(twoPersonNames.length, 10, "two-person cards must retain five item names per rail");
     assertReadableNames(twoPersonNames, "two-person item names");
 
-    await page.evaluate(() => {
-      state.characterCount = 3;
-      state.multiInfoEnabled = true;
-      renderAll();
-    });
-    const lineupNames = await readCardNames(page, ".multi-info-item > span");
+    await enableCustomFooter(page, 3);
+    const lineupNames = await readCardNames(page, "#boardGearList .board-gear-item .gear-tile-copy > strong");
     assert.equal(lineupNames.length, 15, "lineup card must retain five item names per character");
     assertReadableNames(lineupNames, "lineup item names");
 

@@ -2329,6 +2329,9 @@ function renderCast() {
     </button>`;
     })()}
   `).join(""));
+  elements.portraitWrap?.querySelectorAll("img").forEach((image) => {
+    if (!image.complete) image.addEventListener("load", () => scheduleLiveStyleRender(), { once: true });
+  });
   if (elements.castSelectionSummary) {
     const index = String(state.selectedCharacter + 1).padStart(2, "0");
     const countLabel = state.characterCount === 1
@@ -2457,6 +2460,48 @@ function getCompositionOccupancyByCharacter() {
   });
 }
 
+function getCompositionImageRects(layout) {
+  const boardWidth = elements.board?.getBoundingClientRect().width / getCanvasViewScale();
+  const panScale = boardWidth > 0 ? layout.dimensions.layoutWidth / boardWidth : 1;
+  return state.characters.slice(0, state.characterCount).map((character, index) => {
+    const image = elements.portraitWrap?.querySelector(`.character-figure[data-character-index="${index}"] img`);
+    if (!image?.complete || !image.naturalWidth) return null;
+    return CardLayout.imageRectFor({
+      ...getCharacterImageState(character),
+      frame: layout.frames[index],
+      naturalWidth: image.naturalWidth,
+      naturalHeight: image.naturalHeight,
+      panScale,
+    });
+  });
+}
+
+function applyCompositionImageRects(plan, layout) {
+  elements.portraitWrap?.querySelectorAll(".character-figure img").forEach((image) => {
+    const index = Number(image.closest(".character-figure")?.dataset.characterIndex);
+    const rect = plan?.isCustom && state.characters[index]?.cutout ? plan.imageRects?.[index] : null;
+    const frame = layout.frames[index];
+    if (rect && frame?.width > 0 && frame.height > 0) {
+      image.dataset.compositionPlaced = "true";
+      const properties = {
+        position: "absolute",
+        left: `${(rect.x - frame.x) / frame.width * 100}%`,
+        top: `${(rect.y - frame.y) / frame.height * 100}%`,
+        width: `${rect.width / frame.width * 100}%`,
+        height: `${rect.height / frame.height * 100}%`,
+        transform: "none",
+        transition: "none",
+      };
+      Object.entries(properties).forEach(([property, value]) => image.style.setProperty(property, value, "important"));
+    } else if (image.dataset.compositionPlaced === "true") {
+      delete image.dataset.compositionPlaced;
+      ["position", "left", "top", "width", "height", "transition"].forEach((property) => image.style.removeProperty(property));
+      const character = getCharacterImageState(state.characters[index]);
+      image.style.setProperty("transform", `translate(${character.panX}px, ${character.panY}px) scale(${character.zoom / 100})`);
+    }
+  });
+}
+
 function refreshCardCompositionPlan(look = getSelectedLook(), layout = getCardLayout()) {
   ensureLookEquipmentState(look);
   const gearByCharacter = getCardGearByCharacter(look);
@@ -2471,6 +2516,7 @@ function refreshCardCompositionPlan(look = getSelectedLook(), layout = getCardLa
     multiInfoEnabled: state.multiInfoEnabled,
     language: state.language,
     occupancyByCharacter: getCompositionOccupancyByCharacter(),
+    imageRects: getCompositionImageRects(layout),
   });
   return { plan: compositionPlan, gearByCharacter, layout };
 }
@@ -2489,7 +2535,8 @@ function getBoardGearCompositionKey(plan = compositionPlan) {
     plan.effectiveLayer,
     plan.protectText,
     plan.infoGap,
-    (plan.items || []).map((item) => [item.characterIndex, item.gearIndex, item.itemId, item.x, item.y, item.width, item.height]),
+    plan.imageRects,
+    (plan.items || []).map((item) => [item.characterIndex, item.gearIndex, item.itemId, item.x, item.y, item.width, item.height, item.copyOcclusionScore, item.copy]),
   ]);
 }
 
@@ -2550,6 +2597,7 @@ function renderBoardGear() {
   const look = ensureLookEquipmentState(getSelectedLook());
   const { plan, gearByCharacter, layout } = refreshCardCompositionPlan(look);
   compositionPlan = plan;
+  applyCompositionImageRects(plan, layout);
   elements.board.dataset.compositionCustom = String(plan.isCustom);
   elements.board.dataset.compositionLayer = plan.effectiveLayer;
   elements.board.dataset.copyProtection = String(plan.protectText);
@@ -2600,7 +2648,8 @@ function renderBoardGear() {
       const materialTint = CardMaterials.noteFor(state.backgroundPattern, planned.gearIndex)?.tint || "var(--card-copy-protected-surface)";
       style = ` style="left:${left}%;top:${top}%;width:${width}%;height:${height}%;--plan-slot-size:${copy.slotSize || 0};--plan-primary-size:${copy.primarySize || 0};--plan-secondary-size:${copy.secondarySize || 0};--plan-slot-line-height:${copy.slotLineHeight || 0};--plan-primary-line-height:${copy.primaryLineHeight || 0};--plan-secondary-line-height:${copy.secondaryLineHeight || 0};--plan-group-gap:${copy.groupGap || 0};--plan-copy-left:${copyLeft}%;--plan-copy-top:${copyTop}%;--plan-copy-width:${copyWidth}%;--plan-copy-height:${copyHeight}%;--plan-protection-left:${protectionLeft}%;--plan-protection-top:${protectionTop}%;--plan-protection-width:${protectionWidth}%;--plan-protection-height:${protectionHeight}%;--plan-note-radius:${planned.noteRadius ?? 8};--material-note-tint:${materialTint}"`;
     }
-    const extraAttrs = entry.extra ? ` data-extra-id="${escapeHtml(entry.id)}" data-extra-slot="${escapeHtml(slot)}"` : "";
+    const overlapAttr = planned ? ` data-copy-overlap="${!Number.isFinite(planned.copyOcclusionScore) || planned.copyOcclusionScore > 0}"` : "";
+    const extraAttrs = (entry.extra ? ` data-extra-id="${escapeHtml(entry.id)}" data-extra-slot="${escapeHtml(slot)}"` : "") + overlapAttr;
     const itemIdAttr = entry.itemId != null ? ` data-item-id="${escapeHtml(entry.itemId)}"` : "";
     const button = `<button class="board-gear-item gear-slot-${escapeHtml(slot)}${entry.extra ? " is-extra" : ""}" data-character-index="${characterIndex}" data-gear-index="${index}" data-card-slot="${escapeHtml(slot)}"${extraAttrs}${itemIdAttr} type="button" aria-label="${escapeHtml(t("item.gearEdit", { number: characterNumber, slot: slotName, name: primaryName }))}"${style}>
       <span class="gear-note-surface" aria-hidden="true"></span><span class="gear-tile-tape" aria-hidden="true"></span><span class="gear-note-stamp" aria-hidden="true"></span>
@@ -2898,6 +2947,7 @@ function renderStyles({ refreshInfo = true, refreshPattern = true, fitTitle = tr
     image.style.transform = `translate(${character.panX}px, ${character.panY}px) scale(${character.zoom / 100})`;
     image.style.filter = `${baseFilter} ${infoTreatment}`.trim() || "none";
   });
+  applyCompositionImageRects(nextCompositionPlan, cardLayout);
 
   if (refreshControls) {
     elements.outlineRange.value = state.outline.width;
@@ -4516,26 +4566,21 @@ function captureExportLineupInfo(gear, snapshot, dimensions) {
 }
 
 function drawProtectedGearCopyPanels(context, plan = compositionPlan) {
-  if (!plan?.isCustom || plan.effectiveLayer !== "person-front" || !plan.protectText) return;
+  if (!plan?.isCustom || !plan.protectText) return;
   const board = elements.board?.getBoundingClientRect();
   const viewScale = getCanvasViewScale();
   if (!board?.width || !viewScale) return;
   (plan.items || []).forEach((itemPlan) => {
+    if (Number.isFinite(itemPlan.copyOcclusionScore) && itemPlan.copyOcclusionScore <= 0) return;
     const note = elements.boardGearList?.querySelector(`.board-gear-item[data-character-index="${itemPlan.characterIndex}"][data-gear-index="${itemPlan.gearIndex}"]`);
     const protection = note?.querySelector(":scope > .gear-note-protection");
     if (!protection) return;
-    const style = getComputedStyle(protection);
-    const surface = style.backgroundColor;
+    const style = getComputedStyle(note);
+    const surface = style.getPropertyValue("--material-note-tint").trim()
+      || style.getPropertyValue("--card-copy-protected-surface").trim();
     const bounds = itemPlan.protectionBounds || itemPlan.copyBounds;
-    if (!bounds || !surface || surface === "transparent" || surface === "rgba(0, 0, 0, 0)") return;
-    const radius = Math.max(0, Math.min(itemPlan.noteRadius ?? 8, bounds.width / 2, bounds.height / 2));
-    context.save();
-    context.beginPath();
-    if (typeof context.roundRect === "function") context.roundRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
-    else context.rect(bounds.x, bounds.y, bounds.width, bounds.height);
-    context.fillStyle = surface;
-    context.fill();
-    context.restore();
+    if (!bounds || !surface) return;
+    CardPng.drawCopyProtection(context, bounds, surface);
   });
 }
 
@@ -4556,7 +4601,7 @@ function renderCardCopyPreview(copyLayout = null, gearLayout = null, plan = comp
   const dimensions = getExportDimensions();
   const layout = copyLayout || captureExportCopy();
   let gear = gearLayout;
-  const drawProtectedGear = Boolean(plan?.isCustom && plan.effectiveLayer === "person-front" && plan.protectText);
+  const drawProtectedGear = Boolean(plan?.isCustom && plan.protectText);
   if (drawProtectedGear && !gear) {
     gear = captureExportGearInfo(getCardGearByCharacter(), createSnapshot(), dimensions, plan);
   }
@@ -4809,14 +4854,27 @@ async function downloadComposition(event, snapshot = { ...state, ...createSnapsh
     ]);
     assertUnchanged();
     if (elements.board?.dataset.copyFontPending === "true") throw new Error(t("image.fontTimeout"));
+    // Resolve the same decoded source geometry used by the live image before
+    // freezing the plan. An export immediately after import must not capture
+    // the temporary, mask-free placement from the first render.
+    await Promise.all(Array.from(elements.portraitWrap.querySelectorAll(".character-figure img"), image => (
+      typeof image.decode === "function" ? image.decode() : Promise.resolve()
+    )));
+    assertUnchanged();
+    const decodedCompositionPlan = refreshCardCompositionPlan(look, layout).plan;
+    if (getBoardGearCompositionKey(decodedCompositionPlan) !== boardGearCompositionKey) renderBoardGear();
+    applyCompositionImageRects(compositionPlan, layout);
     gear = getCardGearByCharacter(look).map((items) => items.map((item) => ({ ...item, names: { ...item.names } })));
-    const exportCompositionPlan = compositionPlan || refreshCardCompositionPlan(look, layout).plan;
+    const exportCompositionPlan = refreshCardCompositionPlan(look, layout).plan;
     if (!fontReady) throw new Error(t("image.fontTimeout"));
     assertUnchanged();
     fitBoardTitle();
     const copyLayout = captureExportCopy();
     gear = captureExportGearInfo(gear, state, dimensions, exportCompositionPlan);
     renderCardCopyPreview(copyLayout, gear, exportCompositionPlan);
+    const board = elements.board.getBoundingClientRect();
+    const layoutBoardWidth = board.width / getCanvasViewScale();
+    const placementScale = layoutBoardWidth > 0 ? dimensions.layoutWidth / layoutBoardWidth : 1;
     const images = await Promise.all(activeCharacters.map((character) => loadCanvasImage(resolveCharacterAsset(character, "hero"))));
     const backgroundSurfaceAsset = backgroundStyle.surfaceAssetFor(state.backgroundPattern);
     const backgroundImage = backgroundSurfaceAsset
@@ -4826,9 +4884,6 @@ async function downloadComposition(event, snapshot = { ...state, ...createSnapsh
     const infoTextTheme = state.multiInfoMode === "silhouette"
       ? getSilhouetteInfoTheme(background)
       : { foreground: exportTheme.text, muted: exportTheme.muted, halo: exportTheme.infoShadow };
-    const board = elements.board.getBoundingClientRect();
-    const layoutBoardWidth = board.width / getCanvasViewScale();
-    const placementScale = layoutBoardWidth > 0 ? dimensions.layoutWidth / layoutBoardWidth : 1;
     const outputBlob = await CardPng.render({ state, layout, dimensions, exportTheme,
       background, textureInk, patternStars, images, backgroundImage, copyLayout, gear, compositionPlan: exportCompositionPlan,
       placementScale, outlineColor: rgba(state.outline.color, 0.8), infoTextColor: infoTextTheme.foreground,
@@ -6090,6 +6145,7 @@ async function bootstrap() {
     canvasViewResizeObserver?.disconnect();
     canvasViewResizeObserver = new ResizeObserver(() => {
       syncCanvasViewZoomControl();
+      scheduleLiveStyleRender({ refreshInfo: false, refreshPattern: false, refreshControls: false });
       scheduleBoardTitleFit();
     });
     canvasViewResizeObserver.observe(elements.board);

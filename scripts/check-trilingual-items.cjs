@@ -51,7 +51,8 @@ const items = slots.map((slot, index) => ({
           renderAll();
         }, { count, language });
         await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-        const selector = count <= 2 ? ".gear-tile-copy" : ".multi-info-item";
+        const custom = await page.evaluate(() => compositionPlan.isCustom);
+        const selector = count <= 2 || custom ? "#boardGearList .gear-tile-copy" : ".multi-info-item";
         const blocks = await page.locator(selector).evaluateAll(nodes => nodes.map(node => ({
           text: node.textContent,
           translations: [...node.querySelectorAll('.gear-name-translation')].map(span => ({ text: span.textContent, lang: span.lang, height: span.getBoundingClientRect().height })),

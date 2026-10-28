@@ -110,11 +110,11 @@ const assetPath = path.join(__dirname, "..", "assets", "themes", "materials", "a
     }));
     assert.deepEqual(gearNotes.map(({ slot }) => slot), ["head", "body", "hands", "legs", "feet"], "all five equipment notes must keep their canonical slot order");
     assert.ok(gearNotes.every(({ surfaceDisplay, tapeOverhangs, leadingLine, trailingLine }) => (
-      surfaceDisplay === "block"
-      && tapeOverhangs
+      surfaceDisplay === "none"
+      && !tapeOverhangs
       && leadingLine === "none"
       && trailingLine === "none"
-    )), "scrapbook notes must use an overlapping tape and omit the two marked rules");
+    )), "paper background must not restore boxes, tapes, or marked rules on typography-only notes");
 
     assert.equal(fs.existsSync(assetPath), true, "the generated airy material must be present in the project");
     const asset = await page.evaluate(async () => {
