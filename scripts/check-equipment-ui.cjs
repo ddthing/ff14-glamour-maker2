@@ -531,6 +531,8 @@ function storedZipNames(buffer) {
     assert.equal(persistedLook.cardVisibility[2].head, true, "a different character's untouched core visibility should remain selected");
 
     await page.locator("#styleTab").click();
+    const compositionDetails = page.locator("#compositionDetails");
+    if (!(await compositionDetails.evaluate((details) => details.open))) await compositionDetails.locator("summary").click();
     const noOpGapState = await page.locator("#infoGapRange").evaluate((slider) => {
       const sendPointer = (type, pointerId, buttons) => slider.dispatchEvent(new PointerEvent(type, {
         bubbles: true,
@@ -542,17 +544,17 @@ function storedZipNames(buffer) {
       slider.focus();
       sendPointer("pointerdown", 901, 1);
       slider.blur();
-      const afterBlur = compositionGapHistoryActive;
+      const afterBlur = compositionRangeHistoryActive;
       sendPointer("pointerdown", 902, 1);
       sendPointer("pointerup", 902, 0);
-      const afterPointerUp = compositionGapHistoryActive;
+      const afterPointerUp = compositionRangeHistoryActive;
       sendPointer("pointerdown", 903, 1);
       sendPointer("pointercancel", 903, 0);
-      const afterPointerCancel = compositionGapHistoryActive;
+      const afterPointerCancel = compositionRangeHistoryActive;
       slider.focus();
       slider.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
       slider.dispatchEvent(new KeyboardEvent("keyup", { key: "ArrowLeft", bubbles: true, cancelable: true }));
-      const afterEndpointKey = compositionGapHistoryActive;
+      const afterEndpointKey = compositionRangeHistoryActive;
       return {
         value: Number(slider.value),
         afterBlur,

@@ -1481,8 +1481,8 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
   filter: opacity(0);
 }
 
-/* Custom plans use one quiet rounded surface per note. The button itself is
-   only the hit target; its note surface owns the sole perimeter. */
+/* Custom plans are typography-only. The transparent button remains the hit
+   target, with its keyboard focus ring as the only perimeter. */
 .canvas-board[data-composition-custom="true"] #boardGearList .board-gear-item,
 .canvas-board[data-composition-custom="true"] #boardGearSurfaceLayer .board-gear-surface-item {
   border: 0 !important;
@@ -1499,27 +1499,7 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
 
 .canvas-board[data-composition-custom="true"] #boardGearList .gear-note-surface,
 .canvas-board[data-composition-custom="true"] #boardGearSurfaceLayer .gear-note-surface {
-  display: block !important;
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  box-sizing: border-box;
-  border: var(--card-plan-unit-scale, 1px) solid var(--card-copy-protected-edge);
-  border-radius: calc(var(--plan-note-radius, 8) * var(--card-plan-unit-scale, 1px)) !important;
-  clip-path: none !important;
-  filter: none !important;
-  background-color: var(--material-note-tint, var(--card-copy-protected-surface));
-  background-image: none !important;
-  box-shadow: none !important;
-  pointer-events: none;
-}
-
-.canvas-board[data-composition-custom="true"][data-composition-layer="person-front"] #boardGearList .gear-note-surface {
   display: none !important;
-}
-
-.canvas-board[data-composition-custom="true"][data-composition-layer="person-front"] #boardGearSurfaceLayer .gear-note-surface {
-  display: block !important;
 }
 
 .canvas-board[data-composition-custom="true"] #boardGearList .gear-tile-tape,
@@ -1539,12 +1519,18 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
   z-index: 1;
   box-sizing: border-box;
   border: 0;
-  border-radius: calc(var(--plan-note-radius, 8) * var(--card-plan-unit-scale, 1px));
-  background-color: var(--material-note-tint, var(--card-copy-protected-surface));
+  border-radius: 0;
+  background: radial-gradient(
+    ellipse closest-side,
+    var(--material-note-tint, var(--card-copy-protected-surface)) 0%,
+    var(--material-note-tint, var(--card-copy-protected-surface)) 50%,
+    transparent 100%
+  );
+  opacity: .78;
   pointer-events: none;
 }
 
-.canvas-board[data-composition-custom="true"][data-composition-layer="person-front"][data-copy-protection="true"] #boardGearList .gear-note-protection {
+.canvas-board[data-composition-custom="true"][data-copy-protection="true"] #boardGearList .board-gear-item[data-copy-overlap="true"] > .gear-note-protection {
   display: block;
 }
 
@@ -1553,6 +1539,11 @@ body.image-placement-mode .canvas-board .portrait-wrap.is-dragging .character-fi
 }
 
 .canvas-board[data-composition-custom="true"] #boardGearList .gear-tile-copy {
+  display: grid !important;
+  align-content: start !important;
+  align-items: start;
+  justify-content: start !important;
+  justify-items: start;
   position: absolute;
   z-index: 2;
   padding: 0;

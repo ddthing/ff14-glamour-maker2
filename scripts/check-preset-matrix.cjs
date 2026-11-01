@@ -196,7 +196,7 @@ function maxDrift(actual, expected) {
         const ui = await page.evaluate(() => {
           const board = document.querySelector("#canvasBoard");
           const boardRect = board.getBoundingClientRect();
-          const gear = [...board.querySelectorAll(".board-gear-item")].map((item) => {
+          const gear = [...board.querySelectorAll("#boardGearList .board-gear-item")].map((item) => {
             const rect = item.getBoundingClientRect();
             return {
               x: rect.left - boardRect.left,
@@ -220,6 +220,8 @@ function maxDrift(actual, expected) {
             gearCount: gear.length,
             gear,
             rails,
+            plan: compositionPlan,
+            infoEnabled: state.multiInfoEnabled,
             multiInfoCount: board.querySelectorAll(".multi-info-column").length,
             exportDisabled: document.querySelector("#exportButton").getAttribute("aria-disabled"),
           };
@@ -228,14 +230,28 @@ function maxDrift(actual, expected) {
         assert.equal(ui.cast, String(combination.characterCount), `${label}: cast count drifted`);
         assert.equal(ui.ratio, expectedRatio, `${label}: effective card ratio drifted`);
         assert.equal(ui.characterSlots, combination.characterCount, `${label}: character slot count drifted`);
-        assert.equal(ui.gearCount, combination.characterCount === 2 ? 10 : 5, `${label}: gear note count drifted`);
+        const expectedGearCount = ui.plan.isCustom
+          ? (combination.characterCount < 3 || ui.infoEnabled ? combination.characterCount * 5 : 0)
+          : combination.characterCount === 2 ? 10 : 5;
+        assert.equal(ui.gearCount, expectedGearCount, `${label}: selected gear note count drifted`);
         assert.equal(ui.exportDisabled, "false", `${label}: a fixture-backed card must remain exportable`);
         if (combination.characterCount <= 2) {
           assert.ok(ui.gear.every(({ x, y, right, bottom }) => x >= -0.5 && y >= -0.5 && right >= -0.5 && bottom >= -0.5), `${label}: a gear note escaped the card: ${JSON.stringify(ui.gear)}`);
         }
-        if (combination.characterCount >= 3) assert.equal(ui.multiInfoCount, combination.characterCount, `${label}: lineup information columns drifted`);
+        if (combination.characterCount >= 3) assert.equal(ui.multiInfoCount, ui.plan.isCustom ? 0 : combination.characterCount, `${label}: legacy and planned information must not be duplicated`);
 
-        if (combination.characterCount === 1) {
+        if (ui.plan.isCustom) {
+          assert.equal(ui.plan.items.length, expectedGearCount, `${label}: custom plan must retain every selected item`);
+          const scaleX = ui.boardWidth / ui.plan.dimensions.layoutWidth;
+          const scaleY = ui.boardHeight / ui.plan.dimensions.layoutHeight;
+          const drift = Math.max(0, ...ui.gear.map((actual, index) => maxDrift(actual, {
+            x: ui.plan.items[index].x * scaleX,
+            y: ui.plan.items[index].y * scaleY,
+            width: ui.plan.items[index].width * scaleX,
+            height: ui.plan.items[index].height * scaleY,
+          })));
+          assert.ok(drift <= .75, `${label}: preview information drifted ${drift.toFixed(2)}px from the shared PNG plan`);
+        } else if (combination.characterCount === 1) {
           const dimensions = await page.evaluate((value) => CardLayout.dimensionsFor(1, value.singleRatio), combination);
           const expectedPositions = await page.evaluate((value) => (
             value.singleRatio === "portrait"
@@ -252,7 +268,7 @@ function maxDrift(actual, expected) {
           })));
           assert.ok(drift <= 0.75, `${label}: preview gear geometry drifted ${drift.toFixed(2)}px from CardLayout`);
         }
-        if (combination.characterCount === 2) {
+        if (!ui.plan.isCustom && combination.characterCount === 2) {
           const expectedRails = await page.evaluate(() => CardLayout.infoRails({ characterCount: 2 }));
           const scaleX = ui.boardWidth / 1200;
           const scaleY = ui.boardHeight / 675;

@@ -11,6 +11,12 @@ const CardComposition = (() => {
   // glyphs are rasterized at 2×, so this remains visible in the PNG while
   // giving the planner enough range to fit unusually long official names.
   const MIN_PRIMARY_SIZE = 0.75;
+  const RAIL_CLEARANCE = 24;
+  const SOLO_RAIL_INSET = 54;
+  const SOLO_RAIL_WIDTH = 280;
+  const PAIR_RAIL_WIDTH = 220;
+  const LINEUP_FOOTER_HEIGHT = 237;
+  const LINEUP_IMAGE_BOTTOM = 396;
   const MASK_WIDTH = 64;
   const MASK_HEIGHT = 96;
   const MASK_CACHE_LIMIT = 32;
@@ -85,6 +91,22 @@ const CardComposition = (() => {
     });
   }
 
+  function artVisibleEntries(entries, art) {
+    return entries.map((entry) => {
+      let secondaryName = entry.secondaryName;
+      if (art.secondaryMode === "none") secondaryName = "";
+      if (art.secondaryMode === "english") {
+        const english = String(entry.raw?.names?.en || "").trim();
+        secondaryName = english && english !== entry.name ? english : "";
+      }
+      return {
+        ...entry,
+        secondaryName,
+        slotName: art.showSlots ? entry.slotName : "",
+      };
+    });
+  }
+
   function graphemes(value) {
     const text = String(value || "");
     if (textSegmenter) {
@@ -134,6 +156,8 @@ const CardComposition = (() => {
     paddingY,
     maxContentHeight = Number.POSITIVE_INFINITY,
     preferredPrimarySize = null,
+    compactCopy = false,
+    preciseFit = false,
   } = {}) {
     const widthKey = Math.round(width * 100) / 100;
     const maxHeightKey = Number.isFinite(maxContentHeight) ? Math.round(maxContentHeight * 100) / 100 : "inf";
@@ -147,6 +171,8 @@ const CardComposition = (() => {
       paddingY,
       maxHeightKey,
       primarySizeKey,
+      compactCopy,
+      preciseFit,
     ]);
     let metrics = copyMetricsCache.get(key);
     if (metrics) {
@@ -158,13 +184,13 @@ const CardComposition = (() => {
       const copyWidth = Math.max(1, width - paddingX * 2);
       const copyHeight = Math.max(1, Number(maxContentHeight) || Number.POSITIVE_INFINITY);
       const base = Number.isFinite(preferredPrimarySize)
-        ? numberInRange(preferredPrimarySize, MIN_PRIMARY_SIZE, 24, 9)
+        ? numberInRange(preferredPrimarySize, MIN_PRIMARY_SIZE, 36, 9)
         : numberInRange(copyWidth * 0.16, 4, 24, 9);
-      const groupGap = Math.max(1, Math.min(4, copyWidth * 0.018));
+      const groupGap = compactCopy ? 0.5 : Math.max(1, Math.min(4, copyWidth * 0.018));
       let selected = null;
-      for (let primarySize = base; primarySize >= MIN_PRIMARY_SIZE - 0.001; primarySize = Math.max(MIN_PRIMARY_SIZE, primarySize - 0.25)) {
-        const secondarySize = entry.secondaryName ? primarySize * 0.72 : 0;
-        const slotSize = entry.slotName ? primarySize * 0.7 : 0;
+      for (let primarySize = base; primarySize >= MIN_PRIMARY_SIZE - 0.001; primarySize = Math.max(MIN_PRIMARY_SIZE, primarySize - (preciseFit ? 0.1 : 0.25))) {
+        const secondarySize = entry.secondaryName ? primarySize * (compactCopy ? 0.5 : 0.72) : 0;
+        const slotSize = entry.slotName ? primarySize * (compactCopy ? 0.55 : 0.7) : 0;
         const primaryLines = estimatedLineCount(entry.name, primarySize, copyWidth);
         const secondaryParts = secondarySize ? String(entry.secondaryName).split(/\r?\n/u) : [];
         const secondaryLines = secondaryParts.reduce((sum, part) => sum + estimatedLineCount(part, secondarySize, copyWidth), 0);
@@ -202,12 +228,12 @@ const CardComposition = (() => {
         paddingX,
         paddingY,
         primarySize: MIN_PRIMARY_SIZE,
-        secondarySize: entry.secondaryName ? MIN_PRIMARY_SIZE * 0.72 : 0,
-        slotSize: entry.slotName ? MIN_PRIMARY_SIZE * 0.7 : 0,
-        slotLineHeight: entry.slotName ? MIN_PRIMARY_SIZE * 0.7 * 1.05 : 0,
+        secondarySize: entry.secondaryName ? MIN_PRIMARY_SIZE * (compactCopy ? 0.5 : 0.72) : 0,
+        slotSize: entry.slotName ? MIN_PRIMARY_SIZE * (compactCopy ? 0.55 : 0.7) : 0,
+        slotLineHeight: entry.slotName ? MIN_PRIMARY_SIZE * (compactCopy ? 0.55 : 0.7) * 1.05 : 0,
         primaryLineHeight: MIN_PRIMARY_SIZE * 1.12,
-        secondaryLineHeight: entry.secondaryName ? MIN_PRIMARY_SIZE * 0.72 * 1.1 : 0,
-        groupGap: 1,
+        secondaryLineHeight: entry.secondaryName ? MIN_PRIMARY_SIZE * (compactCopy ? 0.5 : 0.72) * 1.1 : 0,
+        groupGap: compactCopy ? 0.5 : 1,
         estimatedPrimaryLines: 1,
         estimatedSecondaryLines: entry.secondaryName ? 1 : 0,
         secondaryLocaleGap: 0,
@@ -242,38 +268,171 @@ const CardComposition = (() => {
     return 4;
   }
 
-  function maskAt(mask, x, y) {
-    if (!mask || !(mask.width > 0 && mask.height > 0)) return 0;
-    const column = Math.min(mask.width - 1, Math.max(0, Math.floor(x * mask.width)));
-    const row = Math.min(mask.height - 1, Math.max(0, Math.floor(y * mask.height)));
-    const index = row * mask.width + column;
-    const alpha = mask.alpha?.[index] ?? mask.data?.[index] ?? 0;
-    return Number(alpha) > 1 ? Number(alpha) / 255 : Number(alpha);
+  function validRect(rect) {
+    if (!rect || typeof rect !== "object") return null;
+    const x = Number(rect.x);
+    const y = Number(rect.y);
+    const width = Number(rect.width);
+    const height = Number(rect.height);
+    if (![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) return null;
+    return { x, y, width, height };
   }
 
-  function occupancyScore(bounds, frame, mask) {
-    if (!frame || !mask || !(frame.width > 0 && frame.height > 0)) return null;
-    let score = 0;
-    let samples = 0;
-    for (const yRatio of [0.2, 0.5, 0.8]) {
-      for (const xRatio of [0.2, 0.5, 0.8]) {
-        const x = bounds.x + bounds.width * xRatio;
-        const y = bounds.y + bounds.height * yRatio;
-        const normalizedX = (x - frame.x) / frame.width;
-        const normalizedY = (y - frame.y) / frame.height;
-        if (normalizedX < 0 || normalizedX > 1 || normalizedY < 0 || normalizedY > 1) continue;
-        score += maskAt(mask, normalizedX, normalizedY);
-        samples += 1;
+  function rectRight(rect) {
+    return rect.x + rect.width;
+  }
+
+  function rectBottom(rect) {
+    return rect.y + rect.height;
+  }
+
+  function intersection(first, second) {
+    const left = Math.max(first.x, second.x);
+    const top = Math.max(first.y, second.y);
+    const right = Math.min(rectRight(first), rectRight(second));
+    const bottom = Math.min(rectBottom(first), rectBottom(second));
+    if (right <= left || bottom <= top) return null;
+    return { x: left, y: top, width: right - left, height: bottom - top };
+  }
+
+  function rectanglesOverlap(first, second) {
+    return Boolean(first && second && intersection(first, second));
+  }
+
+  function occupancyBounds(mask) {
+    if (!mask || !(mask.width > 0 && mask.height > 0)) return { known: false, bounds: null };
+    const alpha = mask.alpha || mask.data;
+    if (!alpha || typeof alpha.length !== "number" || alpha.length < mask.width * mask.height) {
+      return { known: false, bounds: null };
+    }
+    let left = mask.width;
+    let top = mask.height;
+    let right = -1;
+    let bottom = -1;
+    for (let y = 0; y < mask.height; y += 1) {
+      for (let x = 0; x < mask.width; x += 1) {
+        const value = Number(alpha[y * mask.width + x] || 0);
+        if (value <= 0) continue;
+        left = Math.min(left, x);
+        top = Math.min(top, y);
+        right = Math.max(right, x);
+        bottom = Math.max(bottom, y);
       }
     }
-    return samples ? score / samples : 0;
+    if (right < left || bottom < top) return { known: true, bounds: null };
+    return {
+      known: true,
+      bounds: {
+        left: left / mask.width,
+        top: top / mask.height,
+        right: (right + 1) / mask.width,
+        bottom: (bottom + 1) / mask.height,
+      },
+    };
+  }
+
+  function mapSourceBounds(sourceBounds, imageRect, clipRect = null) {
+    const rect = validRect(imageRect);
+    if (!sourceBounds || !rect) return null;
+    const mapped = {
+      x: rect.x + sourceBounds.left * rect.width,
+      y: rect.y + sourceBounds.top * rect.height,
+      width: (sourceBounds.right - sourceBounds.left) * rect.width,
+      height: (sourceBounds.bottom - sourceBounds.top) * rect.height,
+    };
+    const clip = validRect(clipRect);
+    return clip ? intersection(mapped, clip) : mapped;
+  }
+
+  function fitImageRectToCorridor(imageRect, sourceBounds, frame, corridor) {
+    const rect = validRect(imageRect);
+    if (!rect || !corridor || !(corridor.width > 0)) return rect;
+    const bounds = sourceBounds || { left: 0, top: 0, right: 1, bottom: 1 };
+    const subject = mapSourceBounds(bounds, rect);
+    if (!subject) return rect;
+    const corridorRight = corridor.x + corridor.width;
+    const alreadyClear = subject.x >= corridor.x - 0.01 && rectRight(subject) <= corridorRight + 0.01;
+    if (alreadyClear) return rect;
+
+    const sourceWidth = Math.max(0.001, bounds.right - bounds.left);
+    let scale = Math.min(1, corridor.width / (rect.width * sourceWidth));
+    const clip = validRect(frame);
+    if (clip) {
+      scale = Math.min(scale, clip.width / rect.width, clip.height / rect.height);
+    }
+    const width = rect.width * scale;
+    const height = rect.height * scale;
+    const sourceCenterX = (bounds.left + bounds.right) / 2;
+    const x = corridor.x + corridor.width / 2 - sourceCenterX * width;
+    const currentBottom = rect.y + rect.height;
+    const anchorBottom = clip
+      ? Math.min(currentBottom, rectBottom(clip))
+      : currentBottom;
+    const y = anchorBottom - height;
+    return { x, y, width, height };
+  }
+
+  function fitImageRectToRegion(imageRect, region, frame = null) {
+    const rect = validRect(imageRect);
+    if (!rect || !region || !(region.width > 0 && region.height > 0)) return rect;
+    const clip = validRect(frame);
+    let scale = Math.min(1, region.width / rect.width, region.height / rect.height);
+    if (clip) scale = Math.min(scale, clip.width / rect.width, clip.height / rect.height);
+    const width = rect.width * scale;
+    const height = rect.height * scale;
+    const x = region.x + (region.width - width) / 2;
+    const y = region.y + region.height - height;
+    return { x, y, width, height };
+  }
+
+  function subjectForCharacter(imageRect, occupancy, frame, {
+    fitUnknown = false,
+    assumeOpaque = false,
+    clipToFrame = false,
+  } = {}) {
+    const source = occupancyBounds(occupancy);
+    const hasImageRect = Boolean(validRect(imageRect));
+    const sourceBounds = source.known
+      ? source.bounds
+      : ((fitUnknown || assumeOpaque) && hasImageRect ? { left: 0, top: 0, right: 1, bottom: 1 } : null);
+    const bounds = sourceBounds
+      ? mapSourceBounds(sourceBounds, imageRect, clipToFrame ? frame : null)
+      : null;
+    return {
+      known: hasImageRect && (source.known || assumeOpaque),
+      sourceBounds,
+      bounds,
+    };
+  }
+
+  function copyOcclusionScore(copyBounds, subject, subjectKnown) {
+    if (!subjectKnown) return 1;
+    if (!subject) return 0;
+    return rectanglesOverlap(copyBounds, subject) ? 1 : 0;
+  }
+
+  function occlusionEvidence(bounds, subjects) {
+    const overlappingCharacterIndices = [];
+    let unknown = false;
+    subjects.forEach((subject, characterIndex) => {
+      if (subject.bounds && rectanglesOverlap(bounds, subject.bounds)) {
+        overlappingCharacterIndices.push(characterIndex);
+      } else if (!subject.known && !subject.bounds) {
+        unknown = true;
+      }
+    });
+    return {
+      score: overlappingCharacterIndices.length || unknown ? 1 : 0,
+      overlappingCharacterIndices,
+      unknown,
+    };
   }
 
   function notePadding(width, columns) {
     if (columns === 1 && width >= 170) return { x: 22, y: 16 };
     return {
       x: Math.max(3, Math.min(22, Math.round(width * 0.065))),
-      y: Math.max(3, Math.min(16, Math.round(width * 0.06))),
+      y: Math.max(3, Math.min(columns > 1 ? 4 : 16, Math.round(width * 0.06))),
     };
   }
 
@@ -285,6 +444,16 @@ const CardComposition = (() => {
     focus = false,
     occupancy = null,
     frame = null,
+    subjectBounds = null,
+    subjectKnown = false,
+    sharedPrimarySize = null,
+    maxHeightPerRow = null,
+    textScale = 1,
+    textAlign = "left",
+    scaleCopy = false,
+    zeroPadding = false,
+    compactCopy = false,
+    preciseFit = false,
   } = {}) {
     const resolvedColumns = Math.max(1, Math.min(4, Math.floor(columns) || 1));
     const resolvedGap = Math.max(2, Number(gap) || 0);
@@ -293,13 +462,29 @@ const CardComposition = (() => {
     const specs = entries.map((entry, index) => {
       const column = index % resolvedColumns;
       const row = Math.floor(index / resolvedColumns);
-      const padding = notePadding(cellWidth, resolvedColumns);
+      const requestedPadding = zeroPadding ? { x: 0, y: 0 } : notePadding(cellWidth, resolvedColumns);
+      const compressedPaddingY = zeroPadding && Number.isFinite(maxHeightPerRow)
+        ? 0
+        : requestedPadding.y;
+      const padding = { ...requestedPadding, y: compressedPaddingY };
       const width = cellWidth;
       const x = region.x + column * (cellWidth + resolvedGap);
+      const copyWidth = Math.max(1, width - padding.x * 2);
+      const basePrimarySize = width >= 170 && resolvedColumns === 1 ? 24 : copyWidth * 0.16;
+      const maxContentHeight = Number.isFinite(maxHeightPerRow)
+        ? Math.max(1, maxHeightPerRow - padding.y * 2)
+        : Number.POSITIVE_INFINITY;
       const copy = copyMetrics(entry, width, {
         paddingX: padding.x,
         paddingY: padding.y,
-        preferredPrimarySize: width >= 170 && resolvedColumns === 1 ? 24 : null,
+        maxContentHeight,
+        compactCopy,
+        preciseFit,
+        preferredPrimarySize: Number.isFinite(sharedPrimarySize)
+          ? sharedPrimarySize
+          : scaleCopy
+            ? Math.max(4, Math.min(24, basePrimarySize)) * Math.max(0.01, Number(textScale) || 1)
+            : (width >= 170 && resolvedColumns === 1 ? 24 : null),
       });
       const height = Math.ceil(copy.contentHeight) + padding.y * 2;
       return {
@@ -314,42 +499,86 @@ const CardComposition = (() => {
         copy,
       };
     });
-    const rowHeights = Array.from({ length: rows }, (_, row) => Math.max(1, ...specs.filter((spec) => spec.row === row).map((spec) => spec.height)));
-    return { entries, region, columns: resolvedColumns, gap: resolvedGap, rows, cellWidth, specs, rowHeights, characterIndex, railSide, focus, occupancy, frame };
-  }
-
-  function constrainGridRows(grid, maxHeightPerRow) {
-    const maxHeight = Math.max(1, maxHeightPerRow);
-    const specs = grid.specs.map((spec) => {
-      const maxContentHeight = Math.max(1, maxHeight - spec.padding.y * 2);
-      const copy = copyMetrics(spec.entry, spec.width, {
-        paddingX: spec.padding.x,
-        paddingY: spec.padding.y,
-        maxContentHeight,
-        preferredPrimarySize: spec.width >= 170 && grid.columns === 1 ? 24 : null,
-      });
-      return { ...spec, copy, height: Math.ceil(copy.contentHeight) + spec.padding.y * 2 };
+    const rowHeights = Array.from({ length: rows }, (_, row) => {
+      const contentHeight = Math.max(1, ...specs.filter((spec) => spec.row === row).map((spec) => spec.height));
+      return Number.isFinite(maxHeightPerRow) ? Math.min(maxHeightPerRow, contentHeight) : contentHeight;
     });
-    const heights = Array.from({ length: grid.rows }, (_, row) => Math.min(maxHeight, Math.max(1, ...specs.filter((spec) => spec.row === row).map((spec) => spec.height))));
-    return { ...grid, specs, rowHeights: heights };
+    return { entries, region, columns: resolvedColumns, gap: resolvedGap, rows, cellWidth, specs, rowHeights, characterIndex, railSide, focus, occupancy, frame, subjectBounds, subjectKnown, textScale, textAlign, scaleCopy, zeroPadding, compactCopy, preciseFit };
   }
 
-  function placeGridGroups(groups, { gap, occupancyByCharacter = [] } = {}) {
+  function rebuildSharedGrids(groups, gap, occupancyByCharacter, maxHeightPerRow = null) {
+    const makeGrids = (sharedPrimarySize) => groups.map((group) => prepareGrid(group.entries, group.region, {
+      ...group,
+      gap,
+      occupancy: group.occupancy || occupancyByCharacter[group.characterIndex] || null,
+      sharedPrimarySize,
+      maxHeightPerRow,
+    }));
+    let grids = makeGrids(null);
+    let sharedPrimarySize = Math.min(...grids.flatMap((grid) => grid.specs.map((spec) => spec.copy.copy.primarySize)));
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      grids = makeGrids(sharedPrimarySize);
+      const smallestSize = Math.min(...grids.flatMap((grid) => grid.specs.map((spec) => spec.copy.copy.primarySize)));
+      if (smallestSize >= sharedPrimarySize - 0.01) break;
+      sharedPrimarySize = smallestSize;
+    }
+    return { grids, sharedPrimarySize };
+  }
+
+  function placeGridGroups(groups, { gap, occupancyByCharacter = [], dimensions = {} } = {}) {
     const active = groups.filter((group) => group.entries.length);
     if (!active.length) return [];
+    const spreadGroups = active.filter((group) => group.verticalSpread === true);
+    if (spreadGroups.length) {
+      const compactGroups = active.filter((group) => group.verticalSpread !== true);
+      const spreadItems = spreadGroups.flatMap((group) => {
+        const compactItems = placeGridGroups([{ ...group, verticalSpread: false }], { gap, occupancyByCharacter, dimensions });
+        if (!compactItems.length) return [];
+        const rowCount = Math.max(...compactItems.map((item) => item.row)) + 1;
+        const rowHeights = Array.from({ length: rowCount }, (_, row) => Math.max(
+          1,
+          ...compactItems.filter((item) => item.row === row).map((item) => item.height),
+        ));
+        const region = group.region;
+        const availableSpan = Math.max(rowCount, region.height * 0.9);
+        const minimumSpan = rowHeights.reduce((sum, value) => sum + value, 0) + Math.max(0, rowCount - 1) * Math.max(2, Number(gap) || 0);
+        const density = numberInRange(group.spreadDensity, 0, 100, 50) / 100;
+        const targetRatio = 0.9 - density * 0.225;
+        const targetSpan = Math.min(availableSpan, Math.max(minimumSpan, region.height * targetRatio));
+        let bandHeight = Math.max(targetSpan / rowCount, ...rowHeights);
+        if (bandHeight * rowCount > availableSpan) bandHeight = availableSpan / rowCount;
+        const startY = region.y + region.height * 0.05;
+        const boardHeight = Number(dimensions.layoutHeight) > 0 ? Number(dimensions.layoutHeight) : Number.POSITIVE_INFINITY;
+        return compactItems.map((item) => {
+          const y = startY + item.row * bandHeight;
+          const shift = y - item.y;
+          const protectionBounds = item.protectionBounds ? {
+            ...item.protectionBounds,
+            y: Math.min(boardHeight - item.protectionBounds.height, Math.max(0, item.protectionBounds.y + shift)),
+          } : item.protectionBounds;
+          return {
+            ...item,
+            y,
+            height: bandHeight,
+            copyBounds: item.copyBounds ? { ...item.copyBounds, y: item.copyBounds.y + shift } : item.copyBounds,
+            protectionBounds,
+          };
+        });
+      });
+      const compactItems = compactGroups.length
+        ? placeGridGroups(compactGroups, { gap, occupancyByCharacter, dimensions })
+        : [];
+      return [...spreadItems, ...compactItems];
+    }
     const rows = Math.max(...active.map((group) => Math.ceil(group.entries.length / group.columns)));
     const noteGap = Math.max(2, Number(gap) || 0);
     const railHeight = Math.min(...active.map((group) => group.region.height));
-    let grids = active.map((group) => prepareGrid(group.entries, group.region, {
-      ...group,
-      gap: noteGap,
-      occupancy: group.occupancy || occupancyByCharacter[group.characterIndex] || null,
-    }));
+    let { grids } = rebuildSharedGrids(active, noteGap, occupancyByCharacter);
     let sharedHeights = Array.from({ length: rows }, (_, row) => Math.max(1, ...grids.flatMap((grid) => [grid.rowHeights[row] || 0])));
     const availableRowsHeight = Math.max(rows, railHeight - noteGap * Math.max(0, rows - 1));
     if (sharedHeights.reduce((sum, height) => sum + height, 0) > availableRowsHeight + 0.01) {
       const maxHeightPerRow = availableRowsHeight / rows;
-      grids = grids.map((grid) => constrainGridRows(grid, maxHeightPerRow));
+      grids = rebuildSharedGrids(active, noteGap, occupancyByCharacter, maxHeightPerRow).grids;
       sharedHeights = Array.from({ length: rows }, (_, row) => Math.min(maxHeightPerRow, Math.max(1, ...grids.flatMap((grid) => [grid.rowHeights[row] || 0]))));
     }
     const rowY = [];
@@ -368,17 +597,21 @@ const CardComposition = (() => {
         width: Math.max(1, bounds.width - spec.padding.x * 2),
         height: Math.max(1, Math.min(spec.copy.contentHeight + 1, bounds.height - spec.padding.y * 2)),
       };
-      const protectionPaddingX = Math.max(2, Math.min(10, Math.round(bounds.width * 0.045)));
-      const protectionPaddingY = Math.max(2, Math.min(8, Math.round(bounds.height * 0.08)));
+      const protectionPaddingX = 12;
+      const protectionPaddingY = 12;
+      const boardWidth = Number(dimensions.layoutWidth) > 0 ? Number(dimensions.layoutWidth) : Number.POSITIVE_INFINITY;
+      const boardHeight = Number(dimensions.layoutHeight) > 0 ? Number(dimensions.layoutHeight) : Number.POSITIVE_INFINITY;
       const protectionBounds = {
-        x: Math.max(bounds.x, copyBounds.x - protectionPaddingX),
-        y: Math.max(bounds.y, copyBounds.y - protectionPaddingY),
+        x: Math.max(0, copyBounds.x - protectionPaddingX),
+        y: Math.max(0, copyBounds.y - protectionPaddingY),
         width: 0,
         height: 0,
       };
-      protectionBounds.width = Math.min(bounds.x + bounds.width, copyBounds.x + copyBounds.width + protectionPaddingX) - protectionBounds.x;
-      protectionBounds.height = Math.min(bounds.y + bounds.height, copyBounds.y + copyBounds.height + protectionPaddingY) - protectionBounds.y;
+      protectionBounds.width = Math.min(boardWidth, copyBounds.x + copyBounds.width + protectionPaddingX) - protectionBounds.x;
+      protectionBounds.height = Math.min(boardHeight, copyBounds.y + copyBounds.height + protectionPaddingY) - protectionBounds.y;
       const noteRadius = Math.max(0, Math.min(10, bounds.width * 0.04, bounds.height * 0.12, bounds.width / 2, bounds.height / 2));
+      const itemCopyOcclusionScore = copyOcclusionScore(copyBounds, grid.subjectBounds, grid.subjectKnown);
+      const itemProtectionOcclusionScore = copyOcclusionScore(protectionBounds, grid.subjectBounds, grid.subjectKnown);
       return {
         characterIndex: grid.characterIndex,
         gearIndex: spec.entry.gearIndex,
@@ -397,8 +630,13 @@ const CardComposition = (() => {
         row: spec.row,
         railSide: grid.railSide,
         focus: grid.focus,
-        surfaceOcclusionScore: occupancyScore(bounds, grid.frame, grid.occupancy),
-        textAlign: "left",
+        subjectBounds: grid.subjectBounds ? { ...grid.subjectBounds } : null,
+        copyOcclusionScore: itemCopyOcclusionScore,
+        copyOverlapsSubject: itemCopyOcclusionScore > 0,
+        protectionOcclusionScore: itemProtectionOcclusionScore,
+        surfaceOcclusionScore: itemCopyOcclusionScore,
+        textAlign: grid.textAlign || "left",
+        ...(Number(grid.textScale) !== 1 ? { textScale: Number(grid.textScale) || 1 } : {}),
       };
     }));
   }
@@ -409,6 +647,8 @@ const CardComposition = (() => {
       width: MASK_WIDTH,
       height: MASK_HEIGHT,
       alpha: mask,
+      sourceWidth: Number(source?.naturalWidth || source?.videoWidth || source?.width || 0) || null,
+      sourceHeight: Number(source?.naturalHeight || source?.videoHeight || source?.height || 0) || null,
     };
     if (key) {
       occupancyCache.delete(key);
@@ -472,22 +712,328 @@ const CardComposition = (() => {
     return singleLayout === "info-right" ? [right, left] : [left, right];
   }
 
+  function safeRailGeometry(layout, characterCount, infoGap, singleLayout, maximumItemCount = 0) {
+    const { layoutWidth, layoutHeight } = layout.dimensions;
+    const clearance = RAIL_CLEARANCE + infoGap;
+    if (characterCount === 1) {
+      const y = layout.ratio === "portrait" ? 220 : 140;
+      const height = Math.max(1, layoutHeight - y - (layout.ratio === "portrait" ? 18 : 20));
+      const left = { x: SOLO_RAIL_INSET, y, width: SOLO_RAIL_WIDTH, height, characterIndex: 0, railSide: "left" };
+      const right = { x: layoutWidth - SOLO_RAIL_INSET - SOLO_RAIL_WIDTH, y, width: SOLO_RAIL_WIDTH, height, characterIndex: 0, railSide: "right" };
+      const corridor = {
+        x: left.x + left.width + clearance,
+        y: 0,
+        width: Math.max(1, right.x - clearance - (left.x + left.width + clearance)),
+        height: layoutHeight,
+      };
+      return {
+        rails: singleLayout === "info-right" ? [right, left] : [left, right],
+        corridors: [corridor],
+        imageLanes: [],
+      };
+    }
+
+    if (characterCount === 2) {
+      const y = 176;
+      const height = Math.max(1, Math.min(482, layoutHeight - y - 18));
+      const left = { x: SOLO_RAIL_INSET, y, width: PAIR_RAIL_WIDTH, height, characterIndex: 0, railSide: "left" };
+      const right = { x: layoutWidth - SOLO_RAIL_INSET - PAIR_RAIL_WIDTH, y, width: PAIR_RAIL_WIDTH, height, characterIndex: 1, railSide: "right" };
+      const center = layoutWidth / 2;
+      return {
+        rails: [left, right],
+        corridors: [
+          { x: left.x + left.width + clearance, y: 0, width: Math.max(1, center - clearance - (left.x + left.width + clearance)), height: layoutHeight },
+          { x: center + clearance, y: 0, width: Math.max(1, right.x - clearance - (center + clearance)), height: layoutHeight },
+        ],
+        imageLanes: [],
+      };
+    }
+
+    const columnWidth = layoutWidth / characterCount;
+    const footerHeight = maximumItemCount >= 11
+      ? LINEUP_FOOTER_HEIGHT
+      : maximumItemCount >= 6
+        ? 210
+        : maximumItemCount >= 3
+          ? 180
+          : maximumItemCount === 2
+            ? 120
+            : 80;
+    const footerBottom = Math.min(layoutHeight - 18, LINEUP_IMAGE_BOTTOM + RAIL_CLEARANCE + LINEUP_FOOTER_HEIGHT);
+    const railY = footerBottom - footerHeight;
+    const imageBottom = railY - clearance;
+    const imageTop = 142;
+    const rails = Array.from({ length: characterCount }, (_, characterIndex) => ({
+      x: characterIndex * columnWidth + 12,
+      y: railY,
+      width: Math.max(1, columnWidth - 24),
+      height: Math.max(1, Math.min(footerHeight, layoutHeight - 18 - railY)),
+      characterIndex,
+      railSide: null,
+      role: "footnote",
+    }));
+    const imageLanes = Array.from({ length: characterCount }, (_, characterIndex) => ({
+      x: characterIndex * columnWidth,
+      y: imageTop,
+      width: columnWidth,
+      height: Math.max(1, imageBottom - imageTop),
+    }));
+    return { rails, corridors: [], imageLanes };
+  }
+
+  function compositionImageGeometry(options, layout, characterCount, allCutouts, protectText, infoGap, singleLayout, characters = [], maximumItemCount = 0) {
+    const suppliedRects = Array.isArray(options.imageRects) ? options.imageRects : [];
+    const sourceRects = Array.from({ length: characterCount }, (_, index) => validRect(suppliedRects[index]));
+    const imageRects = sourceRects.map((rect) => rect ? { ...rect } : null);
+    const occupancyByCharacter = Array.isArray(options.occupancyByCharacter) ? options.occupancyByCharacter : [];
+    const hasImageEvidence = sourceRects.some(Boolean);
+    const safeRails = protectText && allCutouts && hasImageEvidence
+      ? safeRailGeometry(layout, characterCount, infoGap, singleLayout, maximumItemCount)
+      : { rails: [], corridors: [], imageLanes: [] };
+    const subjectEvidence = Array.from({ length: characterCount }, (_, characterIndex) => (
+      subjectForCharacter(
+        imageRects[characterIndex],
+        occupancyByCharacter[characterIndex],
+        layout.frames?.[characterIndex] || null,
+        {
+          fitUnknown: allCutouts,
+          assumeOpaque: characters[characterIndex]?.cutout !== true,
+          clipToFrame: characters[characterIndex]?.cutout !== true,
+        },
+      )
+    ));
+
+    if (safeRails.rails.length) {
+      imageRects.forEach((imageRect, characterIndex) => {
+        if (!imageRect) return;
+        const frame = layout.frames?.[characterIndex] || null;
+        if (characterCount >= 3) {
+          imageRects[characterIndex] = fitImageRectToRegion(imageRect, safeRails.imageLanes[characterIndex], frame);
+        } else {
+          imageRects[characterIndex] = fitImageRectToCorridor(
+            imageRect,
+            subjectEvidence[characterIndex].sourceBounds,
+            frame,
+            safeRails.corridors[characterIndex],
+          );
+        }
+      });
+    }
+
+    const finalSubjects = Array.from({ length: characterCount }, (_, characterIndex) => (
+      subjectForCharacter(
+        imageRects[characterIndex],
+        occupancyByCharacter[characterIndex],
+        layout.frames?.[characterIndex] || null,
+        {
+          fitUnknown: allCutouts,
+          assumeOpaque: characters[characterIndex]?.cutout !== true,
+          clipToFrame: characters[characterIndex]?.cutout !== true,
+        },
+      )
+    ));
+    return { imageRects, sourceRects, subjects: finalSubjects, rails: safeRails.rails, safeRailGeometry: safeRails };
+  }
+
+  function artFocalPoint(character = {}) {
+    const explicit = character.focalPoint;
+    if (explicit && Number.isFinite(Number(explicit.x)) && Number.isFinite(Number(explicit.y))) {
+      return {
+        x: numberInRange(explicit.x, 0, 1, 0.5),
+        y: numberInRange(explicit.y, 0, 1, 0.5),
+      };
+    }
+    if (character.cutout === true) {
+      return character.imageFit === "cover" ? { x: 0.5, y: 0.38 } : { x: 0.5, y: 1 };
+    }
+    return { x: 0.5, y: 0.5 };
+  }
+
+  function clampVisibleOrigin(origin, targetStart, targetSize, visibleSize) {
+    const minimum = visibleSize <= targetSize
+      ? targetStart
+      : targetStart + targetSize - visibleSize;
+    const maximum = visibleSize <= targetSize
+      ? targetStart + targetSize - visibleSize
+      : targetStart;
+    return Math.max(minimum, Math.min(maximum, origin));
+  }
+
+  function fitArtImageRect(imageRect, occupancy, frame, subjectScale = 100, character = {}, sourceFrame = frame) {
+    const rect = validRect(imageRect);
+    const target = validRect(frame);
+    const sourceBox = validRect(sourceFrame) || target;
+    if (!rect || !target || !sourceBox) return rect;
+    const source = occupancyBounds(occupancy);
+    const bounds = source.known && source.bounds
+      ? source.bounds
+      : { left: 0, top: 0, right: 1, bottom: 1 };
+    const sourceWidth = Math.max(0.001, bounds.right - bounds.left);
+    const sourceHeight = Math.max(0.001, bounds.bottom - bounds.top);
+    const focal = artFocalPoint(character);
+    const panX = rect.x - (sourceBox.x + (sourceBox.width - rect.width) * focal.x);
+    const panY = rect.y - (sourceBox.y + (sourceBox.height - rect.height) * focal.y);
+    const scalePreference = numberInRange(subjectScale, 60, 100, 100) / 100;
+    const zoomValue = Number(character.zoom);
+    const zoom = Number.isFinite(zoomValue) && zoomValue > 0 ? Math.min(10, Math.max(0.01, zoomValue / 100)) : 1;
+
+    // Preserve a selected cover crop exactly at 100% subject scale. Art's
+    // tighter fit behavior applies to contain images, where alpha padding is
+    // not part of the painted subject.
+    if (character.imageFit === "cover") {
+      const width = rect.width * scalePreference;
+      const height = rect.height * scalePreference;
+      return {
+        x: sourceBox.x + (sourceBox.width - width) * focal.x + panX,
+        y: sourceBox.y + (sourceBox.height - height) * focal.y + panY,
+        width,
+        height,
+      };
+    }
+
+    const baseWidth = rect.width / zoom;
+    const baseHeight = rect.height / zoom;
+    const fitScale = Math.min(
+      target.width / (baseWidth * sourceWidth),
+      target.height / (baseHeight * sourceHeight),
+    );
+    const width = baseWidth * fitScale * scalePreference * zoom;
+    const height = baseHeight * fitScale * scalePreference * zoom;
+    const visibleWidth = width * sourceWidth;
+    const visibleHeight = height * sourceHeight;
+    const requestedVisibleX = target.x + (target.width - visibleWidth) * focal.x + panX;
+    const requestedVisibleY = target.y + (target.height - visibleHeight) * focal.y + panY;
+    const visibleX = clampVisibleOrigin(requestedVisibleX, target.x, target.width, visibleWidth);
+    const visibleY = clampVisibleOrigin(requestedVisibleY, target.y, target.height, visibleHeight);
+    return {
+      x: visibleX - bounds.left * width,
+      y: visibleY - bounds.top * height,
+      width,
+      height,
+    };
+  }
+
+  function artImageGeometry(options, layout, characterCount, characters = [], art = {}) {
+    const suppliedRects = Array.isArray(options.imageRects) ? options.imageRects : [];
+    const sourceRects = Array.from({ length: characterCount }, (_, index) => validRect(suppliedRects[index]));
+    const occupancyByCharacter = Array.isArray(options.occupancyByCharacter) ? options.occupancyByCharacter : [];
+    const imageRects = Array.from({ length: characterCount }, (_, index) => fitArtImageRect(
+      sourceRects[index],
+      occupancyByCharacter[index],
+      layout.frames?.[index] || null,
+      art.subjectScale,
+      characters[index],
+      layout.frames?.[index] || null,
+    ));
+    const subjects = Array.from({ length: characterCount }, (_, characterIndex) => subjectForCharacter(
+      imageRects[characterIndex],
+      occupancyByCharacter[characterIndex],
+      layout.frames?.[characterIndex] || null,
+      {
+        fitUnknown: characters[characterIndex]?.cutout === true,
+        assumeOpaque: characters[characterIndex]?.cutout !== true,
+        clipToFrame: characters[characterIndex]?.cutout !== true,
+      },
+    ));
+    return {
+      imageRects,
+      sourceRects,
+      subjects,
+      rails: Array.isArray(layout.groupPanels) ? layout.groupPanels : [],
+      safeRailGeometry: { rails: Array.isArray(layout.groupPanels) ? layout.groupPanels : [], corridors: [], imageLanes: [] },
+    };
+  }
+
+  function autoArtImageGeometry(imageGeometry, options, layout, characterCount, characters = [], art = {}) {
+    const occupancyByCharacter = Array.isArray(options.occupancyByCharacter) ? options.occupancyByCharacter : [];
+    const safe = imageGeometry.safeRailGeometry || {};
+    const imageRects = imageGeometry.imageRects.map((rect, characterIndex) => {
+      if (!rect) return null;
+      const region = safe.imageLanes?.[characterIndex]
+        || safe.corridors?.[characterIndex]
+        || layout.frames?.[characterIndex]
+        || null;
+      const sourceRect = imageGeometry.sourceRects?.[characterIndex] || rect;
+      return fitArtImageRect(
+        sourceRect,
+        occupancyByCharacter[characterIndex],
+        region,
+        art.subjectScale,
+        characters[characterIndex],
+        layout.frames?.[characterIndex] || null,
+      );
+    });
+    const subjects = Array.from({ length: characterCount }, (_, characterIndex) => subjectForCharacter(
+      imageRects[characterIndex],
+      occupancyByCharacter[characterIndex],
+      layout.frames?.[characterIndex] || null,
+      {
+        fitUnknown: characters[characterIndex]?.cutout === true,
+        assumeOpaque: characters[characterIndex]?.cutout !== true,
+        clipToFrame: characters[characterIndex]?.cutout !== true,
+      },
+    ));
+    return { ...imageGeometry, imageRects, subjects };
+  }
+
   function plan(options = {}) {
     const count = characterCountFor(options.characterCount ?? options.layout?.characterCount);
     const layout = options.layout || {};
     const dimensions = layout.dimensions || { layoutWidth: 1080, layoutHeight: 1350 };
     const composition = options.composition || {};
+    const art = options.art?.enabled === true
+      ? options.art
+      : layout.art?.enabled === true
+        ? layout.art
+        : null;
+    const artEnabled = Boolean(art);
+    const effectiveArtLayout = layout.effectiveLayout || art?.layout || "auto";
+    const isArtSharedOutfit = artEnabled
+      && effectiveArtLayout === "center"
+      && count === 2
+      && art.sharedOutfit === true;
+    const isArtCover = artEnabled && effectiveArtLayout === "cover";
     const requestedLayer = composition.layer === "person-front" ? "person-front" : "info-front";
     const protectText = composition.protectText !== false;
     const infoGap = Math.round(numberInRange(composition.infoGap, 0, MAX_INFO_GAP, 0));
     const characters = Array.isArray(options.characters) ? options.characters.slice(0, count) : [];
     const allCutouts = characters.length >= count && characters.every((character) => character?.cutout === true);
     const effectiveLayer = requestedLayer === "person-front" && allCutouts ? "person-front" : "info-front";
+    const singleLayout = options.singleLayout || "info-left";
     const selectedCharacter = safeIndex(options.selectedCharacter, count);
     const language = String(options.language || "ko");
     const gearByCharacter = Array.isArray(options.gearByCharacter) ? options.gearByCharacter : [];
-    const byCharacter = Array.from({ length: count }, (_, characterIndex) => visibleEntries(gearByCharacter[characterIndex], language));
+    const byCharacter = Array.from({ length: count }, (_, characterIndex) => {
+      const entries = visibleEntries(gearByCharacter[characterIndex], language);
+      return artEnabled ? artVisibleEntries(entries, art) : entries;
+    });
     const multiInfoEnabled = Boolean(options.multiInfoEnabled);
+    const displayedGear = isArtCover
+      ? []
+      : isArtSharedOutfit
+        ? byCharacter.map((entries, characterIndex) => characterIndex === 0 ? entries : [])
+        : artEnabled || count < 3 || multiInfoEnabled ? byCharacter : [];
+    const hasVisibleGear = displayedGear.some((entries) => entries.length);
+    const maximumVisibleItems = Math.max(0, ...displayedGear.map((entries) => entries.length));
+    const useArtGeometry = artEnabled && effectiveArtLayout !== "auto";
+    const plannedImageGeometry = useArtGeometry
+      ? artImageGeometry(options, layout, count, characters, art)
+      : compositionImageGeometry(
+        options,
+        layout,
+        count,
+        allCutouts,
+        protectText && hasVisibleGear,
+        infoGap,
+        singleLayout,
+        characters,
+        maximumVisibleItems,
+      );
+    const imageGeometry = artEnabled && !useArtGeometry
+      ? autoArtImageGeometry(plannedImageGeometry, options, layout, count, characters, art)
+      : plannedImageGeometry;
+    const hasSafeRailGeometry = imageGeometry.rails.length > 0;
+    const hasProtectedSourceGeometry = protectText && hasVisibleGear && imageGeometry.sourceRects.some(Boolean);
     const hasNonLegacyGear = byCharacter.some((entries) => entries.length > LEGACY_ITEM_COUNT || entries.some((entry) => entry.extra));
     // Dense lineups stay complete. Keep the focus fields as a stable reserved
     // contract for a future explicit focus control, but never use them to
@@ -496,46 +1042,98 @@ const CardComposition = (() => {
     const needsCustomItems = count < 3
       ? hasNonLegacyGear
       : multiInfoEnabled && hasNonLegacyGear;
-    const isCustom = effectiveLayer !== "info-front"
+    const isCustom = artEnabled || effectiveLayer !== "info-front"
       || infoGap > 0
       || needsCustomItems
+      || hasSafeRailGeometry
+      || hasProtectedSourceGeometry
       || !protectText;
-    const availableCharacters = count < 3
+    const availableCharacters = artEnabled
+      ? displayedGear.flatMap((entries, characterIndex) => entries.map((entry) => ({ ...entry, characterIndex })))
+      : count < 3
       ? byCharacter.flatMap((entries, characterIndex) => entries.map((entry) => ({ ...entry, characterIndex })))
       : multiInfoEnabled
         ? byCharacter.flatMap((entries, characterIndex) => entries.map((entry) => ({ ...entry, characterIndex })))
         : [];
     const itemBuckets = Array.from({ length: count }, () => []);
     availableCharacters.forEach((entry) => itemBuckets[entry.characterIndex].push(entry));
-    const items = [];
+    let items = [];
     const columnsByCharacter = Array.from({ length: count }, () => 0);
     const maximumSelection = Math.max(0, ...itemBuckets.map((entries) => entries.length));
-    const baseNoteGap = maximumSelection > 32 ? 6 : maximumSelection > 16 ? 12 : 24;
-    const gapBetweenNotes = Math.max(5, Math.min(28, baseNoteGap + Math.round(infoGap / 16)));
+    const baseNoteGap = hasSafeRailGeometry && count >= 3
+      ? (maximumSelection > 32 ? 6 : maximumSelection > 10 ? 8 : 10)
+      : maximumSelection > 32 ? 6 : maximumSelection > 16 ? 12 : 24;
+    const gapBetweenNotes = artEnabled
+      ? Math.max(2, Math.min(4, Math.round(4 - numberInRange(art.density, 0, 100, 50) * 0.04)))
+      : count >= 3 ? 8 : Math.max(5, Math.min(28, baseNoteGap + Math.round(infoGap / 16)));
     const occupancyByCharacter = Array.isArray(options.occupancyByCharacter) ? options.occupancyByCharacter : [];
     const gridGroups = [];
 
-    if (isCustom) {
+    if (isCustom && artEnabled && useArtGeometry && !isArtCover) {
+      const panels = Array.isArray(layout.groupPanels) ? layout.groupPanels : [];
+      panels.forEach((panel) => {
+        const entries = itemBuckets[panel.characterIndex] || [];
+        if (!entries.length) return;
+        const subject = imageGeometry.subjects[panel.characterIndex];
+        const columns = entries.length <= 8 ? 1 : adaptiveColumns(entries.length, 5);
+        columnsByCharacter[panel.characterIndex] = columns;
+        gridGroups.push({
+          entries,
+          region: panel.contentRect || panel,
+          columns,
+          characterIndex: panel.characterIndex,
+          railSide: null,
+          occupancy: occupancyByCharacter[panel.characterIndex] || null,
+          frame: layout.frames?.[panel.characterIndex] || null,
+          subjectBounds: subject?.bounds || null,
+          subjectKnown: Boolean(subject?.known),
+          textScale: numberInRange(art.textScale, 70, 150, 100) / 100,
+          textAlign: art.textAlign === "center" ? "center" : "left",
+          scaleCopy: true,
+          zeroPadding: true,
+          compactCopy: true,
+          preciseFit: true,
+          verticalSpread: effectiveArtLayout === "center",
+          spreadDensity: art.density,
+        });
+      });
+    } else if (isCustom && !isArtCover) {
       if (count === 1) {
         const soloItems = itemBuckets[0];
         if (soloItems.length) {
-          const regions = soloRegions(layout, options.singleLayout || "info-left", infoGap);
-          const leftEntries = soloItems.filter((_, index) => index % 2 === 0);
-          const rightEntries = soloItems.filter((_, index) => index % 2 === 1);
-          const sideGroups = [leftEntries, rightEntries];
-          const columns = adaptiveColumns(Math.max(...sideGroups.map((entries) => entries.length)), 8);
-          columnsByCharacter[0] = columns;
+          const regions = hasSafeRailGeometry
+            ? imageGeometry.rails
+            : soloRegions(layout, singleLayout, infoGap).map((region, sideIndex) => ({
+              ...region,
+              railSide: singleLayout === "info-right"
+                ? (sideIndex === 0 ? "right" : "left")
+                : (sideIndex === 0 ? "left" : "right"),
+            }));
+          const smallSelection = soloItems.length <= 16;
+          const coreEntries = soloItems.filter((entry) => !entry.extra);
+          const extraEntries = soloItems.filter((entry) => entry.extra);
+          const sideGroups = smallSelection && coreEntries.length && extraEntries.length
+            ? [coreEntries, extraEntries]
+            : [
+              soloItems.filter((_, index) => index % 2 === 0),
+              soloItems.filter((_, index) => index % 2 === 1),
+            ];
+          const columnsBySide = sideGroups.map((entries) => adaptiveColumns(entries.length, 8));
+          columnsByCharacter[0] = Math.max(0, ...columnsBySide);
           sideGroups.forEach((entries, sideIndex) => {
             if (!entries.length) return;
             const region = regions[sideIndex];
+            const subject = imageGeometry.subjects[0];
             gridGroups.push({
               entries,
               region,
-              columns,
+              columns: columnsBySide[sideIndex],
               characterIndex: 0,
-              railSide: sideIndex === 0 ? "left" : "right",
-              occupancy: effectiveLayer === "person-front" ? occupancyByCharacter[0] : null,
+              railSide: region.railSide || (sideIndex === 0 ? "left" : "right"),
+              occupancy: occupancyByCharacter[0] || null,
               frame: layout.frames?.[0] || null,
+              subjectBounds: subject.bounds,
+              subjectKnown: subject.known,
             });
           });
         }
@@ -551,20 +1149,26 @@ const CardComposition = (() => {
         itemBuckets.forEach((entries, characterIndex) => {
           if (!entries.length) return;
           columnsByCharacter[characterIndex] = columns;
-          const region = {
-            x: characterIndex === 0 ? legacyRail.x : layoutWidth - legacyRail.x - legacyRail.width,
-            y: legacyRail.y,
-            width: Math.max(88, legacyRail.width),
-            height: Math.min(legacyRail.height, layoutHeight - legacyRail.y - 18),
-          };
+          const region = hasSafeRailGeometry
+            ? imageGeometry.rails[characterIndex]
+            : {
+              x: characterIndex === 0 ? legacyRail.x : layoutWidth - legacyRail.x - legacyRail.width,
+              y: legacyRail.y,
+              width: Math.max(88, legacyRail.width),
+              height: Math.min(legacyRail.height, layoutHeight - legacyRail.y - 18),
+              railSide: characterIndex === 0 ? "left" : "right",
+            };
+          const subject = imageGeometry.subjects[characterIndex];
           gridGroups.push({
             entries,
             region,
             columns,
             characterIndex,
-            railSide: characterIndex === 0 ? "left" : "right",
-            occupancy: effectiveLayer === "person-front" ? occupancyByCharacter[characterIndex] : null,
+            railSide: region.railSide || (characterIndex === 0 ? "left" : "right"),
+            occupancy: occupancyByCharacter[characterIndex] || null,
             frame: layout.frames?.[characterIndex] || null,
+            subjectBounds: subject.bounds,
+            subjectKnown: subject.known,
           });
         });
       } else {
@@ -575,26 +1179,75 @@ const CardComposition = (() => {
           if (!entries.length) return;
           columnsByCharacter[characterIndex] = columns;
           const horizontalInset = Math.min(infoGap, Math.max(0, columnWidth * 0.22));
-          const region = {
-            x: characterIndex * columnWidth + 12 + horizontalInset,
-            y: 160,
-            width: Math.max(1, columnWidth - 24 - horizontalInset * 2),
-            height: Math.max(1, layoutHeight - 178),
-          };
+          const region = hasSafeRailGeometry
+            ? imageGeometry.rails[characterIndex]
+            : {
+              x: characterIndex * columnWidth + 12 + horizontalInset,
+              y: 160,
+              width: Math.max(1, columnWidth - 24 - horizontalInset * 2),
+              height: Math.max(1, layoutHeight - 178),
+            };
+          const subject = imageGeometry.subjects[characterIndex];
           gridGroups.push({
             entries,
             region,
             columns,
             characterIndex,
-            occupancy: effectiveLayer === "person-front" ? occupancyByCharacter[characterIndex] : null,
+            occupancy: occupancyByCharacter[characterIndex] || null,
             frame: layout.frames?.[characterIndex] || null,
+            subjectBounds: subject.bounds,
+            subjectKnown: subject.known,
           });
         });
       }
     }
 
-    if (isCustom) items.push(...placeGridGroups(gridGroups, { gap: gapBetweenNotes, occupancyByCharacter }));
+    if (artEnabled && !useArtGeometry) {
+      gridGroups.forEach((group) => {
+        group.textScale = numberInRange(art.textScale, 70, 150, 100) / 100;
+        group.textAlign = art.textAlign === "center" ? "center" : "left";
+        group.scaleCopy = true;
+        group.zeroPadding = false;
+      });
+    }
+    if (isCustom) items.push(...placeGridGroups(gridGroups, { gap: gapBetweenNotes, occupancyByCharacter, dimensions }));
     items.sort((first, second) => first.characterIndex - second.characterIndex || first.gearIndex - second.gearIndex);
+    const allSubjects = imageGeometry.subjects;
+    items = items.map((item) => {
+      const copyEvidence = occlusionEvidence(item.copyBounds, allSubjects);
+      const protectionEvidence = occlusionEvidence(item.protectionBounds, allSubjects);
+      const surfaceEvidence = occlusionEvidence(item, allSubjects);
+      return {
+        ...item,
+        copyOcclusionScore: copyEvidence.score,
+        copyOverlapsSubject: copyEvidence.score > 0,
+        copyOverlapCharacterIndices: copyEvidence.overlappingCharacterIndices,
+        copyOcclusionUnknown: copyEvidence.unknown,
+        protectionOcclusionScore: protectionEvidence.score,
+        protectionOverlapCharacterIndices: protectionEvidence.overlappingCharacterIndices,
+        protectionOcclusionUnknown: protectionEvidence.unknown,
+        surfaceOcclusionScore: surfaceEvidence.score,
+        surfaceOverlapCharacterIndices: surfaceEvidence.overlappingCharacterIndices,
+        surfaceOcclusionUnknown: surfaceEvidence.unknown,
+      };
+    });
+    const plannedRails = gridGroups.map((group) => {
+      const columns = Math.max(1, Math.min(4, Math.floor(group.columns) || 1));
+      const gap = Math.max(2, Number(gapBetweenNotes) || 0);
+      const columnWidth = Math.max(1, (group.region.width - gap * (columns - 1)) / columns);
+      return {
+        characterIndex: group.characterIndex,
+        railSide: group.railSide || null,
+        role: group.region.role || "outer",
+        x: group.region.x,
+        y: group.region.y,
+        width: group.region.width,
+        height: group.region.height,
+        columns,
+        columnOrigins: Array.from({ length: columns }, (_, column) => group.region.x + column * (columnWidth + gap)),
+        textAlign: group.textAlign || (artEnabled ? art.textAlign : "left"),
+      };
+    });
     const protectedZones = protectText
       ? items.map(({ characterIndex, gearIndex, protectionBounds }) => ({ characterIndex, gearIndex, ...(protectionBounds || {}) }))
       : [];
@@ -611,10 +1264,25 @@ const CardComposition = (() => {
       characterCount: count,
       dimensions: { ...dimensions },
       columns: columnsByCharacter,
+      imageRects: imageGeometry.imageRects,
+      sourceImageRects: imageGeometry.sourceRects,
+      subjectBoundsByCharacter: imageGeometry.subjects.map((subject) => subject.bounds ? { ...subject.bounds } : null),
+      subjectEvidenceByCharacter: imageGeometry.subjects.map((subject) => subject.known),
+      rails: plannedRails,
+      railClearance: hasSafeRailGeometry ? RAIL_CLEARANCE + infoGap : null,
       items,
       protectedZones,
       omittedCharacterIndices,
       hasUnplacedVisibleItems: false,
+      ...(artEnabled ? {
+        art,
+        effectiveLayout: effectiveArtLayout,
+        artFrames: Array.isArray(layout.artFrames) ? layout.artFrames.map((frame) => ({ ...frame })) : layout.frames?.map((frame) => ({ ...frame })) || [],
+        header: layout.header ? { ...layout.header } : null,
+        groupPanels: Array.isArray(layout.groupPanels) ? layout.groupPanels.map((panel) => ({ ...panel })) : [],
+        infoHidden: isArtCover,
+        sharedOutfit: isArtSharedOutfit,
+      } : {}),
     };
   }
 

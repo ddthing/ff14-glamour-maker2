@@ -94,6 +94,7 @@ const baseUrl = process.env.TEST_BASE_URL || "http://127.0.0.1:4173";
                   protectionOutline: getComputedStyle(protection).outlineStyle,
                   surfaceBorder: Number.parseFloat(getComputedStyle(surface).borderTopWidth),
                   surfaceRadius: Number.parseFloat(getComputedStyle(surface).borderTopLeftRadius),
+                  surfaceDisplay: getComputedStyle(surface).display,
                 };
               }),
               visibleCount: document.querySelectorAll("#boardGearList .board-gear-item").length,
@@ -116,8 +117,7 @@ const baseUrl = process.env.TEST_BASE_URL || "http://127.0.0.1:4173";
             assert.equal(value.copyOutline, "none", `${label}: glyph region must not add an inner border`);
             assert.equal(value.protectionBorder, 0, `${label}: text protection must be a fill, not a second frame`);
             assert.equal(value.protectionOutline, "none");
-            assert.ok(value.surfaceBorder > 0, `${label}: the single perimeter must have a valid CSS length`);
-            assert.ok(value.surfaceRadius > 0, `${label}: the visible surface must keep rounded corners`);
+            assert.equal(value.surfaceDisplay, "none", `${label}: supporting equipment copy must have no visible note box`);
           }
           const left = result.items.filter(({ item }) => item.railSide === "left").sort((a, b) => a.item.y - b.item.y);
           const right = result.items.filter(({ item }) => item.railSide === "right").sort((a, b) => a.item.y - b.item.y);
@@ -196,16 +196,16 @@ const baseUrl = process.env.TEST_BASE_URL || "http://127.0.0.1:4173";
             characterIndex: item.characterIndex,
             gearIndex: item.gearIndex,
             expected: normalizeColor(expectedTint),
-            note: getComputedStyle(document.querySelector(`#boardGearList ${selector} .gear-note-protection`)).backgroundColor,
-            surface: getComputedStyle(document.querySelector(`#boardGearSurfaceLayer ${selector} .gear-note-surface`)).backgroundColor,
+            halo: getComputedStyle(document.querySelector(`#boardGearList ${selector} .gear-note-protection`)).backgroundImage,
+            surfaceDisplay: getComputedStyle(document.querySelector(`#boardGearSurfaceLayer ${selector} .gear-note-surface`)).display,
           };
         });
       }).flat();
     });
     assert.ok(materialResults.some(item => item.characterIndex === 1 && item.gearIndex > 5), "material check covers a second character and extra items beyond the legacy palette count");
     materialResults.forEach(item => {
-      assert.equal(item.note, item.expected, `protected material tint must use raw index: ${JSON.stringify(item)}`);
-      assert.equal(item.surface, item.expected, `visible material tint must match PNG's raw-index palette: ${JSON.stringify(item)}`);
+      assert.ok(item.halo.includes(item.expected), `conditional halo tint must use raw index: ${JSON.stringify(item)}`);
+      assert.equal(item.surfaceDisplay, "none", `materials must not reintroduce note boxes: ${JSON.stringify(item)}`);
     });
 
     const lineupHiddenCopy = await page.evaluate(() => {
@@ -222,7 +222,7 @@ const baseUrl = process.env.TEST_BASE_URL || "http://127.0.0.1:4173";
     assert.equal(lineupHiddenCopy.headCopy, null, "legacy lineup may not substitute visible-order copy for a missing raw index");
     assert.ok(lineupHiddenCopy.bodyCopy.includes("탐험가"));
     assert.deepEqual(pageErrors, [], "layout rendering must not throw browser errors");
-    console.log("PASS: slim aligned notes, real glyph padding/gutters, one border, info-right capture parity, and hidden-index isolation.");
+    console.log("PASS: aligned typography, glyph padding/gutters, no note boxes, info-right capture parity, and hidden-index isolation.");
   } finally {
     await browser.close();
   }

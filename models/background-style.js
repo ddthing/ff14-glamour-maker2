@@ -20,7 +20,7 @@ const BackgroundStyle = (() => {
     charcoal: Object.freeze({ solid: "#25262b", pattern: Object.freeze(["#dddbea", "#747481"]), label: "차콜" }),
     custom: Object.freeze({ solid: customDefaultColor, pattern: Object.freeze(["#858594", "#ffffff"]), label: "직접 지정" }),
   });
-  const patterns = new Set(["none", "dots", "stars", "halftone", "bitmap", "collage", "scrapbook"]);
+  const patterns = new Set(["none", "dots", "stars", "halftone", "stripes", "plaid", "bitmap", "collage", "scrapbook"]);
   const textures = new Set(["none", "grain", "risograph", "dust", "fiber", "halftone"]);
   const legacyPatternAliases = Object.freeze({ index: "collage" });
   const legacyStyleRecipes = Object.freeze({

@@ -130,11 +130,11 @@ const fixturePng = Buffer.from(
         height: Number.parseFloat(styles.height),
         top: Number.parseFloat(styles.top),
         backgroundColor: styles.backgroundColor,
+        display: styles.display,
         stampDisplay: getComputedStyle(note.querySelector(".gear-note-stamp")).display,
       };
     });
-    assert.ok(collageTape.width > 0 && collageTape.height > 0 && collageTape.top < 0, `collage tape geometry is invalid: ${JSON.stringify(collageTape)}`);
-    assert.notEqual(collageTape.backgroundColor, "rgba(0, 0, 0, 0)", "collage tape must remain visible");
+    assert.equal(collageTape.display, "none", "typography-only information must not restore individual paper decorations");
     assert.equal(collageTape.stampDisplay, "none", "solo archive notes must not expose a stamp layer");
     const gearGeometry = await page.evaluate(() => {
       const board = document.querySelector("#canvasBoard").getBoundingClientRect();
@@ -143,7 +143,7 @@ const fixturePng = Buffer.from(
         const rect = item.getBoundingClientRect();
         return { x: rect.left - board.left, y: rect.top - board.top, width: rect.width, height: rect.height };
       });
-      const expected = CardLayout.portraitGearPositions({ singleLayout: state.singleLayout }).map((position) => ({
+      const expected = compositionPlan.items.map((position) => ({
         x: position.x * board.width / dimensions.layoutWidth,
         y: position.y * board.height / dimensions.layoutHeight,
         width: position.width * board.width / dimensions.layoutWidth,
@@ -171,7 +171,7 @@ const fixturePng = Buffer.from(
         const rect = item.getBoundingClientRect();
         return { x: rect.left - board.left, y: rect.top - board.top, width: rect.width, height: rect.height };
       });
-      const expected = CardLayout.portraitGearPositions({ singleLayout: "info-right" }).map((position) => ({
+      const expected = compositionPlan.items.map((position) => ({
         x: position.x * board.width / dimensions.layoutWidth,
         y: position.y * board.height / dimensions.layoutHeight,
         width: position.width * board.width / dimensions.layoutWidth,
@@ -199,7 +199,7 @@ const fixturePng = Buffer.from(
         const rect = item.getBoundingClientRect();
         return { x: rect.left - board.left, y: rect.top - board.top, width: rect.width, height: rect.height };
       });
-      const expected = CardLayout.landscapeSoloGearPositions({ singleLayout: "info-right" }).map((position) => ({
+      const expected = compositionPlan.items.map((position) => ({
         x: position.x * board.width / dimensions.layoutWidth,
         y: position.y * board.height / dimensions.layoutHeight,
         width: position.width * board.width / dimensions.layoutWidth,

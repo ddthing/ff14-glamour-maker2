@@ -17,6 +17,9 @@ const {stopChild}=require('./test-process.cjs');
   for (const file of ['/models/equipment.js', '/models/card-composition.js', '/models/gear-sheet.js', '/models/zip-store.js', '/models/equipment-sheet-export.js', '/styles/equipment-controls.css']) {
     assert.equal((await fetch(`http://127.0.0.1:4197${file}`)).status, 200, file);
   }
+  for (const file of ['/models/card-art.js', '/models/card-ornaments.js', '/styles/card-art-direction.css']) {
+    assert.equal((await fetch(`http://127.0.0.1:4197${file}`)).status, 200, file);
+  }
   const faviconResponse = await fetch('http://127.0.0.1:4197/assets/icons/favicon-02.svg');
   assert.match(faviconResponse.headers.get('content-type') || '', /image\/svg\+xml/);
   assert.match(await faviconResponse.text(), /투영세트메이커2/);

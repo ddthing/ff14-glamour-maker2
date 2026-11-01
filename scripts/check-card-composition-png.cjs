@@ -80,16 +80,23 @@ const modelPaths = [
         panelBorder: "rgba(38,50,56,.18)",
         radius: 10,
       };
-      const render = async (compositionPlan, backgroundPattern = state.backgroundPattern, gearData = gear) => {
+      const render = async (
+        compositionPlan,
+        backgroundPattern = state.backgroundPattern,
+        gearData = gear,
+        stateData = state,
+        layoutData = layout,
+        imageData = [redImage, redImage, redImage],
+      ) => {
         const blob = await CardPng.render({
-          state: { ...state, backgroundPattern },
-          dimensions: layout.dimensions,
-          layout,
+          state: { ...stateData, backgroundPattern },
+          dimensions: layoutData.dimensions,
+          layout: layoutData,
           compositionPlan,
           exportTheme,
           background: material,
           patternStars: [],
-          images: [redImage, redImage, redImage],
+          images: imageData,
           copyLayout: [],
           gear: gearData,
           outlineColor: "#ffffff",
@@ -145,10 +152,6 @@ const modelPaths = [
       occupancySummary.clears = refreshedOccupancy !== occupancy;
       const sample = plan.items[0];
       const protectionBounds = sample.protectionBounds;
-      const backgroundPoint = { x: protectionBounds.x - 1, y: protectionBounds.y + protectionBounds.height / 2 };
-      const protectedPoint = { x: protectionBounds.x + 2, y: protectionBounds.y + protectionBounds.height / 2 };
-      const personPixel = personFront.pixel(backgroundPoint.x, backgroundPoint.y);
-      const copyPixel = personFront.pixel(protectedPoint.x, protectedPoint.y);
       const infoFrontPlan = CardLayout.planComposition({
         characterCount: 3,
         singleRatio: "landscape",
@@ -161,30 +164,131 @@ const modelPaths = [
         selectedCharacter: 0,
         language: "ko",
       });
-      const infoFront = await render(infoFrontPlan);
       const infoPlanItem = infoFrontPlan.items[0];
-      const infoBackgroundPoint = {
-        x: infoPlanItem.protectionBounds.x - 1,
-        y: infoPlanItem.protectionBounds.y + infoPlanItem.protectionBounds.height / 2,
+      const noSurfacePlan = { ...infoFrontPlan, items: [] };
+      const clearInfoPlan = {
+        ...infoFrontPlan,
+        items: infoFrontPlan.items.map((item) => ({ ...item, copyOcclusionScore: 0 })),
       };
-      const infoPixel = infoFront.pixel(infoBackgroundPoint.x, infoBackgroundPoint.y);
-      const infoCopyPixel = infoFront.pixel(infoPlanItem.copyBounds.x - 1, infoPlanItem.copyBounds.y + infoPlanItem.copyBounds.height / 2);
-      const infoInteriorPixel = infoFront.pixel(
-        infoPlanItem.x + infoPlanItem.noteRadius + 2,
-        infoPlanItem.y + infoPlanItem.noteRadius + 2,
+      const personClearPlan = {
+        ...plan,
+        items: plan.items.map((item) => ({ ...item, copyOcclusionScore: 0 })),
+      };
+      const noSurfaceBaseline = await render(noSurfacePlan);
+      const clearInfo = await render(clearInfoPlan);
+      const noteCorner = { x: infoPlanItem.x + 1, y: infoPlanItem.y + 1 };
+      const clearNoteCornerPixel = clearInfo.pixel(noteCorner.x, noteCorner.y);
+      const baselineNoteCornerPixel = noSurfaceBaseline.pixel(noteCorner.x, noteCorner.y);
+      const collageClear = await render(clearInfoPlan, "collage");
+      const collageBaseline = await render(noSurfacePlan, "collage");
+      const scrapbookClear = await render(clearInfoPlan, "scrapbook");
+      const scrapbookBaseline = await render(noSurfacePlan, "scrapbook");
+      const collageNoteCornerPixel = collageClear.pixel(noteCorner.x, noteCorner.y);
+      const collageBaselinePixel = collageBaseline.pixel(noteCorner.x, noteCorner.y);
+      const scrapbookNoteCornerPixel = scrapbookClear.pixel(noteCorner.x, noteCorner.y);
+      const scrapbookBaselinePixel = scrapbookBaseline.pixel(noteCorner.x, noteCorner.y);
+      const personClear = await render(personClearPlan);
+      const personNoSurfaceBaseline = await render({ ...plan, items: [] });
+      const personClearCornerPixel = personClear.pixel(noteCorner.x, noteCorner.y);
+      const personBaselineCornerPixel = personNoSurfaceBaseline.pixel(noteCorner.x, noteCorner.y);
+
+      const sourceCharacters = Array.from({ length: 3 }, () => ({ ...state.characters[0], cutout: false }));
+      const sourceLayout = CardLayout.layoutFor({ characterCount: 3, singleRatio: "landscape", characters: sourceCharacters });
+      const sourceImageRects = sourceCharacters.map((character, index) => CardLayout.imageRectFor({
+        frame: sourceLayout.frames[index],
+        naturalWidth: redImage.naturalWidth,
+        naturalHeight: redImage.naturalHeight,
+        imageFit: character.imageFit,
+        zoom: character.zoom,
+        panX: character.panX,
+        panY: character.panY,
+        focalPoint: character.focalPoint,
+      }));
+      const sourcePlan = CardLayout.planComposition({
+        characterCount: 3,
+        singleRatio: "landscape",
+        singleLayout: state.singleLayout,
+        characters: sourceCharacters,
+        layout: sourceLayout,
+        composition: { layer: "info-front", protectText: true, infoGap: 0 },
+        gearByCharacter: gear,
+        multiInfoEnabled: true,
+        selectedCharacter: 0,
+        language: "ko",
+        imageRects: sourceImageRects,
+      });
+      const sourceUnknownPlan = {
+        ...sourcePlan,
+        items: sourcePlan.items.map((item, index) => ({ ...item, copyOcclusionScore: index === 0 ? null : 0 })),
+      };
+      const sourceUnknown = await render(sourceUnknownPlan, state.backgroundPattern, gear, { ...state, characters: sourceCharacters }, sourceLayout);
+      const sourceBaseline = await render({ ...sourcePlan, items: [] }, state.backgroundPattern, gear, { ...state, characters: sourceCharacters }, sourceLayout);
+      const sourceProbeItem = sourceUnknownPlan.items[0];
+      const sourceHaloPoint = {
+        x: sourceProbeItem.protectionBounds.x + sourceProbeItem.protectionBounds.width / 2,
+        y: sourceProbeItem.copyBounds.y + sourceProbeItem.copyBounds.height + 1,
+      };
+      const sourceHaloPixel = sourceUnknown.pixel(sourceHaloPoint.x, sourceHaloPoint.y);
+      const sourceBaselinePixel = sourceBaseline.pixel(sourceHaloPoint.x, sourceHaloPoint.y);
+
+      const emptyCanvas = document.createElement("canvas");
+      emptyCanvas.width = 64;
+      emptyCanvas.height = 96;
+      const emptyImage = new Image();
+      emptyImage.src = emptyCanvas.toDataURL("image/png");
+      await emptyImage.decode();
+      const emptyOccupancy = CardComposition.alphaOccupancyFor(emptyImage, "composition-empty-protected-rail");
+      const clearCutoutCharacters = Array.from({ length: 3 }, () => ({ ...state.characters[0], cutout: true }));
+      const emptyImageRects = clearCutoutCharacters.map((character, index) => CardLayout.imageRectFor({
+        frame: layout.frames[index],
+        naturalWidth: emptyImage.naturalWidth,
+        naturalHeight: emptyImage.naturalHeight,
+        imageFit: character.imageFit,
+        zoom: character.zoom,
+        panX: character.panX,
+        panY: character.panY,
+        focalPoint: character.focalPoint,
+      }));
+      const clearCutoutPlan = CardLayout.planComposition({
+        characterCount: 3,
+        singleRatio: "landscape",
+        singleLayout: state.singleLayout,
+        characters: clearCutoutCharacters,
+        layout,
+        composition: { layer: "person-front", protectText: true, infoGap: 0 },
+        gearByCharacter: gear,
+        multiInfoEnabled: true,
+        selectedCharacter: 0,
+        language: "ko",
+        occupancyByCharacter: clearCutoutCharacters.map(() => emptyOccupancy),
+        imageRects: emptyImageRects,
+      });
+      const clearCutoutPng = await render(clearCutoutPlan, state.backgroundPattern, gear, { ...state, characters: clearCutoutCharacters }, layout, [emptyImage, emptyImage, emptyImage]);
+      const clearCutoutItem = clearCutoutPlan.items[0];
+      const clearCutoutPoint = { x: clearCutoutItem.x + 1, y: clearCutoutItem.y + 1 };
+      const clearCutoutPixel = clearCutoutPng.pixel(clearCutoutPoint.x, clearCutoutPoint.y);
+      const clearCutoutBaseline = await render({ ...clearCutoutPlan, items: [] }, state.backgroundPattern, gear, { ...state, characters: clearCutoutCharacters }, layout, [emptyImage, emptyImage, emptyImage]);
+      const clearCutoutBaselinePixel = clearCutoutBaseline.pixel(clearCutoutPoint.x, clearCutoutPoint.y);
+
+      const protectionCanvas = document.createElement("canvas");
+      protectionCanvas.width = 100;
+      protectionCanvas.height = 80;
+      const protectionContext = protectionCanvas.getContext("2d", { willReadFrequently: true });
+      protectionContext.fillStyle = "#e34242";
+      protectionContext.fillRect(0, 0, protectionCanvas.width, protectionCanvas.height);
+      const protectionHelperResult = CardPng.drawCopyProtection(
+        protectionContext,
+        { x: 20, y: 20, width: 60, height: 40 },
+        "#fffaf4",
       );
-      const infoCornerPixel = infoFront.pixel(infoPlanItem.x + 0.5, infoPlanItem.y + 0.5);
-      const infoEdgePixel = infoFront.pixel(infoPlanItem.x + infoPlanItem.width / 2, infoPlanItem.y);
-      const collageFront = await render(infoFrontPlan, "collage");
-      const scrapbookFront = await render(infoFrontPlan, "scrapbook");
-      const collageSurfacePixel = collageFront.pixel(
-        infoPlanItem.x + infoPlanItem.noteRadius + 2,
-        infoPlanItem.y + infoPlanItem.noteRadius + 2,
-      );
-      const scrapbookSurfacePixel = scrapbookFront.pixel(
-        infoPlanItem.x + infoPlanItem.noteRadius + 2,
-        infoPlanItem.y + infoPlanItem.noteRadius + 2,
-      );
+      const protectionPixel = (x, y) => Array.from(protectionContext.getImageData(x, y, 1, 1).data);
+      const protectionCenterPixel = protectionPixel(50, 40);
+      const protectionFadePixel = protectionPixel(78, 40);
+      const protectionCornerPixel = protectionPixel(21, 21);
+
+      const imageRectProbePlan = { ...plan, isCustom: false, items: [], imageRects: [{ x: 10, y: 10, width: 50, height: 50 }, null, null] };
+      const imageRectProbe = await render(imageRectProbePlan, state.backgroundPattern, [[], [], []]);
+      const imageRectOverridePixel = imageRectProbe.pixel(30, 30);
       const originBounds = {
         x: infoPlanItem.x + 18,
         y: infoPlanItem.y + 18,
@@ -216,19 +320,17 @@ const modelPaths = [
       const validPlanGeometry = plan.items.every((item) => {
         const copy = item.copyBounds;
         const protection = item.protectionBounds;
-        return Boolean(copy && protection && item.noteRadius > 0)
+        return Boolean(copy && protection)
           && copy.x >= item.x && copy.y >= item.y
           && copy.x + copy.width <= item.x + item.width
           && copy.y + copy.height <= item.y + item.height
-          && protection.x >= item.x && protection.y >= item.y
-          && protection.x + protection.width <= item.x + item.width
-          && protection.y + protection.height <= item.y + item.height
           && protection.x <= copy.x && protection.y <= copy.y
           && protection.x + protection.width >= copy.x + copy.width
           && protection.y + protection.height >= copy.y + copy.height
-          && copy.x - protection.x >= 7 && copy.x - protection.x <= 10
-          && copy.y - protection.y >= 7 && copy.y - protection.y <= 9
-          && item.noteRadius <= Math.min(item.width / 2, item.height / 2);
+          && copy.x - protection.x >= 10
+          && copy.y - protection.y >= 10
+          && protection.x + protection.width - (copy.x + copy.width) >= 10
+          && protection.y + protection.height - (copy.y + copy.height) >= 10;
       });
       const sampleZone = plan.protectedZones.find((zone) => zone.characterIndex === sample.characterIndex && zone.gearIndex === sample.gearIndex);
       const protectedZoneMatches = sampleZone && sampleZone.x === protectionBounds.x && sampleZone.y === protectionBounds.y
@@ -276,22 +378,33 @@ const modelPaths = [
         1,
       ).data);
       hiddenLegacyBitmap.close();
+      const pixelDistance = (first, second) => first.reduce((sum, value, index) => sum + Math.abs(value - second[index]), 0);
       return {
         plan,
-        personPixel,
-        copyPixel,
-        infoPixel,
-        infoCopyPixel,
-        infoInteriorPixel,
-        infoCornerPixel,
-        infoEdgePixel,
-        collageSurfacePixel,
-        scrapbookSurfacePixel,
+        clearNoteCornerPixel,
+        baselineNoteCornerPixel,
+        personClearCornerPixel,
+        personBaselineCornerPixel,
+        collageNoteCornerPixel,
+        collageBaselinePixel,
+        scrapbookNoteCornerPixel,
+        scrapbookBaselinePixel,
+        sourceHaloPixel,
+        sourceBaselinePixel,
+        sourceHaloDistance: pixelDistance(sourceHaloPixel, sourceBaselinePixel),
+        clearCutoutPixel,
+        clearCutoutBaselinePixel,
+        clearCutoutScores: clearCutoutPlan.items.map((item) => item.copyOcclusionScore),
+        protectionHelperResult,
+        protectionCenterPixel,
+        protectionFadePixel,
+        protectionCornerPixel,
+        imageRectOverridePixel,
         firstGlyphInkOffset,
         validPlanGeometry,
         protectedZoneMatches: Boolean(protectedZoneMatches),
         personBytes: personFront.blob.size,
-        infoBytes: infoFront.blob.size,
+        infoBytes: clearInfo.blob.size,
         occupancySummary,
         hiddenLegacyPixel,
       };
@@ -299,8 +412,8 @@ const modelPaths = [
 
     assert.equal(result.plan.effectiveLayer, "person-front");
     assert.equal(result.plan.items.length, 18, "each character's core and accessory entries must reach the PNG plan");
-    assert.ok(result.validPlanGeometry, "glyph and protection bounds stay inside each note with the planned breathing inset and shared logical radius");
-    assert.ok(result.protectedZoneMatches, "foreground occupancy uses the wider protection bounds rather than the glyph bounds");
+    assert.ok(result.validPlanGeometry, "copy bounds stay inside their click targets and feather bounds add breathing room around every copy line");
+    assert.ok(result.protectedZoneMatches, "foreground occupancy uses the expanded protection bounds rather than the glyph bounds");
     assert.deepEqual(result.occupancySummary, {
       width: 64,
       height: 96,
@@ -311,24 +424,21 @@ const modelPaths = [
       clears: true,
     }, "cutout alpha is downsampled once and reused from the bounded cache");
     assert.ok(result.personBytes > 1000 && result.infoBytes > 1000, "both layers export a complete PNG");
-    assert.ok(result.personPixel[0] > 180 && result.personPixel[1] < 90, `person-front keeps the subject over note material outside the glyph protection inset: ${result.personPixel}`);
-    assert.ok(result.copyPixel[0] > 235 && result.copyPixel[1] > 225 && result.copyPixel[2] > 215, `protected glyph breathing area stays opaque above the subject: ${result.copyPixel}`);
-    assert.ok(result.infoPixel[0] > 235 && result.infoPixel[1] > 225 && result.infoPixel[2] > 215, `info-front note surface covers the subject: ${result.infoPixel}`);
-    assert.ok(result.infoInteriorPixel[0] > 245 && result.infoInteriorPixel[1] > 235, `note interior uses its quiet opaque fill: ${result.infoInteriorPixel}`);
-    assert.deepEqual(result.collageSurfacePixel.slice(0, 3), [244, 232, 215], "custom collage notes retain the existing archive-paper tint");
-    assert.deepEqual(result.scrapbookSurfacePixel.slice(0, 3), [247, 240, 227], "custom scrapbook notes retain the existing blue-paper tint");
+    assert.deepEqual(result.clearNoteCornerPixel, result.baselineNoteCornerPixel, "info-front custom notes paint no full-size rectangle outside their copy");
+    assert.deepEqual(result.personClearCornerPixel, result.personBaselineCornerPixel, "person-front custom notes paint no material surface before the character");
+    assert.deepEqual(result.collageNoteCornerPixel, result.collageBaselinePixel, "custom collage notes do not restore paper boxes");
+    assert.deepEqual(result.scrapbookNoteCornerPixel, result.scrapbookBaselinePixel, "custom scrapbook notes do not restore paper boxes");
+    assert.ok(result.clearCutoutScores.length > 0 && result.clearCutoutScores.every((score) => score === 0), "empty cutout masks produce zero copy occlusion for clear rails");
+    assert.deepEqual(result.clearCutoutPixel, result.clearCutoutBaselinePixel, "empty protected cutout rails add no alpha or halo to the exported card");
+    assert.ok(result.sourceHaloDistance > 10, `unknown overlap on source screenshots keeps a feathered halo: ${result.sourceHaloPixel} vs ${result.sourceBaselinePixel}`);
+    assert.equal(result.protectionHelperResult, true, "copy protection helper accepts valid bounds");
+    assert.ok(result.protectionCenterPixel[0] > 230 && result.protectionCenterPixel[1] > 180, `soft protection is visible in the ellipse center: ${result.protectionCenterPixel}`);
+    assert.ok(result.protectionFadePixel[1] > 66, `the feather fades with the tint color instead of introducing a dark fringe: ${result.protectionFadePixel}`);
+    assert.deepEqual(result.protectionCornerPixel, [227, 66, 66, 255], "feathered protection leaves the bounding-box corners clear");
+    assert.ok(result.imageRectOverridePixel[0] > 180 && result.imageRectOverridePixel[1] < 90, `PNG cutout placement honors the resolved per-character image rectangle: ${result.imageRectOverridePixel}`);
     assert.ok(result.firstGlyphInkOffset != null && result.firstGlyphInkOffset <= 4, `fallback PNG glyphs start at the planned top edge instead of vertical centering: ${result.firstGlyphInkOffset}`);
-    assert.ok(result.infoEdgePixel[0] < result.infoInteriorPixel[0] - 18, `note has one subtle perimeter at its outer edge: ${result.infoEdgePixel} vs ${result.infoInteriorPixel}`);
-    const innerEdgeDistance = Math.abs(result.infoCopyPixel[0] - result.infoInteriorPixel[0])
-      + Math.abs(result.infoCopyPixel[1] - result.infoInteriorPixel[1])
-      + Math.abs(result.infoCopyPixel[2] - result.infoInteriorPixel[2]);
-    assert.ok(innerEdgeDistance < 8, `glyph bounds have no nested protection outline: ${result.infoCopyPixel} vs ${result.infoInteriorPixel}`);
-    const cornerDistance = Math.abs(result.infoCornerPixel[0] - result.infoInteriorPixel[0])
-      + Math.abs(result.infoCornerPixel[1] - result.infoInteriorPixel[1])
-      + Math.abs(result.infoCornerPixel[2] - result.infoInteriorPixel[2]);
-    assert.ok(cornerDistance > 10, `rounded note corner leaves the underlying card visible: ${result.infoCornerPixel} vs ${result.infoInteriorPixel}`);
     assert.ok(result.hiddenLegacyPixel[0] > 180 && result.hiddenLegacyPixel[1] < 90, `a hidden legacy core item must stay hidden without shifting its neighbors: ${result.hiddenLegacyPixel}`);
-    console.log("PASS: CardPng keeps custom notes rounded and single-edged, preserves person/info layer order, and protects glyphs with planner clearance.");
+    console.log("PASS: CardPng keeps custom copy typography-only, adds only overlap-sensitive feather protection, follows planned cutout frames, and preserves legacy cards.");
   } finally {
     await browser.close();
   }

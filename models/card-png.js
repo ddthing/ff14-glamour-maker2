@@ -6,7 +6,89 @@ const CardGearCopyModule = typeof module !== "undefined" && module.exports
 const CardMaterialsModule = typeof module !== "undefined" && module.exports
   ? require("./card-materials.js")
   : typeof CardMaterials !== "undefined" ? CardMaterials : globalThis.CardMaterials;
+const CardCompositionModule = typeof module !== "undefined" && module.exports
+  ? require("./card-composition.js")
+  : typeof CardComposition !== "undefined" ? CardComposition : globalThis.CardComposition;
+const CardArtSettingsModule = typeof module !== "undefined" && module.exports
+  ? require("./card-art.js")
+  : typeof CardArt !== "undefined" ? CardArt : globalThis.CardArt;
+const CardOrnamentsModule = typeof module !== "undefined" && module.exports
+  ? require("./card-ornaments.js")
+  : typeof CardOrnaments !== "undefined" ? CardOrnaments : globalThis.CardOrnaments;
 const CardPng = (() => {
+function colorPairForCanvasGradient(context, color) {
+  const fallback = "#fffaf4";
+  const previousFillStyle = context.fillStyle;
+  context.fillStyle = fallback;
+  if (color) context.fillStyle = String(color);
+  const opaque = String(context.fillStyle || fallback);
+  context.fillStyle = previousFillStyle;
+
+  const hex = opaque.match(/^#([\da-f]{3,8})$/iu)?.[1];
+  let channels = null;
+  if (hex && [3, 4, 6, 8].includes(hex.length)) {
+    const expanded = hex.length <= 4
+      ? Array.from(hex, (part) => `${part}${part}`).join("")
+      : hex;
+    channels = [
+      Number.parseInt(expanded.slice(0, 2), 16),
+      Number.parseInt(expanded.slice(2, 4), 16),
+      Number.parseInt(expanded.slice(4, 6), 16),
+    ];
+  } else {
+    const rgb = opaque.match(/^rgba?\((.+)\)$/iu)?.[1];
+    if (rgb) {
+      const parts = rgb.trim().split(/[\s,/]+/u).filter(Boolean);
+      if (parts.length >= 3) {
+        channels = parts.slice(0, 3).map((part) => {
+          const numeric = Number.parseFloat(part);
+          return part.endsWith("%") ? Math.round(numeric * 2.55) : Math.round(numeric);
+        });
+      }
+    }
+  }
+  if (!channels || channels.some((part) => !Number.isFinite(part))) {
+    return { opaque, transparent: "rgba(255, 250, 244, 0)" };
+  }
+  const bounded = channels.map((part) => Math.max(0, Math.min(255, part)));
+  return {
+    opaque,
+    transparent: `rgba(${bounded[0]}, ${bounded[1]}, ${bounded[2]}, 0)`,
+  };
+}
+
+function intersectRectangles(first, second) {
+  if (!first || !second) return null;
+  const left = Math.max(first.x, second.x);
+  const top = Math.max(first.y, second.y);
+  const right = Math.min(first.x + first.width, second.x + second.width);
+  const bottom = Math.min(first.y + first.height, second.y + second.height);
+  if (right <= left || bottom <= top) return null;
+  return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
+function drawCopyProtection(context, bounds, color) {
+  const x = Number(bounds?.x);
+  const y = Number(bounds?.y);
+  const width = Number(bounds?.width);
+  const height = Number(bounds?.height);
+  if (!context || ![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) return false;
+
+  const colors = colorPairForCanvasGradient(context, color);
+  context.save();
+  context.translate(x + width / 2, y + height / 2);
+  context.scale(width / 2, height / 2);
+  const gradient = context.createRadialGradient(0, 0, 0, 0, 0, 1);
+  gradient.addColorStop(0, colors.opaque);
+  gradient.addColorStop(0.5, colors.opaque);
+  gradient.addColorStop(1, colors.transparent);
+  context.globalAlpha *= 0.78;
+  context.fillStyle = gradient;
+  context.fillRect(-1, -1, 2, 2);
+  context.restore();
+  return true;
+}
+
 function traceFivePointStar(context, radius) {
   const innerRadius = radius * 0.42;
   context.beginPath();
@@ -462,13 +544,42 @@ function drawExportBackground(context, width, height, background, backgroundImag
 }
 
 async function render({ state, dimensions, layout = null, compositionPlan = null, exportTheme, background, textureInk = null, patternStars, images, backgroundImage = null, copyLayout, gear, outlineColor, placementScale = 1, infoTextColor = exportTheme.text, infoTextMuted = exportTheme.muted, infoTextHalo = exportTheme.infoShadow }) {
-  const activeCharacters = state.characters.slice(0, state.characterCount);
+  const activeCharacters = Array.isArray(state?.characters) ? state.characters.slice(0, state.characterCount) : [];
+  const resolvedImages = Array.isArray(images) ? images : [];
   const resolvedLayout = layout || CardLayout.layoutFor({
     characterCount: state.characterCount,
-    singleRatio: dimensions.layoutHeight > dimensions.layoutWidth ? "portrait" : "landscape",
+    singleRatio: state.singleRatio || (Number(dimensions?.layoutHeight) > Number(dimensions?.layoutWidth) ? "portrait" : "landscape"),
     singleLayout: state.singleLayout,
     characters: activeCharacters,
+    art: state.cardComposition?.art || state.art || null,
   });
+  const resolvedDimensions = dimensions || resolvedLayout.dimensions;
+  const { layoutWidth, layoutHeight, exportWidth, exportHeight } = resolvedDimensions;
+  const resolvedPlacementScale = Number.isFinite(placementScale) && placementScale > 0 ? placementScale : 1;
+  const deriveArtGeometry = state.cardComposition?.art?.enabled === true || state.art?.enabled === true;
+  const imageRects = deriveArtGeometry ? activeCharacters.map((character, index) => {
+    const image = resolvedImages[index];
+    const frame = resolvedLayout.frames?.[index];
+    const naturalWidth = Number(image?.naturalWidth || image?.videoWidth || image?.width || 0);
+    const naturalHeight = Number(image?.naturalHeight || image?.videoHeight || image?.height || 0);
+    if (!image || !frame || !(naturalWidth > 0 && naturalHeight > 0)) return null;
+    return CardLayout.imageRectFor({
+      frame,
+      naturalWidth,
+      naturalHeight,
+      imageFit: character.imageFit,
+      zoom: character.zoom,
+      panX: character.panX,
+      panY: character.panY,
+      focalPoint: character.focalPoint,
+      panScale: resolvedPlacementScale,
+    });
+  }) : undefined;
+  const occupancyByCharacter = deriveArtGeometry ? activeCharacters.map((character, index) => {
+    const image = resolvedImages[index];
+    if (!character?.cutout || !image) return null;
+    return CardCompositionModule?.alphaOccupancyFor?.(image, image.currentSrc || image.src || "") || null;
+  }) : undefined;
   // Older saved snapshots do not contain cardComposition. Keep them on the
   // byte-stable legacy path while allowing export callers to omit an explicit
   // planner result when they do use the new composition controls.
@@ -483,19 +594,53 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
     selectedCharacter: state.selectedCharacter,
     multiInfoEnabled: state.multiInfoEnabled,
     language: state.language,
+    imageRects,
+    occupancyByCharacter,
   });
   const isPortrait = resolvedLayout.ratio === "portrait";
   const characterFrames = resolvedLayout.frames;
-  const { layoutWidth, layoutHeight, exportWidth, exportHeight } = dimensions;
     const outputScale = CardCopy.outputScale;
-    const resolvedPlacementScale = Number.isFinite(placementScale) && placementScale > 0 ? placementScale : 1;
     const canvas = document.createElement("canvas");
     canvas.width = exportWidth;
     canvas.height = exportHeight;
     const context = canvas.getContext("2d");
     context.scale(outputScale, outputScale);
     drawExportBackground(context, layoutWidth, layoutHeight, background, backgroundImage);
-    drawExportPattern(context, layoutWidth, layoutHeight, background, state, patternStars, textureInk);
+    const patternOnlyMode = resolvedCompositionPlan?.art?.enabled !== true
+      && ["stripes", "plaid"].includes(state.backgroundPattern);
+    const patternArtSettings = resolvedCompositionPlan?.art || state.cardComposition?.art || state.art || {};
+    const patternOnlyArt = patternOnlyMode
+      ? (CardArtSettingsModule?.normalize
+        ? CardArtSettingsModule.normalize({
+          ...patternArtSettings,
+          enabled: true,
+          badge: "none",
+          ornaments: 0,
+        })
+        : {
+          enabled: true,
+          badge: "none",
+          ornaments: 0,
+          accentColor: "#d9b5c6",
+          paperColor: "#fffaf4",
+          patternScale: 100,
+          patternOpacity: 18,
+          density: 50,
+        })
+      : null;
+    const artLayerPlan = patternOnlyMode
+      ? { ...resolvedCompositionPlan, art: patternOnlyArt, groupPanels: [] }
+      : resolvedCompositionPlan;
+    const artLayer = CardOrnamentsModule?.draw?.(context, {
+      plan: artLayerPlan,
+      dimensions,
+      backgroundPattern: state.backgroundPattern,
+      background,
+    });
+    const patternState = artLayer?.patternHandled
+      ? { ...state, backgroundPattern: "none" }
+      : state;
+    drawExportPattern(context, layoutWidth, layoutHeight, background, patternState, patternStars, textureInk);
 
     const roundRect = (x, y, width, height, radius) => {
       context.beginPath();
@@ -515,7 +660,7 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
       });
       context.drawImage(image, imageRect.x, imageRect.y, imageRect.width, imageRect.height);
     };
-    const drawCharacter = (image, character, x, y, width, height) => {
+    const drawCharacter = (image, character, characterIndex, x, y, width, height) => {
       context.save();
       const informationMode = state.characterCount >= 3 && state.multiInfoEnabled;
       const silhouetteMode = informationMode && state.multiInfoMode === "silhouette" && character.cutout;
@@ -534,7 +679,15 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
         context.restore();
         return;
       }
-      const imageRect = CardLayout.imageRectFor({
+      const plannedImageRect = resolvedCompositionPlan?.imageRects?.[characterIndex];
+      const hasPlannedImageRect = plannedImageRect
+        && Number.isFinite(Number(plannedImageRect.x))
+        && Number.isFinite(Number(plannedImageRect.y))
+        && Number.isFinite(Number(plannedImageRect.width))
+        && Number.isFinite(Number(plannedImageRect.height))
+        && Number(plannedImageRect.width) > 0
+        && Number(plannedImageRect.height) > 0;
+      const imageRect = hasPlannedImageRect ? plannedImageRect : CardLayout.imageRectFor({
         frame: { x, y, width, height },
         naturalWidth: image.naturalWidth,
         naturalHeight: image.naturalHeight,
@@ -616,57 +769,44 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
       const textX = textAlign === "right" ? x + width - padding : x + padding;
       const collageTheme = state.backgroundPattern === "collage";
       const scrapbookTheme = state.backgroundPattern === "scrapbook";
-      const paperNoteTheme = collageTheme || scrapbookTheme;
+      const artPanel = Array.isArray(resolvedCompositionPlan?.groupPanels)
+        ? resolvedCompositionPlan.groupPanels.find((panel) => Number(panel?.characterIndex) === Number(compositionItem?.characterIndex))
+        : null;
+      const artPanelShape = ["heart", "flower", "scallop"].includes(artPanel?.shape)
+        ? artPanel.shape
+        : resolvedCompositionPlan?.art?.badge;
+      const footerLayout = ["footer", "effectiveFooter"].includes(resolvedCompositionPlan?.effectiveLayout)
+        || ["footer", "effectiveFooter"].includes(resolvedCompositionPlan?.art?.effectiveLayout)
+        || ["footer", "effectiveFooter"].includes(resolvedCompositionPlan?.art?.layout);
+      const artPaperTheme = resolvedCompositionPlan?.art?.enabled === true
+        && footerLayout
+        && Boolean(artPanel)
+        && ["heart", "flower", "scallop"].includes(artPanelShape);
+      const paperNoteTheme = collageTheme || scrapbookTheme || artPaperTheme;
       const material = CardMaterialsModule?.get(state.backgroundPattern);
       const materialNote = CardMaterialsModule?.noteFor(state.backgroundPattern, noteIndex);
+      const artPalette = artPaperTheme ? CardOrnamentsModule?.paletteFor?.(resolvedCompositionPlan.art) : null;
       const darkCopy = background?.tone === "dark" || exportTheme.text === "#f7f3ed";
-      const copyInk = material?.ink || (darkCopy ? "#f7f3ed" : "#263238");
-      const copyMuted = material?.mutedInk || (darkCopy ? "rgba(247, 243, 237, .68)" : "rgba(38, 50, 56, .68)");
-      const copyEdge = collageTheme
-        ? "rgba(63, 57, 51, .2)"
-        : scrapbookTheme
-          ? "rgba(41, 70, 80, .22)"
-          : darkCopy ? "rgba(247, 243, 237, .24)" : "rgba(38, 50, 56, .18)";
+      const copyInk = artPalette?.ink || material?.ink || (darkCopy ? "#f7f3ed" : "#263238");
+      const copyMuted = artPalette?.muted || material?.mutedInk || (darkCopy ? "rgba(247, 243, 237, .68)" : "rgba(38, 50, 56, .68)");
       const protectedSurface = collageTheme
         ? "#f4e8d7"
         : scrapbookTheme
           ? "#f7f0e3"
-          : darkCopy ? "#1d2228" : "#fffaf4";
+          : artPalette?.paper || (darkCopy ? "#1d2228" : "#fffaf4");
       const plannedNote = Boolean(compositionItem);
-      const noteRadius = Math.max(0, Number(compositionItem?.noteRadius ?? exportTheme.radius) || 0);
+      const rawCopyOcclusionScore = compositionItem?.copyOcclusionScore;
+      const copyOcclusionScore = rawCopyOcclusionScore == null || rawCopyOcclusionScore === ""
+        ? Number.NaN
+        : Number(rawCopyOcclusionScore);
+      const copyOcclusionKnownClear = Number.isFinite(copyOcclusionScore) && copyOcclusionScore <= 0;
+      if (surfaceOnly) return;
       const pathBuilder = () => {
-        if (plannedNote) roundRect(x, y, width, height, noteRadius);
-        else if (collageTheme) traceArchivePaper(context, x, y, width, height);
+        if (collageTheme) traceArchivePaper(context, x, y, width, height);
         else traceScrapbookNote(context, x, y, width, height);
       };
-      const fillProtectedRegion = (bounds) => {
-        const regionRadius = Math.min(noteRadius, bounds.width / 2, bounds.height / 2);
-        context.save();
-        roundRect(bounds.x, bounds.y, bounds.width, bounds.height, regionRadius);
-        context.clip();
-        context.fillStyle = paperNoteTheme ? (materialNote?.tint || protectedSurface) : protectedSurface;
-        context.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-        context.restore();
-      };
       context.save();
-      if (!copyOnly && plannedNote && paperNoteTheme) {
-        const tint = materialNote?.tint || protectedSurface;
-        roundRect(x, y, width, height, noteRadius);
-        context.fillStyle = tint;
-        context.fill();
-        roundRect(x, y, width, height, noteRadius);
-        context.strokeStyle = copyEdge;
-        context.lineWidth = 1;
-        context.stroke();
-      } else if (!copyOnly && plannedNote) {
-        roundRect(x, y, width, height, noteRadius);
-        context.fillStyle = protectedSurface;
-        context.fill();
-        roundRect(x, y, width, height, noteRadius);
-        context.strokeStyle = copyEdge;
-        context.lineWidth = 1;
-        context.stroke();
-      } else if (!copyOnly && paperNoteTheme) {
+      if (!copyOnly && !plannedNote && paperNoteTheme) {
         drawMaterialNote(
           context,
           backgroundImage,
@@ -685,7 +825,7 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
             Number(backgroundImage?.naturalHeight || backgroundImage?.height || 0),
           ),
         );
-      } else if (!copyOnly) {
+      } else if (!copyOnly && !plannedNote) {
         roundRect(x, y, width, height, exportTheme.radius);
         context.fillStyle = exportTheme.panel;
         context.fill();
@@ -734,23 +874,33 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
           }
         }
       }
-      if (surfaceOnly) {
-        context.restore();
-        return;
-      }
-      const glyphBounds = copyBounds || compositionItem?.copyBounds || null;
+      const requestedGlyphBounds = copyBounds || compositionItem?.copyBounds || null;
+      const panelContentBounds = artPanel?.contentRect || null;
+      const glyphBounds = panelContentBounds
+        ? intersectRectangles(requestedGlyphBounds, panelContentBounds)
+        : requestedGlyphBounds;
+      const copyBoundsClippedOut = Boolean(panelContentBounds && !glyphBounds);
       const safeBounds = protectionBounds || compositionItem?.protectionBounds || null;
-      if (plannedNote && compositionItem?.copy && resolvedCompositionPlan?.effectiveLayer === "person-front"
-        && resolvedCompositionPlan?.protectText && safeBounds) {
-        fillProtectedRegion(safeBounds);
+      if (plannedNote && compositionItem?.copy && resolvedCompositionPlan?.protectText
+        && !copyOcclusionKnownClear && safeBounds) {
+        drawCopyProtection(context, safeBounds, materialNote?.tint || protectedSurface);
       }
       const capturedCopy = item.preview;
-      if (capturedCopy?.primaryCopy?.lines?.length) {
+      if (capturedCopy?.primaryCopy?.lines?.length && !copyBoundsClippedOut) {
+        if (panelContentBounds && glyphBounds) {
+          context.save();
+          context.beginPath();
+          context.rect(glyphBounds.x, glyphBounds.y, glyphBounds.width, glyphBounds.height);
+          context.clip();
+        }
         CardCopy.draw(context, [capturedCopy.slotCopy, capturedCopy.primaryCopy, capturedCopy.secondaryCopy].filter(Boolean));
+        if (panelContentBounds && glyphBounds) context.restore();
       } else if (compositionItem?.copy && glyphBounds) {
         const copyPlan = compositionItem.copy;
         const textWidth = Math.max(1, glyphBounds.width);
-        const glyphX = glyphBounds.x;
+        const glyphX = textAlign === "center"
+          ? glyphBounds.x + glyphBounds.width / 2
+          : textAlign === "right" ? glyphBounds.x + glyphBounds.width : glyphBounds.x;
         const allLines = [];
         context.font = `700 ${copyPlan.primarySize}px "Pretendard Variable", sans-serif`;
         const primaryLines = wrapGearText(item.name || compositionItem.name, textWidth);
@@ -771,6 +921,12 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
         if (secondaryLines.length) {
           allLines.push({ lines: secondaryLines, font: `500 ${copyPlan.secondarySize}px "Pretendard Variable", sans-serif`, size: copyPlan.secondarySize, height: copyPlan.secondaryLineHeight, color: copyMuted });
         }
+        if (panelContentBounds) {
+          context.save();
+          context.beginPath();
+          context.rect(glyphBounds.x, glyphBounds.y, glyphBounds.width, glyphBounds.height);
+          context.clip();
+        }
         let currentTop = glyphBounds.y;
         allLines.forEach((group) => {
           drawTopAlignedTextLines(group.lines, glyphX, currentTop, {
@@ -781,7 +937,8 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
           });
           currentTop += group.lines.length * group.height + copyPlan.groupGap;
         });
-      } else {
+        if (panelContentBounds) context.restore();
+      } else if (!plannedNote && !copyBoundsClippedOut) {
         const textWidth = Math.max(1, width - padding * 2);
         const copyTop = y + Math.round(height * 0.16);
         const copyHeight = Math.max(20, Math.round(height * 0.76));
@@ -801,14 +958,14 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
         const secondaryFont = `500 ${copy?.secondarySize || secondarySize}px "Pretendard Variable", sans-serif`;
         drawTextLines([item.slotName], textX, slotTop, {
           font: slotFont,
-          fillStyle: paperNoteTheme ? "rgba(59, 64, 64, .68)" : exportTheme.muted,
+          fillStyle: artPalette?.muted || (paperNoteTheme ? "rgba(59, 64, 64, .68)" : exportTheme.muted),
           lineHeight: copy?.slotLineHeight || slotSize * 1.05,
           textAlign,
         });
         const primaryTop = slotTop + (copy?.slotLineHeight || slotSize * 1.05) + (copy?.groupGap || 3);
         drawTextLines(copy?.primaryLines || [item.name], textX, primaryTop, {
           font: primaryFont,
-          fillStyle: paperNoteTheme ? "#3b4040" : exportTheme.text,
+          fillStyle: artPalette?.ink || (paperNoteTheme ? "#3b4040" : exportTheme.text),
           lineHeight: copy?.primaryLineHeight || primarySize * 1.14,
           textAlign,
         });
@@ -816,7 +973,7 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
           const secondaryTop = primaryTop + copy.primaryLines.length * copy.primaryLineHeight + copy.groupGap;
           drawTextLines(copy.secondaryLines, textX, secondaryTop, {
             font: secondaryFont,
-            fillStyle: paperNoteTheme ? "rgba(59, 64, 64, .62)" : exportTheme.muted,
+            fillStyle: artPalette?.muted || (paperNoteTheme ? "rgba(59, 64, 64, .62)" : exportTheme.muted),
             lineHeight: copy.secondaryLineHeight,
             textAlign,
           });
@@ -855,6 +1012,14 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
 
     const gearItemForPlan = (itemPlan) => {
       const sourceItem = gear?.[itemPlan.characterIndex]?.[itemPlan.gearIndex] || {};
+      if (resolvedCompositionPlan?.art?.enabled === true) {
+        return {
+          ...sourceItem,
+          name: itemPlan.name ?? sourceItem.name ?? sourceItem.primaryName ?? "",
+          secondaryName: itemPlan.secondaryName ?? "",
+          slotName: itemPlan.slotName ?? "",
+        };
+      }
       return {
         ...sourceItem,
         name: sourceItem.name || sourceItem.primaryName || itemPlan.name,
@@ -867,7 +1032,7 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
         const item = gearItemForPlan(itemPlan);
         drawGearTile(item, itemPlan.x, itemPlan.y, itemPlan.width, itemPlan.height, {
           noteIndex: itemPlan.gearIndex,
-          textAlign: "left",
+          textAlign: itemPlan.textAlign || "left",
           surfaceOnly: surfacesOnly,
           copyOnly,
           compositionItem: itemPlan,
@@ -882,7 +1047,10 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
     }
 
     characterFrames.forEach((frame, index) => {
-      drawCharacter(images[index], activeCharacters[index], frame.x, frame.y, frame.width, frame.height);
+      const image = resolvedImages[index];
+      const character = activeCharacters[index];
+      if (!image || !character) return;
+      drawCharacter(image, character, index, frame.x, frame.y, frame.width, frame.height);
     });
 
     context.fillStyle = "rgba(255,255,255,.2)";
@@ -981,6 +1149,6 @@ async function render({ state, dimensions, layout = null, compositionPlan = null
     });
     return canvasBlob("image/png");
 }
-return { render, shouldDrawPatternStamp };
+return { render, shouldDrawPatternStamp, drawCopyProtection };
 })();
 if (typeof module !== "undefined") module.exports = CardPng;
