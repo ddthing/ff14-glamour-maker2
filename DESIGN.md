@@ -137,6 +137,30 @@ gallery or saved preset layer competing with those controls.
 
 ## Review checklist
 
+## Optional reference card design
+
+The rules above describe the default card. An explicitly enabled
+`cardComposition.art` may select central catalog, per-person footer, or cover
+composition; square and 6:5 ratios are supported alongside 4:5 and 16:9.
+The editor chrome keeps the existing Neutral tokens.
+
+- Central catalogs use large front/back views with one shared gear list only
+  when the creator explicitly selects shared-outfit mode.
+- Footer lookbooks place one coherent list beneath each person. Ordinary
+  lists through eight items use one column. Optional heart, flower, or scallop
+  mats belong to the whole list, with a shape-safe text rectangle.
+- Text alignment, translations, title placement, figure scale and spacing,
+  pattern scale/opacity, and decoration amount remain editable per look.
+- Cover mode suppresses printed gear copy by explicit choice; it never deletes
+  registrations or changes full equipment sheets.
+- Preserve unlimited selected entries through automatic type fitting. The
+  text-scale control sets a preferred ratio, not a minimum actual font size.
+- Preview and PNG consume the same frames, painted image rectangles, copy
+  coordinates, and shared ornament renderer. Placeholders are QA fixtures and
+  are not evidence of final visual quality.
+- References inform proportions and general decoration; creator logos and
+  screenshots are not included in public application assets.
+
 - Does the card remain readable with one, two, and five characters?
 - Can a user identify the selected character and selected gear slot without
   reading technical metadata?

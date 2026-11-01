@@ -12,6 +12,16 @@ const Equipment = (() => {
   const MAX_FIELD_LENGTH = 160;
   const MAX_EXTRA_ID_LENGTH = 80;
   const COMPOSITION_LAYERS = Object.freeze(["info-front", "person-front"]);
+  let cachedCardArt = null;
+  function cardArtPolicy() {
+    if (cachedCardArt) return cachedCardArt;
+    if (typeof module !== "undefined" && module.exports) {
+      cachedCardArt = require("./card-art.js");
+    } else if (typeof globalThis !== "undefined") {
+      cachedCardArt = globalThis.CardArt || null;
+    }
+    return cachedCardArt;
+  }
   const slotLabels = Object.freeze({
     head: Object.freeze({ ko: "머리", en: "Head", ja: "頭" }),
     body: Object.freeze({ ko: "몸", en: "Body", ja: "胴" }),
@@ -149,11 +159,16 @@ const Equipment = (() => {
     const infoGap = Number.isFinite(parsedGap)
       ? Math.min(64, Math.max(0, Math.round(parsedGap)))
       : 0;
-    return {
+    const composition = {
       layer: COMPOSITION_LAYERS.includes(source.layer) ? source.layer : "info-front",
       protectText: source.protectText === false ? false : true,
       infoGap,
     };
+    if (source.art && typeof source.art === "object" && !Array.isArray(source.art)) {
+      const cardArt = cardArtPolicy();
+      if (cardArt?.normalize) composition.art = cardArt.normalize(source.art);
+    }
+    return composition;
   }
 
   function ensureLook(look) {

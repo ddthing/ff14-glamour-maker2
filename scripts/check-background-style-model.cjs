@@ -11,6 +11,8 @@ const style = BackgroundStyle.create({
 assert.equal(style.customDefaultColor, "#f7f5f0");
 assert.equal(style.defaultBackground, "paper");
 assert.equal(style.normalisePattern("index"), "collage");
+assert.equal(style.normalisePattern("stripes"), "stripes");
+assert.equal(style.normalisePattern("plaid"), "plaid");
 assert.equal(style.normalisePattern("unknown"), "none");
 assert.deepEqual(
   style.normaliseBackgroundFields({

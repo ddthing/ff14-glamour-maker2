@@ -1,0 +1,164 @@
+/* Optional art-direction layer. The legacy composition remains untouched
+   unless the board explicitly opts in with data-art-enabled="true". */
+.canvas-board[data-art-enabled="true"] .board-art-canvas,
+.canvas-board[data-art-enabled="true"] #boardArtCanvas,
+.canvas-board[data-art-pattern-only="true"] #boardArtCanvas {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.canvas-board[data-art-enabled="true"] #boardArtCanvas[hidden],
+.canvas-board[data-art-pattern-only="true"] #boardArtCanvas[hidden] {
+  display: none !important;
+}
+
+.canvas-board[data-art-enabled="true"] {
+  --card-plan-unit-scale: calc(100cqw / var(--art-layout-width, 1080));
+  width: min(100%, 900px);
+  max-width: 900px;
+  aspect-ratio: var(--art-aspect-ratio, 1.77778) !important;
+}
+
+.canvas-board[data-art-enabled="true"][data-background-tone="dark"] {
+  --recipe-ink: #f7f3ed;
+  --recipe-muted: rgb(247 243 237 / .62);
+}
+
+@media (min-width: 921px) and (min-height: 650px) {
+  .canvas-board[data-art-enabled="true"] {
+    width: min(100%, 900px, calc((100dvh - 260px) * var(--art-aspect-ratio, 1.77778)));
+    max-width: min(900px, calc((100dvh - 260px) * var(--art-aspect-ratio, 1.77778)));
+    max-height: calc(100dvh - 260px);
+  }
+}
+
+.canvas-board[data-art-enabled="true"] #scenePattern[hidden],
+.canvas-board[data-art-pattern-only="true"] #scenePattern[hidden] {
+  display: none !important;
+}
+
+.canvas-board[data-art-enabled="true"] .board-editorial-header {
+  top: var(--art-header-y, 4%);
+  right: auto;
+  bottom: auto;
+  left: var(--art-header-x, 5%);
+  z-index: 12;
+  width: var(--art-header-width, 90%);
+  height: var(--art-header-height, 8%);
+  min-height: 0 !important;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 0;
+  padding: 0 !important;
+  color: var(--recipe-ink, currentColor);
+  background: transparent !important;
+  text-align: var(--art-header-align, center);
+}
+
+.canvas-board[data-art-enabled="true"] .board-title-block {
+  display: block;
+  width: 100%;
+  max-width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  text-align: var(--art-header-align, center) !important;
+}
+
+.canvas-board[data-art-enabled="true"] .board-editorial-header .board-title-block > strong {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  padding-inline: 0;
+  color: var(--card-title-color, var(--recipe-ink, currentColor)) !important;
+  font-size: clamp(12px, 3.6cqw, 44px);
+  font-weight: var(--card-title-weight, 700);
+  letter-spacing: -.035em;
+  line-height: 1.05;
+  text-align: inherit;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.canvas-board[data-art-enabled="true"] .board-editorial-header .caption-description {
+  display: block !important;
+  max-width: 100%;
+  height: auto !important;
+  min-height: 0 !important;
+  margin-top: clamp(2px, .35cqw, 5px) !important;
+  overflow: visible !important;
+  font-size: clamp(5px, 1.1cqw, 12px);
+  font-weight: var(--card-subtitle-weight, 400);
+  line-height: 1.2;
+  text-overflow: clip;
+  text-align: var(--art-header-align, center) !important;
+  white-space: normal !important;
+}
+
+.canvas-board[data-art-enabled="true"][data-art-title-placement="hidden"] .board-editorial-header {
+  display: none !important;
+}
+
+.canvas-board[data-art-enabled="true"] #boardGearList .board-gear-item {
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline-offset: 2px;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--art-copy-ink, var(--recipe-ink, #263238));
+}
+
+.canvas-board[data-art-enabled="true"] #boardGearList .gear-note-surface,
+.canvas-board[data-art-enabled="true"] #boardGearList .gear-tile-tape,
+.canvas-board[data-art-enabled="true"] #boardGearList .gear-note-stamp,
+.canvas-board[data-art-enabled="true"] #boardGearList .gear-note-protection {
+  display: none !important;
+}
+
+.canvas-board[data-art-enabled="true"] #boardGearList .gear-tile-copy {
+  overflow: hidden;
+  grid-template-columns: minmax(0, 1fr) !important;
+  justify-content: stretch !important;
+  justify-items: stretch !important;
+  text-align: var(--art-item-align, var(--art-copy-align, left)) !important;
+}
+
+.canvas-board[data-art-enabled="true"] #boardGearList .gear-tile-copy > .gear-slot-label,
+.canvas-board[data-art-enabled="true"] #boardGearList .gear-tile-copy > .gear-item-secondary {
+  box-sizing: border-box;
+  width: 100%;
+  color: var(--art-copy-muted, var(--recipe-muted, rgba(38, 50, 56, .58))) !important;
+  text-align: var(--art-item-align, var(--art-copy-align, left)) !important;
+}
+
+.canvas-board[data-art-enabled="true"] #boardGearList .gear-tile-copy > strong {
+  box-sizing: border-box;
+  width: 100%;
+  color: var(--art-copy-ink, var(--recipe-ink, #263238)) !important;
+  text-align: var(--art-item-align, var(--art-copy-align, left)) !important;
+}
+
+.canvas-board[data-art-enabled="true"] .multi-info-column {
+  color: var(--art-copy-ink, var(--recipe-ink, #263238));
+  text-align: var(--art-copy-align, left);
+}
+
+.canvas-board[data-art-enabled="true"] .multi-info-items,
+.canvas-board[data-art-enabled="true"] .multi-info-item,
+.canvas-board[data-art-enabled="true"] .multi-info-items > span {
+  text-align: inherit;
+}
+
+.canvas-board[data-art-enabled="true"] .multi-info-items small {
+  color: var(--art-copy-muted, var(--recipe-muted, rgba(38, 50, 56, .58)));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-board[data-art-enabled="true"] #boardGearList .board-gear-item {
+    transition: none;
+  }
+}

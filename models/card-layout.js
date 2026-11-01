@@ -4,6 +4,9 @@
 const CropPlanModule = typeof module !== "undefined" && module.exports
   ? require("./crop-plan.js")
   : globalThis.CropPlan;
+const CardArtModule = typeof module !== "undefined" && module.exports
+  ? require("./card-art.js")
+  : globalThis.CardArt;
 const CardLayout = (() => {
   const dimensions = {
     portrait: { layoutWidth: 1080, layoutHeight: 1350, exportWidth: 2160, exportHeight: 2700 },
@@ -30,6 +33,12 @@ const CardLayout = (() => {
     Object.freeze({ slot: "feet", x: 28, y: 428, width: 300, height: 92 }),
   ]);
   const landscapeSoloCharacterFrame = Object.freeze({ x: 342, y: 108, width: 516, height: 532 });
+  const artDimensions = Object.freeze({
+    square: Object.freeze({ layoutWidth: 1080, layoutHeight: 1080, exportWidth: 2160, exportHeight: 2160 }),
+    lookbook: Object.freeze({ layoutWidth: 1200, layoutHeight: 1000, exportWidth: 2400, exportHeight: 2000 }),
+    portrait: dimensions.portrait,
+    landscape: dimensions.landscape,
+  });
 
   function normaliseCharacterCount(value) {
     return Math.min(5, Math.max(1, Number(value) || 1));
@@ -43,8 +52,197 @@ const CardLayout = (() => {
     return { ...dimensions[ratioFor(characterCount, singleRatio)] };
   }
 
-  function layoutFor({ characterCount = 1, singleRatio = "portrait", singleLayout = "info-left", characters = [] } = {}) {
+  function artRatioFor({ art, characterCount, singleRatio }) {
+    if (art.ratio !== "auto") return art.ratio;
+    if (art.layout === "footer") return "lookbook";
+    if (art.layout === "cover") return "landscape";
+    if (art.layout === "center") return "square";
+    return ratioFor(characterCount, singleRatio);
+  }
+
+  function scaleFrames(frames, fromDimensions, toDimensions) {
+    const scaleX = toDimensions.layoutWidth / fromDimensions.layoutWidth;
+    const scaleY = toDimensions.layoutHeight / fromDimensions.layoutHeight;
+    return frames.map((frame, characterIndex) => ({
+      characterIndex,
+      x: frame.x * scaleX,
+      y: frame.y * scaleY,
+      width: frame.width * scaleX,
+      height: frame.height * scaleY,
+    }));
+  }
+
+  function artHeader(dimensions, art) {
+    const { layoutWidth, layoutHeight } = dimensions;
+    if (art.titlePlacement === "hidden") {
+      return { x: 0, y: 0, width: 0, height: 0, align: "left", hidden: true };
+    }
+    const centered = art.titlePlacement === "top-center";
+    const width = layoutWidth * (centered ? 0.72 : 0.58);
+    return {
+      x: centered ? (layoutWidth - width) / 2 : layoutWidth * 0.055,
+      y: layoutHeight * 0.018,
+      width,
+      height: layoutHeight * 0.07,
+      align: centered ? "center" : "left",
+      hidden: false,
+    };
+  }
+
+  function artPanel(characterIndex, x, y, width, height, art, shape = "none") {
+    const inset = shape === "heart"
+      ? { left: 0.20, right: 0.20, top: 0.20, bottom: 0.35 }
+      : shape === "flower"
+        ? { left: 0.15, right: 0.15, top: 0.15, bottom: 0.15 }
+        : shape === "scallop"
+          ? { left: 0.10, right: 0.10, top: 0.10, bottom: 0.10 }
+          : { left: 0, right: 0, top: 0, bottom: 0 };
+    return {
+      characterIndex,
+      x,
+      y,
+      width,
+      height,
+      shape,
+      textAlign: art.textAlign,
+      contentRect: {
+        x: x + width * inset.left,
+        y: y + height * inset.top,
+        width: width * (1 - inset.left - inset.right),
+        height: height * (1 - inset.top - inset.bottom),
+      },
+    };
+  }
+
+  function artFramesFor({ characterCount, art, effectiveLayout, dimensions: layoutDimensions, singleRatio, singleLayout, characters }) {
+    const { layoutWidth: width, layoutHeight: height } = layoutDimensions;
+    const count = characterCount;
+    const marginX = width * 0.035;
+    const header = artHeader(layoutDimensions, art);
+    const imageTop = header.hidden ? height * 0.025 : height * 0.115;
+    const frameBottom = height * 0.975;
+    const availableHeight = frameBottom - imageTop;
+
+    if (effectiveLayout === "auto") {
+      const baseRatio = ratioFor(count, singleRatio === "portrait" ? "portrait" : "landscape");
+      const baseDimensions = dimensions[baseRatio];
+      const baseFrames = characterFrames({ characterCount: count, singleRatio, singleLayout, characters });
+      return scaleFrames(baseFrames, baseDimensions, layoutDimensions);
+    }
+
+    if (effectiveLayout === "center" && count === 1) {
+      return [{ characterIndex: 0, x: width * 0.035, y: imageTop, width: width * 0.53, height: availableHeight }];
+    }
+
+    if (effectiveLayout === "center" && count === 2 && art.sharedOutfit) {
+      const subjectWidth = width * 0.35;
+      return [
+        { characterIndex: 0, x: width * 0.025, y: imageTop, width: subjectWidth, height: availableHeight, view: "front" },
+        { characterIndex: 1, x: width * 0.625, y: imageTop, width: subjectWidth, height: availableHeight, view: "back" },
+      ];
+    }
+
+    if (effectiveLayout === "center" && count === 2) {
+      const subjectWidth = width * 0.29;
+      return [
+        { characterIndex: 0, x: width * 0.02, y: imageTop, width: subjectWidth, height: availableHeight },
+        { characterIndex: 1, x: width * 0.69, y: imageTop, width: subjectWidth, height: availableHeight },
+      ];
+    }
+
+    if (effectiveLayout === "cover") {
+      const gap = Math.min(width * 0.12, art.subjectGap * 1.2);
+      const availableWidth = width - marginX * 2 - gap * Math.max(0, count - 1);
+      const slotWidth = availableWidth / count;
+      return Array.from({ length: count }, (_, characterIndex) => ({
+        characterIndex,
+        x: marginX + characterIndex * (slotWidth + gap),
+        y: imageTop,
+        width: slotWidth,
+        height: availableHeight,
+      }));
+    }
+
+    // Footer includes explicit `footer` and center layouts that cannot fit a
+    // central information column with more than two subjects.
+    const gap = Math.min(width * 0.08, art.subjectGap * 1.2);
+    const availableWidth = width - marginX * 2 - gap * Math.max(0, count - 1);
+    const slotWidth = availableWidth / count;
+    const top = header.hidden ? height * 0.025 : height * 0.09;
+    const subjectHeight = height * 0.65;
+    return Array.from({ length: count }, (_, characterIndex) => ({
+      characterIndex,
+      x: marginX + characterIndex * (slotWidth + gap),
+      y: top,
+      width: slotWidth,
+      height: subjectHeight,
+    }));
+  }
+
+  function artGroupPanels({ characterCount, art, effectiveLayout, dimensions }) {
+    const { layoutWidth: width, layoutHeight: height } = dimensions;
+    if (effectiveLayout === "cover" || effectiveLayout === "auto") return [];
+    if (effectiveLayout === "center" && characterCount === 1) {
+      return [artPanel(0, width * 0.60, height * 0.135, width * 0.36, height * 0.82, art)];
+    }
+    if (effectiveLayout === "center" && characterCount === 2 && art.sharedOutfit) {
+      return [artPanel(0, width * 0.385, height * 0.14, width * 0.23, height * 0.80, art)];
+    }
+    if (effectiveLayout === "center" && characterCount === 2) {
+      return [
+        artPanel(0, width * 0.325, height * 0.13, width * 0.35, height * 0.355, art),
+        artPanel(1, width * 0.325, height * 0.515, width * 0.35, height * 0.355, art),
+      ];
+    }
+    const margin = width * 0.035;
+    const gap = Math.min(width * 0.08, art.subjectGap * 1.2);
+    const panelTop = height * 0.745;
+    const panelHeight = height * 0.235;
+    const panelWidth = (width - margin * 2 - gap * Math.max(0, characterCount - 1)) / characterCount;
+    return Array.from({ length: characterCount }, (_, characterIndex) => artPanel(
+      characterIndex,
+      margin + characterIndex * (panelWidth + gap),
+      panelTop,
+      panelWidth,
+      panelHeight,
+      art,
+      art.badge,
+    ));
+  }
+
+  function layoutArtFor({ characterCount, singleRatio, singleLayout, characters, art: rawArt }) {
+    if (rawArt?.enabled !== true) return null;
+    const art = CardArtModule?.normalize ? CardArtModule.normalize(rawArt) : rawArt;
     const count = normaliseCharacterCount(characterCount);
+    const ratio = artRatioFor({ art, characterCount: count, singleRatio });
+    const layoutDimensions = { ...artDimensions[ratio] };
+    const effectiveLayout = art.layout === "center" && count > 2 ? "footer" : art.layout;
+    const frames = artFramesFor({
+      characterCount: count,
+      art,
+      effectiveLayout,
+      dimensions: layoutDimensions,
+      singleRatio,
+      singleLayout,
+      characters,
+    });
+    return {
+      characterCount: count,
+      ratio,
+      dimensions: layoutDimensions,
+      frames,
+      artFrames: frames.map((frame) => ({ ...frame })),
+      art,
+      effectiveLayout,
+      header: artHeader(layoutDimensions, art),
+      groupPanels: artGroupPanels({ characterCount: count, art, effectiveLayout, dimensions: layoutDimensions }),
+    };
+  }
+
+  function layoutFor({ characterCount = 1, singleRatio = "portrait", singleLayout = "info-left", characters = [], art = null } = {}) {
+    const count = normaliseCharacterCount(characterCount);
+    const artLayout = layoutArtFor({ characterCount: count, singleRatio, singleLayout, characters, art });
+    if (artLayout) return artLayout;
     const ratio = ratioFor(count, singleRatio);
     return {
       characterCount: count,
@@ -68,7 +266,12 @@ const CardLayout = (() => {
     const singleRatio = options.singleRatio || state.singleRatio || "portrait";
     const singleLayout = options.singleLayout || state.singleLayout || "info-left";
     const characters = options.characters || state.characters || [];
-    const layout = options.layout || layoutFor({ characterCount, singleRatio, singleLayout, characters });
+    const composition = options.composition || state.cardComposition || state.composition || {};
+    const art = options.art || composition.art || state.art || null;
+    let layout = options.layout || null;
+    if (!layout || (art && Boolean(layout.art?.enabled) !== (art.enabled === true))) {
+      layout = layoutFor({ characterCount, singleRatio, singleLayout, characters, art });
+    }
     const planner = typeof module !== "undefined" && module.exports
       ? require("./card-composition.js")
       : globalThis.CardComposition;
@@ -80,7 +283,8 @@ const CardLayout = (() => {
       singleLayout,
       characters,
       layout,
-      composition: options.composition || state.cardComposition || state.composition || {},
+      composition,
+      art: art || layout.art || null,
       gearByCharacter: options.gearByCharacter || options.gear || state.gearByCharacter || [],
       selectedCharacter: options.selectedCharacter ?? state.selectedCharacter ?? 0,
       multiInfoEnabled: options.multiInfoEnabled ?? state.multiInfoEnabled ?? false,
