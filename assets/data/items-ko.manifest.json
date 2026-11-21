@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "sourceRevision": "66eceba69eb2398958bdb133b241a69c13672b6c",
+  "sourceRevision": "f23bc92dab1559ed779c7fbd3c422047e352665b",
   "source": {
     "id": "Ra-Workspace/ffxiv-datamining-ko",
     "branch": "master",
     "path": "csv/Item.csv",
-    "url": "https://raw.githubusercontent.com/Ra-Workspace/ffxiv-datamining-ko/66eceba69eb2398958bdb133b241a69c13672b6c/csv/Item.csv",
-    "revisionUrl": "https://github.com/Ra-Workspace/ffxiv-datamining-ko/commit/66eceba69eb2398958bdb133b241a69c13672b6c"
+    "url": "https://raw.githubusercontent.com/Ra-Workspace/ffxiv-datamining-ko/f23bc92dab1559ed779c7fbd3c422047e352665b/csv/Item.csv",
+    "revisionUrl": "https://github.com/Ra-Workspace/ffxiv-datamining-ko/commit/f23bc92dab1559ed779c7fbd3c422047e352665b"
   },
-  "generatedAt": "2026-10-22T14:34:50.917Z",
+  "generatedAt": "2026-11-21T00:26:23.989Z",
   "total": 29312,
   "slots": {
     "head": 3307,
@@ -22,13 +22,13 @@
     "bracelet": 1246,
     "ring": 1295
   },
-  "dataSha256": "e32dac897072389a5f862e96d12b2af281236c2f2d0a61bb032a77ea4ec90ac5",
+  "dataSha256": "41f94b9601c4c728fc93cb52972de939590c984d244f1537e823aa1e93787359",
   "audit": {
     "sourceRows": 52804,
-    "namedRows": 51235,
+    "namedRows": 51238,
     "indexedRecords": 29312,
     "invalidIdRows": 4,
-    "emptyNameRows": 1565,
-    "ignoredRows": 21923
+    "emptyNameRows": 1562,
+    "ignoredRows": 21926
   }
 }
